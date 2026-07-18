@@ -1,0 +1,600 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      profiles: {
+        Row: {
+          id: string;
+          full_name: string;
+          email: string;
+          target_course: string | null;
+          target_university: string | null;
+          target_score: number | null;
+          previous_score: number | null;
+          weekly_hours: number | null;
+          available_days: string | null;
+          perceived_difficulties: Json;
+          access_level: "unpaid" | "paid" | "beta" | "admin";
+          access_expires_at: string | null;
+          beta_tester: boolean;
+          onboarding_completed: boolean;
+          study_preferences: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id: string;
+          full_name?: string;
+          email: string;
+          target_course?: string | null;
+          target_university?: string | null;
+          target_score?: number | null;
+          previous_score?: number | null;
+          weekly_hours?: number | null;
+          available_days?: string | null;
+          perceived_difficulties?: Json;
+          access_level?: "unpaid" | "paid" | "beta" | "admin";
+          access_expires_at?: string | null;
+          beta_tester?: boolean;
+          onboarding_completed?: boolean;
+          study_preferences?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
+      };
+      subjects: {
+        Row: { id: string; name: string; area: string; slug: string };
+        Insert: { id?: string; name: string; area: string; slug: string };
+        Update: Partial<Database["public"]["Tables"]["subjects"]["Insert"]>;
+      };
+      topics: {
+        Row: {
+          id: string;
+          subject_id: string;
+          name: string;
+          slug: string;
+          historical_recurrence: number;
+          priority_weight: number;
+          difficulty_level: string;
+          strategic_importance: number;
+        };
+        Insert: {
+          id?: string;
+          subject_id: string;
+          name: string;
+          slug: string;
+          historical_recurrence?: number;
+          priority_weight?: number;
+          difficulty_level: string;
+          strategic_importance?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["topics"]["Insert"]>;
+      };
+      questions: {
+        Row: {
+          id: string;
+          statement: string;
+          subject_id: string;
+          topic_id: string;
+          difficulty: string;
+          year: number;
+          source: string;
+          source_url: string | null;
+          exam_name: string;
+          exam_color: string | null;
+          question_number: number | null;
+          is_demo: boolean;
+          is_official: boolean;
+          is_authorial: boolean;
+          is_inspired: boolean;
+          exam_edition: string | null;
+          exam_day: string | null;
+          discipline: string | null;
+          subtopic: string | null;
+          competence: string | null;
+          skill: string | null;
+          content_recurrence: string | null;
+          charge_pattern: string | null;
+          estimated_priority: string;
+          priority_score: number;
+          confidence_level: string | null;
+          priority_reason: string | null;
+          official_source: string | null;
+          official_exam_url: string | null;
+          official_answer_key_url: string | null;
+          priority_is_educational_estimate: boolean;
+          last_editorial_review_at: string | null;
+          editorial_reviewer: string | null;
+          reviewed: boolean;
+          review_status: string;
+          reviewed_by: string | null;
+          reviewed_at: string | null;
+          editorial_notes: string | null;
+          source_verified: boolean;
+          answer_verified: boolean;
+          media_verified: boolean;
+          media_required: boolean;
+          classification_version: string;
+          recurrence_category: string;
+          explanation: string;
+          correct_option: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          statement: string;
+          subject_id: string;
+          topic_id: string;
+          difficulty: string;
+          year: number;
+          source: string;
+          source_url?: string | null;
+          exam_name?: string;
+          exam_color?: string | null;
+          question_number?: number | null;
+          is_demo?: boolean;
+          is_official?: boolean;
+          is_authorial?: boolean;
+          is_inspired?: boolean;
+          exam_edition?: string | null;
+          exam_day?: string | null;
+          discipline?: string | null;
+          subtopic?: string | null;
+          competence?: string | null;
+          skill?: string | null;
+          content_recurrence?: string | null;
+          charge_pattern?: string | null;
+          estimated_priority?: string;
+          priority_score?: number;
+          confidence_level?: string | null;
+          priority_reason?: string | null;
+          official_source?: string | null;
+          official_exam_url?: string | null;
+          official_answer_key_url?: string | null;
+          priority_is_educational_estimate?: boolean;
+          last_editorial_review_at?: string | null;
+          editorial_reviewer?: string | null;
+          reviewed?: boolean;
+          review_status?: string;
+          reviewed_by?: string | null;
+          reviewed_at?: string | null;
+          editorial_notes?: string | null;
+          source_verified?: boolean;
+          answer_verified?: boolean;
+          media_verified?: boolean;
+          media_required?: boolean;
+          classification_version?: string;
+          recurrence_category?: string;
+          explanation: string;
+          correct_option: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["questions"]["Insert"]>;
+      };
+      question_options: {
+        Row: { id: string; question_id: string; option_key: string; option_text: string };
+        Insert: { id?: string; question_id: string; option_key: string; option_text: string };
+        Update: Partial<Database["public"]["Tables"]["question_options"]["Insert"]>;
+      };
+      question_media: {
+        Row: {
+          id: string;
+          question_id: string;
+          media_type: string;
+          url: string;
+          alt_text: string | null;
+          caption: string | null;
+          source_pdf: string | null;
+          source_page: number | null;
+          width: number | null;
+          height: number | null;
+          sort_order: number;
+          verified: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          question_id: string;
+          media_type?: string;
+          url: string;
+          alt_text?: string | null;
+          caption?: string | null;
+          source_pdf?: string | null;
+          source_page?: number | null;
+          width?: number | null;
+          height?: number | null;
+          sort_order?: number;
+          verified?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["question_media"]["Insert"]>;
+      };
+      user_question_answers: {
+        Row: {
+          id: string;
+          user_id: string;
+          question_id: string;
+          selected_option: string;
+          is_correct: boolean;
+          response_time_seconds: number;
+          answered_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          question_id: string;
+          selected_option: string;
+          is_correct: boolean;
+          response_time_seconds?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_question_answers"]["Insert"]>;
+      };
+      user_question_reviews: {
+        Row: {
+          id: string;
+          user_id: string;
+          question_id: string;
+          mastered: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: { id?: string; user_id: string; question_id: string; mastered?: boolean };
+        Update: Partial<Database["public"]["Tables"]["user_question_reviews"]["Insert"]>;
+      };
+      simulations: {
+        Row: {
+          id: string;
+          title: string;
+          description: string;
+          duration_minutes: number;
+          difficulty: string;
+          status: string;
+        };
+        Insert: {
+          id?: string;
+          title: string;
+          description: string;
+          duration_minutes: number;
+          difficulty: string;
+          status?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["simulations"]["Insert"]>;
+      };
+      simulation_questions: {
+        Row: { id: string; simulation_id: string; question_id: string; position: number };
+        Insert: { id?: string; simulation_id: string; question_id: string; position: number };
+        Update: Partial<Database["public"]["Tables"]["simulation_questions"]["Insert"]>;
+      };
+      user_simulations: {
+        Row: {
+          id: string;
+          user_id: string;
+          simulation_id: string;
+          started_at: string;
+          finished_at: string | null;
+          total_questions: number;
+          correct_answers: number;
+          score_percentage: number;
+          status: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          simulation_id: string;
+          total_questions?: number;
+          correct_answers?: number;
+          score_percentage?: number;
+          status?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_simulations"]["Insert"]> & {
+          finished_at?: string | null;
+        };
+      };
+      user_simulation_answers: {
+        Row: {
+          id: string;
+          user_simulation_id: string;
+          question_id: string;
+          selected_option: string;
+          is_correct: boolean;
+          response_time_seconds: number;
+        };
+        Insert: {
+          id?: string;
+          user_simulation_id: string;
+          question_id: string;
+          selected_option: string;
+          is_correct: boolean;
+          response_time_seconds?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_simulation_answers"]["Insert"]>;
+      };
+      study_plans: {
+        Row: {
+          id: string;
+          user_id: string;
+          week_start: string;
+          status: string;
+          created_at: string;
+        };
+        Insert: { id?: string; user_id: string; week_start: string; status?: string };
+        Update: Partial<Database["public"]["Tables"]["study_plans"]["Insert"]>;
+      };
+      study_plan_items: {
+        Row: {
+          id: string;
+          study_plan_id: string;
+          topic_id: string;
+          scheduled_date: string;
+          duration_minutes: number;
+          question_goal: number;
+          completed: boolean;
+          completed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          study_plan_id: string;
+          topic_id: string;
+          scheduled_date: string;
+          duration_minutes: number;
+          question_goal: number;
+          completed?: boolean;
+          completed_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["study_plan_items"]["Insert"]>;
+      };
+      user_topic_performance: {
+        Row: {
+          id: string;
+          user_id: string;
+          topic_id: string;
+          total_answers: number;
+          correct_answers: number;
+          accuracy_percentage: number;
+          priority_score: number;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          topic_id: string;
+          total_answers?: number;
+          correct_answers?: number;
+          accuracy_percentage?: number;
+          priority_score?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["user_topic_performance"]["Insert"]>;
+      };
+      products: {
+        Row: {
+          id: string;
+          product_name: string;
+          slug: string;
+          regular_price_cents: number;
+          sale_price_cents: number | null;
+          sale_starts_at: string | null;
+          sale_ends_at: string | null;
+          access_valid_until: string;
+          active: boolean;
+          launch_ready: boolean;
+          checkout_provider: "mercado_pago" | "stripe" | "manual";
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          product_name: string;
+          slug: string;
+          regular_price_cents: number;
+          sale_price_cents?: number | null;
+          sale_starts_at?: string | null;
+          sale_ends_at?: string | null;
+          access_valid_until: string;
+          active?: boolean;
+          launch_ready?: boolean;
+          checkout_provider?: "mercado_pago" | "stripe" | "manual";
+        };
+        Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
+      };
+      orders: {
+        Row: {
+          id: string;
+          user_id: string;
+          product_id: string;
+          amount_cents: number;
+          currency: "BRL";
+          status:
+            | "pending"
+            | "approved"
+            | "rejected"
+            | "cancelled"
+            | "refunded"
+            | "expired"
+            | "charged_back";
+          provider: "mercado_pago" | "stripe" | "manual";
+          provider_order_id: string | null;
+          checkout_url: string | null;
+          created_at: string;
+          updated_at: string;
+          paid_at: string | null;
+          expires_at: string | null;
+          metadata: Json;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          product_id: string;
+          amount_cents: number;
+          currency?: "BRL";
+          status?:
+            | "pending"
+            | "approved"
+            | "rejected"
+            | "cancelled"
+            | "refunded"
+            | "expired"
+            | "charged_back";
+          provider?: "mercado_pago" | "stripe" | "manual";
+          provider_order_id?: string | null;
+          checkout_url?: string | null;
+          paid_at?: string | null;
+          expires_at?: string | null;
+          metadata?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["orders"]["Insert"]>;
+      };
+      payment_events: {
+        Row: {
+          id: string;
+          order_id: string | null;
+          provider: "mercado_pago" | "stripe" | "manual";
+          provider_event_id: string;
+          event_type: string;
+          payload_hash: string;
+          processed: boolean;
+          processing_error: string | null;
+          created_at: string;
+          processed_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          order_id?: string | null;
+          provider: "mercado_pago" | "stripe" | "manual";
+          provider_event_id: string;
+          event_type: string;
+          payload_hash: string;
+          processed?: boolean;
+          processing_error?: string | null;
+          processed_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["payment_events"]["Insert"]>;
+      };
+      beta_applications: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          full_name: string;
+          email: string;
+          city: string;
+          school_year: string;
+          previous_score: number | null;
+          target_course: string;
+          main_difficulty: string;
+          whatsapp: string | null;
+          contact_authorized: boolean;
+          comments: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          full_name: string;
+          email: string;
+          city: string;
+          school_year: string;
+          previous_score?: number | null;
+          target_course: string;
+          main_difficulty: string;
+          whatsapp?: string | null;
+          contact_authorized?: boolean;
+          comments?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["beta_applications"]["Insert"]>;
+      };
+      beta_feedback: {
+        Row: {
+          id: string;
+          user_id: string;
+          feedback_type: "erro" | "sugestao" | "duvida" | "elogio";
+          route: string;
+          message: string;
+          message_hash: string;
+          rating: number;
+          easy_to_understand: boolean | null;
+          client_created_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          feedback_type: "erro" | "sugestao" | "duvida" | "elogio";
+          route: string;
+          message: string;
+          rating: number;
+          easy_to_understand?: boolean | null;
+          client_created_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["beta_feedback"]["Insert"]>;
+      };
+      product_events: {
+        Row: {
+          id: string;
+          user_id: string | null;
+          event_name: string;
+          route: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id?: string | null;
+          event_name: string;
+          route?: string | null;
+          metadata?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["product_events"]["Insert"]>;
+      };
+      radar_methodology_versions: {
+        Row: {
+          id: string;
+          methodology_version: string;
+          source: string;
+          analyzed_period: string | null;
+          exam_count: number;
+          question_count: number;
+          last_updated_at: string;
+          reviewed_by: string | null;
+          notes: string | null;
+          is_demo: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          methodology_version: string;
+          source: string;
+          analyzed_period?: string | null;
+          exam_count?: number;
+          question_count?: number;
+          last_updated_at?: string;
+          reviewed_by?: string | null;
+          notes?: string | null;
+          is_demo?: boolean;
+        };
+        Update: Partial<Database["public"]["Tables"]["radar_methodology_versions"]["Insert"]>;
+      };
+    };
+    Functions: {
+      grant_paid_access_for_order: {
+        Args: { target_order_id: string };
+        Returns: undefined;
+      };
+      revoke_paid_access_for_order: {
+        Args: { target_order_id: string; target_status?: string };
+        Returns: undefined;
+      };
+      has_platform_access: {
+        Args: { user_id?: string };
+        Returns: boolean;
+      };
+      has_full_access: {
+        Args: { user_id?: string };
+        Returns: boolean;
+      };
+    };
+  };
+};

@@ -1,0 +1,11 @@
+
+> nexoenem@0.1.0 dev
+> node --use-system-ca node_modules/next/dist/bin/next dev -p 3066
+
+▲ Next.js 16.2.10 (Turbopack)
+- Local:         http://localhost:3066
+- Network:       http://26.182.74.238:3066
+- Environments: .env.local
+✓ Ready in 771ms
+
+○ Compiling /dashboard/configuracoes ...

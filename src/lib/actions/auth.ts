@@ -1,0 +1,237 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import {
+  getSiteUrl,
+  getSupabasePublicKey,
+  getSupabaseUrl,
+  isSupabaseConfigured,
+} from "@/lib/supabase/config";
+import {
+  resetPasswordSchema,
+  signInSchema,
+  signUpSchema,
+  updatePasswordSchema,
+  type ResetPasswordInput,
+  type SignInInput,
+  type SignUpInput,
+  type UpdatePasswordInput,
+} from "@/lib/schemas/auth";
+import { recordProductEvent } from "@/lib/services/product-events";
+
+export type ActionResult = {
+  ok: boolean;
+  message: string;
+};
+
+function supabaseMissing(): ActionResult {
+  return {
+    ok: false,
+    message:
+      "Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para ativar autenticação real.",
+  };
+}
+
+function authErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (message === "fetch failed") {
+    return "Não foi possível conectar ao Supabase a partir do servidor. Verifique o certificado/rede local e tente novamente.";
+  }
+
+  if (message.includes("User already registered")) {
+    return "Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.";
+  }
+
+  if (message.includes("email rate limit exceeded")) {
+    return "Muitas tentativas de cadastro foram feitas em pouco tempo. Aguarde alguns minutos e tente novamente.";
+  }
+
+  if (message.includes("Invalid login credentials")) {
+    return "E-mail ou senha inválidos.";
+  }
+
+  if (message.includes("Email not confirmed")) {
+    return "Confirme seu e-mail antes de entrar.";
+  }
+
+  return message || "Não foi possível concluir a autenticação.";
+}
+
+function logAuthError(context: string, error: unknown) {
+  const cause = error instanceof Error ? error.cause : undefined;
+  const causeRecord =
+    cause && typeof cause === "object" ? (cause as Record<string, unknown>) : {};
+  const publicKey = getSupabasePublicKey();
+
+  console.error(`[NexoENEM auth] ${context}`, {
+    supabaseUrl: getSupabaseUrl(),
+    publicKeyLength: publicKey.length,
+    publicKeyHasWhitespace: /\s/.test(publicKey),
+    publicKeyHasWrappingQuotes: /^['"]|['"]$/.test(publicKey),
+    errorName: error instanceof Error ? error.name : typeof error,
+    errorMessage: error instanceof Error ? error.message : String(error),
+    errorStack: error instanceof Error ? error.stack : undefined,
+    causeName:
+      cause instanceof Error
+        ? cause.name
+        : typeof causeRecord.name === "string"
+          ? causeRecord.name
+          : undefined,
+    causeCode: causeRecord.code,
+    causeMessage:
+      cause instanceof Error
+        ? cause.message
+        : typeof causeRecord.message === "string"
+          ? causeRecord.message
+          : undefined,
+    causeStack: cause instanceof Error ? cause.stack : undefined,
+  });
+}
+
+export async function signInAction(input: SignInInput): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) {
+    return supabaseMissing();
+  }
+
+  const parsed = signInSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.signInWithPassword(parsed.data);
+
+    if (error) {
+      logAuthError("signInWithPassword returned error", error);
+      return { ok: false, message: authErrorMessage(error) };
+    }
+
+    revalidatePath("/dashboard", "layout");
+    return { ok: true, message: "Login realizado com sucesso." };
+  } catch (error) {
+    logAuthError("signInWithPassword threw", error);
+    return { ok: false, message: authErrorMessage(error) };
+  }
+}
+
+export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) {
+    return supabaseMissing();
+  }
+
+  const parsed = signUpSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.signUp({
+      email: parsed.data.email,
+      password: parsed.data.password,
+      options: {
+        data: { full_name: parsed.data.fullName },
+        emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/checkout`,
+      },
+    });
+
+    if (error) {
+      logAuthError("signUp returned error", error);
+      return { ok: false, message: authErrorMessage(error) };
+    }
+
+    if (data.user) {
+      await recordProductEvent({
+        supabase,
+        userId: data.user.id,
+        eventName: "signup_completed",
+        route: "/login",
+      });
+    }
+
+    revalidatePath("/dashboard", "layout");
+    return {
+      ok: true,
+      message:
+        "Conta criada. Se a confirmação por e-mail estiver ativa no Supabase, confirme antes de entrar.",
+    };
+  } catch (error) {
+    logAuthError("signUp threw", error);
+    return { ok: false, message: authErrorMessage(error) };
+  }
+}
+
+export async function resetPasswordAction(
+  input: ResetPasswordInput,
+): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) {
+    return supabaseMissing();
+  }
+
+  const parsed = resetPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resetPasswordForEmail(parsed.data.email, {
+      redirectTo: `${getSiteUrl()}/auth/reset-password`,
+    });
+
+    if (error) {
+      logAuthError("resetPasswordForEmail returned error", error);
+      return { ok: false, message: authErrorMessage(error) };
+    }
+
+    return {
+      ok: true,
+      message: "Enviamos as instruções de recuperação para o e-mail informado.",
+    };
+  } catch (error) {
+    logAuthError("resetPasswordForEmail threw", error);
+    return { ok: false, message: authErrorMessage(error) };
+  }
+}
+
+export async function updatePasswordAction(
+  input: UpdatePasswordInput,
+): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) {
+    return supabaseMissing();
+  }
+
+  const parsed = updatePasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.updateUser({ password: parsed.data.password });
+
+    if (error) {
+      logAuthError("updateUser password returned error", error);
+      return { ok: false, message: authErrorMessage(error) };
+    }
+
+    return { ok: true, message: "Senha atualizada com sucesso." };
+  } catch (error) {
+    logAuthError("updateUser password threw", error);
+    return { ok: false, message: authErrorMessage(error) };
+  }
+}
+
+export async function signOutAction() {
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+  }
+
+  revalidatePath("/", "layout");
+  redirect("/login");
+}
