@@ -50,7 +50,7 @@ export default function ResetPasswordPage() {
           <CardContent className="p-6 sm:p-8">
             <h1 className="text-2xl font-bold text-slate-950">Definir nova senha</h1>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Informe uma nova senha para continuar usando a NexoENEM.
+              Informe uma nova senha para continuar usando o NexoENEM.
             </p>
             <form className="mt-6 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
               <PasswordField

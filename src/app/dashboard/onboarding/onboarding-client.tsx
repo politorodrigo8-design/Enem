@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
@@ -91,12 +90,11 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
     <Card>
       <CardContent>
         <div className="mb-6">
-          <div className="mb-3 flex flex-wrap gap-2">
-            {steps.map((label, index) => (
-              <Badge key={label} tone={index === step ? "blue" : index < step ? "green" : "slate"}>
-                {index + 1}. {label}
-              </Badge>
-            ))}
+          <div className="mb-2 flex items-baseline justify-between gap-4">
+            <p className="text-sm font-semibold text-slate-950">{steps[step]}</p>
+            <p className="tnum text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Etapa {step + 1} de {steps.length}
+            </p>
           </div>
           <Progress value={progress} tone="blue" />
         </div>
@@ -175,52 +173,57 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
           ) : null}
 
           {step === 7 ? (
-            <div className="space-y-4">
+            <div>
               <Notice tone="info">
                 Use 1 para baixa dificuldade e 5 para alta dificuldade.
               </Notice>
-              {areas.map((area) => (
-                <label key={area} className="block rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-sm font-bold text-slate-900">{area}</span>
-                    <span className="text-sm font-semibold text-blue-700">
+              <div className="mt-3 divide-y divide-slate-100">
+                {areas.map((area) => (
+                  <label key={area} className="flex items-center gap-4 py-3">
+                    <span className="w-44 shrink-0 text-sm font-medium text-slate-900">
+                      {area}
+                    </span>
+                    <input
+                      type="range"
+                      min={1}
+                      max={5}
+                      aria-label={`Dificuldade em ${area}`}
+                      value={form.perceived_difficulties[area]}
+                      onChange={(event) =>
+                        setForm((current) => ({
+                          ...current,
+                          perceived_difficulties: {
+                            ...current.perceived_difficulties,
+                            [area]: Number(event.target.value),
+                          },
+                        }))
+                      }
+                      className="w-full accent-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700"
+                    />
+                    <span className="tnum w-8 shrink-0 text-right text-sm font-semibold text-blue-700">
                       {form.perceived_difficulties[area]}/5
                     </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={1}
-                    max={5}
-                    value={form.perceived_difficulties[area]}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        perceived_difficulties: {
-                          ...current.perceived_difficulties,
-                          [area]: Number(event.target.value),
-                        },
-                      }))
-                    }
-                    className="mt-4 w-full accent-blue-700"
-                  />
-                </label>
-              ))}
+                  </label>
+                ))}
+              </div>
             </div>
           ) : null}
 
           {step === 8 ? (
             <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-              <div className="rounded-lg bg-blue-700 p-6 text-white">
-                <CheckCircle2 className="h-8 w-8 text-blue-100" aria-hidden="true" />
-                <h2 className="mt-4 text-2xl font-bold">Pronto para o diagnóstico</h2>
-                <p className="mt-3 text-sm leading-6 text-blue-50">
+              <div className="rounded-lg bg-blue-50 p-6">
+                <CheckCircle2 className="h-6 w-6 text-blue-700" aria-hidden="true" />
+                <h2 className="mt-4 text-xl font-bold tracking-tight text-slate-950">
+                  Pronto para o diagnóstico
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-blue-950">
                   Suas respostas serão salvas no perfil. Depois disso, o próximo passo
                   é fazer o diagnóstico inicial para calibrar prioridades.
                 </p>
               </div>
               <Notice tone="warning">
-                As prioridades são estimativas educacionais baseadas em regras e dados
-                disponíveis. Não representam previsão exata da prova nem garantia de nota.
+                As prioridades são estimativas de estudo baseadas em critérios
+                transparentes. Não representam previsão exata da prova nem garantia de nota.
               </Notice>
             </div>
           ) : null}
@@ -261,12 +264,14 @@ function IntroStep({
 }) {
   return (
     <div className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]">
-      <div className="rounded-lg bg-slate-950 p-6 text-white">
-        <UserRound className="h-8 w-8 text-blue-200" aria-hidden="true" />
-        <h2 className="mt-4 text-3xl font-bold">Bem-vindo ao NexoENEM</h2>
-        <p className="mt-3 text-sm leading-6 text-slate-300">
-          O NexoENEM organiza seus dados de estudo sem IA e sem promessa de
-          previsão exata do ENEM.
+      <div className="rounded-lg bg-blue-50 p-6">
+        <UserRound className="h-6 w-6 text-blue-700" aria-hidden="true" />
+        <h2 className="mt-4 text-xl font-bold tracking-tight text-slate-950">
+          Bem-vindo ao NexoENEM
+        </h2>
+        <p className="mt-2 text-sm leading-6 text-blue-950">
+          O NexoENEM organiza seu estudo com critérios transparentes — sem
+          promessa de previsão exata do ENEM nem nota garantida.
         </p>
       </div>
       <SingleInputStep
@@ -298,7 +303,7 @@ function SingleInputStep({
   return (
     <label className="block max-w-2xl">
       <span className="text-sm font-semibold text-slate-700">{label}</span>
-      <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-blue-400">
+      <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 transition-colors hover:border-slate-300 focus-within:border-blue-400">
         <Icon className="h-4 w-4 text-slate-400" aria-hidden="true" />
         <input
           type={type}

@@ -64,9 +64,16 @@ export async function createMercadoPagoPreference({
     throw new Error(payload?.message ?? "Mercado Pago recusou a preferencia.");
   }
 
+  // Produção deve usar init_point. sandbox_init_point só quando explicitamente
+  // habilitado, senão o pagante é enviado para o ambiente de testes do MP.
+  const useSandbox = process.env.MERCADO_PAGO_SANDBOX === "true";
+  const checkoutUrl = useSandbox
+    ? String(payload.sandbox_init_point || payload.init_point || "")
+    : String(payload.init_point || "");
+
   return {
     providerOrderId: String(payload.id),
-    checkoutUrl: String(payload.sandbox_init_point || payload.init_point || ""),
+    checkoutUrl,
   };
 }
 

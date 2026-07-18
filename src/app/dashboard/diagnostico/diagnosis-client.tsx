@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Calendar,
+  Check,
   CheckCircle2,
   ClipboardCheck,
   GraduationCap,
@@ -12,9 +13,8 @@ import {
 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { saveDiagnosisAction } from "@/lib/actions/learning";
@@ -72,18 +72,44 @@ export function DiagnosisClient({ profile }: { profile: Profile | null }) {
 
   return (
     <Card>
-      <CardContent>
-        <div className="mb-6">
-          <div className="mb-3 flex flex-wrap items-center gap-2">
-            {steps.map((label, index) => (
-              <Badge
-                key={label}
-                tone={index === step ? "blue" : index < step ? "green" : "slate"}
-              >
-                {index + 1}. {label}
-              </Badge>
-            ))}
-          </div>
+      <CardContent className="p-6">
+        <div className="mb-6 border-b border-slate-100 pb-5">
+          <ol className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+            {steps.map((label, index) => {
+              const done = index < step || (index === step && completed);
+              const current = index === step && !done;
+              return (
+                <li key={label} className="flex items-center gap-2">
+                  <span
+                    className={`tnum flex h-6 w-6 items-center justify-center rounded-md text-xs font-bold ${
+                      done
+                        ? "bg-emerald-50 text-emerald-700"
+                        : current
+                          ? "bg-blue-700 text-white"
+                          : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {done ? (
+                      <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                    ) : (
+                      index + 1
+                    )}
+                  </span>
+                  <span
+                    className={`text-sm font-semibold ${
+                      current
+                        ? "text-slate-950"
+                        : done
+                          ? "text-slate-700"
+                          : "text-slate-400"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
           <Progress value={progress} tone="blue" />
         </div>
 
@@ -156,40 +182,41 @@ export function DiagnosisClient({ profile }: { profile: Profile | null }) {
             ) : null}
 
             {step === 2 ? (
-              <div className="grid gap-4">
+              <div className="space-y-4">
                 <Notice tone="info">
-                  Use 1 para baixa dificuldade e 5 para alta dificuldade. O
-                  resultado recalcula `priority_score` sem IA.
+                  Use 1 para baixa dificuldade e 5 para alta dificuldade. Sua
+                  resposta recalcula a prioridade de cada tópico no Radar.
                 </Notice>
-                {areas.map((area) => (
-                  <label
-                    key={area}
-                    className="rounded-lg border border-slate-200 bg-slate-50 p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <span className="text-sm font-bold text-slate-900">{area}</span>
-                      <span className="text-sm font-semibold text-blue-700">
-                        {form.perceived_difficulties[area]}/5
-                      </span>
-                    </div>
-                    <input
-                      type="range"
-                      min={1}
-                      max={5}
-                      value={form.perceived_difficulties[area]}
-                      onChange={(event) =>
-                        setForm((current) => ({
-                          ...current,
-                          perceived_difficulties: {
-                            ...current.perceived_difficulties,
-                            [area]: Number(event.target.value),
-                          },
-                        }))
-                      }
-                      className="mt-4 w-full accent-blue-700"
-                    />
-                  </label>
-                ))}
+                <div className="divide-y divide-slate-100">
+                  {areas.map((area) => (
+                    <label key={area} className="block py-3.5 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <span className="text-sm font-semibold text-slate-900">
+                          {area}
+                        </span>
+                        <span className="tnum text-sm font-semibold text-blue-700">
+                          {form.perceived_difficulties[area]}/5
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={1}
+                        max={5}
+                        value={form.perceived_difficulties[area]}
+                        onChange={(event) =>
+                          setForm((current) => ({
+                            ...current,
+                            perceived_difficulties: {
+                              ...current.perceived_difficulties,
+                              [area]: Number(event.target.value),
+                            },
+                          }))
+                        }
+                        className="mt-3 w-full accent-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700"
+                      />
+                    </label>
+                  ))}
+                </div>
               </div>
             ) : null}
 
@@ -236,14 +263,16 @@ function InputField({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
-      <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-blue-400">
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
+      <div className="mt-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 transition-colors focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300">
         <Icon className="h-4 w-4 text-slate-400" aria-hidden="true" />
         <input
           type={type}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          className="h-11 w-full bg-transparent text-sm text-slate-950 outline-none"
+          className="h-10 w-full bg-transparent text-sm text-slate-950 outline-none"
         />
       </div>
     </label>
@@ -251,39 +280,47 @@ function InputField({
 }
 
 function DiagnosisResult() {
+  const nextSteps: Array<[string, string]> = [
+    ["Dados salvos", "Perfil, rotina e autopercepção foram registrados."],
+    ["Radar atualizado", "Os tópicos ganharam prioridade personalizada."],
+    ["Plano pronto", "Gere uma semana com base nos tópicos prioritários."],
+    ["Próximo passo", "Responda questões para calibrar sua taxa de erro real."],
+  ];
+
   return (
     <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
       <div>
-        <div className="rounded-lg bg-blue-700 p-6 text-white">
-          <p className="text-sm font-semibold text-blue-100">Resultado salvo</p>
-          <h2 className="mt-3 text-3xl font-bold">Prioridades recalculadas</h2>
-          <p className="mt-3 text-sm leading-6 text-blue-50">
-            A análise combina recorrência, erro do aluno, dificuldade e
-            importância estratégica. Nenhuma IA ou TRI real foi usada.
+        <div className="rounded-lg bg-blue-50 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+            Diagnóstico salvo
+          </p>
+          <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+            Prioridades recalculadas
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-blue-950">
+            A análise combina recorrência dos temas na prova, seus erros,
+            dificuldade percebida e importância estratégica de cada tópico.
           </p>
         </div>
         <Notice tone="warning" className="mt-4">
-          A estimativa é educacional e demonstrativa. Ela não promete nota
-          garantida nem prevê questões exatas.
+          A estimativa é um guia de estudo. Ela não promete nota garantida nem
+          prevê questões exatas.
         </Notice>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
-        {[
-          ["Dados salvos", "Perfil, rotina e autopercepção foram persistidos."],
-          ["Radar atualizado", "Tópicos ganharam score personalizado."],
-          ["Plano pronto", "Gere uma semana com base nos tópicos prioritários."],
-          ["Próximo passo", "Responder questões para calibrar taxa de erro real."],
-        ].map(([title, description]) => (
-          <Card key={title}>
-            <CardHeader>
-              <CardTitle>{title}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm leading-6 text-slate-600">{description}</p>
-            </CardContent>
-          </Card>
+      <ul className="divide-y divide-slate-100">
+        {nextSteps.map(([title, description]) => (
+          <li key={title} className="flex gap-3 py-3 first:pt-0 last:pb-0">
+            <CheckCircle2
+              className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600"
+              aria-hidden="true"
+            />
+            <div>
+              <p className="text-sm font-semibold text-slate-950">{title}</p>
+              <p className="mt-0.5 text-sm leading-6 text-slate-600">{description}</p>
+            </div>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

@@ -3,11 +3,14 @@
 import { Filter, Search, ShieldCheck } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord } from "@/lib/db/types";
+
+const selectClasses =
+  "mt-1.5 h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700";
 
 export function RecurrenceQuestionsClient({
   questions,
@@ -105,14 +108,32 @@ export function RecurrenceQuestionsClient({
       question.priority_reason,
   );
 
+  function clearFilters() {
+    setArea("Todas");
+    setDiscipline("Todas");
+    setTopic("Todos");
+    setSubtopic("Todos");
+    setYear("Todos");
+    setPriority("Todas");
+    setCompetence("Todas");
+    setSkill("Todas");
+    setDifficulty("Todas");
+    setOfficialOnly("Todas");
+    setRecurrence("Todas");
+    setChargePattern("Todos");
+    setReviewDate("Todas");
+  }
+
   return (
     <div>
-      <div className="mb-5">
-        <p className="text-sm font-semibold text-blue-700">Treino e recorrência</p>
-        <h2 className="mt-1 text-2xl font-bold text-slate-950">
+      <div className="mb-5 border-b border-slate-200 pb-5">
+        <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+          Treino e recorrência
+        </p>
+        <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">
           Questões com maior potencial de recorrência
         </h2>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+        <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
           A seleção usa critérios objetivos e reproduzíveis. Ela não afirma que uma
           questão específica vai se repetir no ENEM.
         </p>
@@ -123,77 +144,94 @@ export function RecurrenceQuestionsClient({
         de cobrança. Não representam previsão exata do conteúdo da prova.
       </Notice>
 
-      <Card className="mb-6">
-        <CardContent>
-          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
-            <Filter className="h-4 w-4 text-blue-700" aria-hidden="true" />
-            Filtros editoriais
+      <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+            <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
+            Filtros
+            <span className="tnum text-xs font-semibold text-slate-500">
+              {visible.length} de {questions.length} questões
+            </span>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <Select label="Área" value={area} options={options.areas} onChange={setArea} />
-            <Select label="Disciplina" value={discipline} options={options.disciplines} onChange={setDiscipline} />
-            <Select label="Assunto" value={topic} options={options.topics} onChange={setTopic} />
-            <Select label="Subtópico" value={subtopic} options={options.subtopics} onChange={setSubtopic} />
-            <Select label="Ano" value={year} options={options.years} onChange={setYear} />
-            <Select label="Prioridade" value={priority} options={options.priorities} onChange={setPriority} />
-            <Select label="Competência" value={competence} options={options.competences} onChange={setCompetence} />
-            <Select label="Habilidade" value={skill} options={options.skills} onChange={setSkill} />
-            <Select label="Dificuldade" value={difficulty} options={["Todas", "Baixa", "Média", "Alta"]} onChange={setDifficulty} />
-            <Select label="Oficial" value={officialOnly} options={["Todas", "Oficiais", "Não oficiais"]} onChange={setOfficialOnly} />
-            <Select label="Recorrência" value={recurrence} options={options.recurrences} onChange={setRecurrence} />
-            <Select label="Padrão" value={chargePattern} options={options.chargePatterns} onChange={setChargePattern} />
-            <Select label="Revisão editorial" value={reviewDate} options={options.reviewDates} onChange={setReviewDate} />
-          </div>
-        </CardContent>
-      </Card>
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="rounded-lg px-2 py-1 text-xs font-semibold text-blue-700 transition-colors hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          >
+            Limpar filtros
+          </button>
+        </div>
+        <div className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <Select label="Área" value={area} options={options.areas} onChange={setArea} />
+          <Select label="Disciplina" value={discipline} options={options.disciplines} onChange={setDiscipline} />
+          <Select label="Assunto" value={topic} options={options.topics} onChange={setTopic} />
+          <Select label="Subtópico" value={subtopic} options={options.subtopics} onChange={setSubtopic} />
+          <Select label="Ano" value={year} options={options.years} onChange={setYear} />
+          <Select label="Prioridade" value={priority} options={options.priorities} onChange={setPriority} />
+          <Select label="Competência" value={competence} options={options.competences} onChange={setCompetence} />
+          <Select label="Habilidade" value={skill} options={options.skills} onChange={setSkill} />
+          <Select label="Dificuldade" value={difficulty} options={["Todas", "Baixa", "Média", "Alta"]} onChange={setDifficulty} />
+          <Select label="Oficial" value={officialOnly} options={["Todas", "Oficiais", "Não oficiais"]} onChange={setOfficialOnly} />
+          <Select label="Recorrência" value={recurrence} options={options.recurrences} onChange={setRecurrence} />
+          <Select label="Padrão" value={chargePattern} options={options.chargePatterns} onChange={setChargePattern} />
+          <Select label="Revisão editorial" value={reviewDate} options={options.reviewDates} onChange={setReviewDate} />
+        </div>
+      </div>
 
       {!visible.length ? (
         <EmptyState
           icon={Search}
           title="Nenhuma questão pronta para esta seção"
-          description="Questões oficiais antigas só aparecerão como alta prioridade depois de fonte, gabarito e classificação editorial serem verificados."
+          description="Questões oficiais antigas só aparecem como alta prioridade depois de fonte, gabarito e classificação editorial serem verificados. Você também pode limpar os filtros."
+          action={
+            <Button type="button" variant="outline" onClick={clearFilters}>
+              Limpar filtros
+            </Button>
+          }
         />
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid gap-4 lg:grid-cols-2">
           {visible.map((question) => {
             const isReviewedHigh = reviewedHighPriority.some((item) => item.id === question.id);
             return (
-              <Card key={question.id}>
-                <CardHeader>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <CardTitle>{question.topics.name}</CardTitle>
-                    <Badge tone={question.is_demo ? "amber" : isReviewedHigh ? "green" : "slate"}>
-                      {question.is_demo ? "Dado demonstrativo" : question.recurrence_category}
-                    </Badge>
+              <article
+                key={question.id}
+                className="flex flex-col rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <h3 className="text-base font-semibold text-slate-950">
+                      {question.topics.name}
+                    </h3>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      {question.subjects.area} • {question.subjects.name} • {question.year}
+                    </p>
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge tone="blue">{question.subjects.area}</Badge>
-                    <Badge tone="violet">{question.subjects.name}</Badge>
-                    <Badge tone="slate">{question.difficulty}</Badge>
-                    {question.is_official ? <Badge tone="green">Oficial</Badge> : null}
-                  </div>
-                  <p className="mt-4 line-clamp-4 text-sm leading-6 text-slate-700">
-                    {question.statement}
+                  <Badge tone={question.is_demo ? "amber" : isReviewedHigh ? "green" : "slate"}>
+                    {question.is_demo ? "Questão de exemplo" : question.recurrence_category}
+                  </Badge>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge tone="slate">{question.difficulty}</Badge>
+                  {question.is_official ? <Badge tone="green">Oficial</Badge> : null}
+                </div>
+                <p className="mt-3 line-clamp-4 text-sm leading-6 text-slate-700">
+                  {question.statement}
+                </p>
+                <div className="mt-4 flex gap-2.5 border-t border-slate-100 pt-4">
+                  <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
+                  <p className="text-xs leading-5 text-slate-600">
+                    {question.priority_reason ||
+                      "Esta é uma questão de exemplo, criada para treino. Ela ainda não passou pela priorização editorial das questões oficiais."}
                   </p>
-                  <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                    <div className="flex gap-3">
-                      <ShieldCheck className="mt-0.5 h-5 w-5 text-blue-700" aria-hidden="true" />
-                      <p className="text-sm leading-6 text-slate-700">
-                        {question.priority_reason ||
-                          "Esta questão é demonstrativa/autoral. Ela aparece aqui apenas para validar o fluxo de filtros e treino, sem prioridade editorial oficial."}
-                      </p>
-                    </div>
-                  </div>
-                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <Detail label="Fonte" value={question.source} />
-                    <Detail label="Competência" value={question.competence || "Não informada"} />
-                    <Detail label="Habilidade" value={question.skill || "Não informada"} />
-                    <Detail label="Revisão" value={question.review_status} />
-                  </dl>
-                </CardContent>
-              </Card>
+                </div>
+                <dl className="mt-4 grid gap-x-4 gap-y-2.5 border-t border-slate-100 pt-4 sm:grid-cols-2">
+                  <Detail label="Fonte" value={question.source} />
+                  <Detail label="Competência" value={question.competence || "Não informada"} />
+                  <Detail label="Habilidade" value={question.skill || "Não informada"} />
+                  <Detail label="Revisão" value={question.review_status} />
+                </dl>
+              </article>
             );
           })}
         </div>
@@ -215,11 +253,13 @@ function Select({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-400"
+        className={selectClasses}
       >
         {options.map((option) => (
           <option key={option}>{option}</option>
@@ -231,9 +271,11 @@ function Select({
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold leading-6 text-slate-800">{value}</dd>
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="truncate text-right text-xs font-semibold text-slate-800">{value}</dd>
     </div>
   );
 }

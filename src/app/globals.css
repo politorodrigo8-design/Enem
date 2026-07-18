@@ -1,15 +1,19 @@
 @import "tailwindcss";
 
+/* Tokens da direção "caderno de prova" — ver DESIGN.md antes de alterar. */
 :root {
   --background: #ffffff;
+  --paper: #fcfcfa;
   --foreground: #0f172a;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-paper: var(--paper);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-display);
 }
 
 body {
@@ -34,4 +38,19 @@ input,
 select,
 textarea {
   letter-spacing: 0;
+}
+
+/* Estatísticas e notas sempre alinhadas em coluna. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Marca-texto: o destaque da identidade "caderno de prova".
+   Usar em no máximo uma expressão por seção. */
+.highlight {
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  padding-inline: 0.15em;
+  border-radius: 0.2em;
+  background: rgb(253 230 138 / 0.75); /* amber-200 */
 }

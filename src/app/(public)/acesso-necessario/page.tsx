@@ -6,11 +6,11 @@ import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/
 
 const benefits = [
   "Radar ENEM",
-  "Banco de questoes",
-  "Diagnostico personalizado",
+  "Banco de questões",
+  "Diagnóstico personalizado",
   "Simulados",
   "Plano semanal",
-  "Revisao de erros",
+  "Revisão de erros",
 ];
 
 export default async function AccessRequiredPage() {
@@ -23,12 +23,12 @@ export default async function AccessRequiredPage() {
         <Card>
           <CardContent className="p-8 sm:p-10">
             <p className="text-sm font-semibold text-blue-700">Conta criada</p>
-            <h1 className="mt-3 text-3xl font-bold text-slate-950">
-              O acesso ao dashboard exige compra aprovada.
+            <h1 className="mt-3 text-3xl font-display font-semibold tracking-tight text-slate-950">
+              Falta um passo: concluir a compra.
             </h1>
             <p className="mt-4 text-base leading-7 text-slate-600">
               O NexoENEM Completo custa {formatCurrency(price)} em pagamento
-              unico, sem mensalidade e sem renovacao automatica.
+              único, sem mensalidade e sem renovação automática.
             </p>
 
             <div className="mt-8 grid gap-3 sm:grid-cols-2">

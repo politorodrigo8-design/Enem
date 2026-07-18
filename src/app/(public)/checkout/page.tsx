@@ -20,15 +20,15 @@ import { CheckoutButton } from "./checkout-button";
 
 const included = [
   "Radar ENEM",
-  "Banco de questoes",
-  "Questoes antigas priorizadas quando revisadas",
+  "Banco de questões",
+  "Questões antigas priorizadas quando revisadas",
   "Treino de alta prioridade",
-  "Diagnostico personalizado",
+  "Diagnóstico personalizado",
   "Simulados",
   "Plano semanal",
   "Painel de desempenho",
-  "Revisao de erros",
-  "Atualizacoes ate a prova",
+  "Revisão de erros",
+  "Atualizações até a prova",
 ];
 
 export default async function CheckoutPage() {
@@ -56,25 +56,25 @@ export default async function CheckoutPage() {
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_420px] lg:px-8">
         <section>
           <Badge tone="blue" className="mb-5">
-            Pagamento unico
+            Pagamento único
           </Badge>
-          <h1 className="text-4xl font-bold leading-tight text-slate-950 md:text-5xl">
+          <h1 className="text-4xl font-display font-semibold tracking-tight leading-tight text-slate-950 md:text-5xl">
             {product.product_name}
           </h1>
           <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
-            A conta foi criada. Para entrar na plataforma, conclua a compra ou
-            aguarde uma liberacao administrativa.
+            Sua conta foi criada. Para entrar na plataforma, falta apenas
+            concluir a compra.
           </p>
 
           <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            <Info icon={CreditCard} title="Sem mensalidade" text="Cobranca unica, sem renovacao automatica." />
-            <Info icon={CalendarClock} title="Acesso ate 2026" text="Validade conforme data do produto ativo." />
-            <Info icon={ShieldCheck} title="Servidor valida" text="Preco e acesso nao sao definidos no cliente." />
+            <Info icon={CreditCard} title="Sem mensalidade" text="Cobrança única, sem renovação automática." />
+            <Info icon={CalendarClock} title="Acesso até 2026" text="Validade até a data do ENEM 2026." />
+            <Info icon={ShieldCheck} title="Compra protegida" text="Pagamento processado em ambiente seguro, com confirmação automática." />
           </div>
 
           <Card className="mt-8">
             <CardHeader>
-              <CardTitle>Incluido no acesso completo</CardTitle>
+              <CardTitle>Incluído no acesso completo</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -90,11 +90,13 @@ export default async function CheckoutPage() {
             </CardContent>
           </Card>
 
-          <Notice tone="warning" className="mt-6">
-            Enquanto `launch_ready` estiver falso, o checkout real permanece
-            desativado para evitar cobranca antes de conteudo, gateway, termos e
-            testes estarem prontos.
-          </Notice>
+          {!product.launch_ready ? (
+            <Notice tone="warning" className="mt-6">
+              As vendas ainda não foram abertas. Nenhuma cobrança é feita antes
+              do lançamento oficial — enquanto isso, você pode entrar na lista
+              de espera.
+            </Notice>
+          ) : null}
         </section>
 
         <aside>
@@ -104,10 +106,10 @@ export default async function CheckoutPage() {
                 <p className="text-sm font-semibold text-blue-200">{product.product_name}</p>
                 <p className="mt-3 text-5xl font-bold">{formatCurrency(price)}</p>
                 <p className="mt-3 text-sm leading-6 text-slate-300">
-                  Pagamento unico. Sem mensalidade.
+                  Pagamento único. Sem mensalidade.
                 </p>
                 <p className="mt-1 text-sm leading-6 text-slate-300">
-                  Acesso completo ate o ENEM 2026.
+                  Acesso completo até o ENEM 2026.
                 </p>
               </div>
 
@@ -120,13 +122,13 @@ export default async function CheckoutPage() {
                   {new Date(product.access_valid_until).toLocaleDateString("pt-BR")}
                 </p>
                 <p>
-                  Ao pagar, voce confirma que leu os{" "}
+                  Ao pagar, você confirma que leu os{" "}
                   <Link className="font-semibold text-blue-700" href="/termos">
                     termos
                   </Link>{" "}
                   e a{" "}
                   <Link className="font-semibold text-blue-700" href="/privacidade">
-                    politica de privacidade
+                    política de privacidade
                   </Link>
                   .
                 </p>
@@ -139,7 +141,7 @@ export default async function CheckoutPage() {
               <div className="mt-5 grid gap-2">
                 <Link href="/reembolso" className={buttonClasses({ variant: "outline", size: "md", full: true })}>
                   <FileText className="h-4 w-4" aria-hidden="true" />
-                  Politica de reembolso
+                  Política de reembolso
                 </Link>
               </div>
             </CardContent>

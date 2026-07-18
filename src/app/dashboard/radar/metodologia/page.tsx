@@ -12,7 +12,7 @@ const rules = [
   "Prioridades são estimativas educacionais.",
   "Desempenho pessoal influencia a recomendação.",
   "O NexoENEM não possui vínculo oficial com MEC ou Inep.",
-  "Dados demonstrativos devem aparecer identificados.",
+  "Questões e dados de exemplo aparecem sempre identificados.",
   "Nenhuma nota específica é garantida.",
   "Questões prioritárias podem não ter conteúdo semelhante na prova seguinte.",
   "A metodologia pode ser atualizada com novos dados.",
@@ -34,7 +34,7 @@ export default async function RadarMethodologyPage() {
     <div>
       <DashboardPageHeader
         title="Metodologia do Radar"
-        description="Critérios usados para organizar recorrência, prioridade e treino sem previsão exata, IA ou TRI real."
+        description="Critérios transparentes usados para organizar recorrência, prioridade e treino — sem promessa de previsão exata."
         action={
           <Link href="/dashboard/radar" className={buttonClasses({ variant: "outline" })}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
@@ -53,13 +53,15 @@ export default async function RadarMethodologyPage() {
           <CardHeader>
             <CardTitle>O que o Radar não faz</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            {rules.map((rule) => (
-              <div key={rule} className="flex gap-3">
-                <div className="mt-2 h-2 w-2 rounded-md bg-blue-700" />
-                <p className="text-sm leading-6 text-slate-700">{rule}</p>
-              </div>
-            ))}
+          <CardContent className="pt-4">
+            <ul className="divide-y divide-slate-100">
+              {rules.map((rule) => (
+                <li key={rule} className="flex gap-3 py-2.5">
+                  <div className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-slate-400" />
+                  <p className="text-sm leading-6 text-slate-700">{rule}</p>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
 
@@ -73,16 +75,16 @@ export default async function RadarMethodologyPage() {
               documentados. O cálculo é uma regra operacional para ordenar estudos,
               não uma ciência exata.
             </p>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              {weights.map(([label, key]) => (
-                <div key={key} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <Badge tone="blue">{key}</Badge>
-                  <p className="mt-3 text-sm font-semibold leading-6 text-slate-800">
-                    {label}
-                  </p>
-                </div>
+            <ol className="mt-4 divide-y divide-slate-100">
+              {weights.map(([label, key], index) => (
+                <li key={key} className="flex items-center gap-3 py-2.5">
+                  <span className="tnum flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-50 text-xs font-semibold text-blue-700">
+                    {index + 1}
+                  </span>
+                  <p className="text-sm font-medium leading-6 text-slate-800">{label}</p>
+                </li>
               ))}
-            </div>
+            </ol>
           </CardContent>
         </Card>
       </section>
@@ -92,34 +94,36 @@ export default async function RadarMethodologyPage() {
           <CardHeader>
             <CardTitle>Versões cadastradas</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent className="pt-4">
             {versions.length ? (
-              versions.map((version) => (
-                <div key={version.id} className="rounded-lg border border-slate-200 p-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Badge tone={version.is_demo ? "amber" : "green"}>
-                      {version.is_demo ? "Dado demonstrativo" : "Revisado"}
-                    </Badge>
-                    <p className="text-sm font-bold text-slate-950">
-                      {version.methodology_version}
-                    </p>
+              <div className="divide-y divide-slate-100">
+                {versions.map((version) => (
+                  <div key={version.id} className="py-4 first:pt-0 last:pb-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-bold text-slate-950">
+                        {version.methodology_version}
+                      </p>
+                      <Badge tone={version.is_demo ? "amber" : "green"}>
+                        {version.is_demo ? "Versão de exemplo" : "Revisada"}
+                      </Badge>
+                    </div>
+                    <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
+                      <Detail label="Fonte" value={version.source} />
+                      <Detail label="Período" value={version.analyzed_period || "Não informado"} />
+                      <Detail label="Provas" value={String(version.exam_count)} />
+                      <Detail label="Questões" value={String(version.question_count)} />
+                      <Detail
+                        label="Atualização"
+                        value={new Date(version.last_updated_at).toLocaleDateString("pt-BR")}
+                      />
+                      <Detail label="Responsável" value={version.reviewed_by || "Não informado"} />
+                    </dl>
+                    {version.notes ? (
+                      <p className="mt-3 text-sm leading-6 text-slate-600">{version.notes}</p>
+                    ) : null}
                   </div>
-                  <dl className="mt-4 grid gap-3 sm:grid-cols-2">
-                    <Detail label="Fonte" value={version.source} />
-                    <Detail label="Período" value={version.analyzed_period || "Não informado"} />
-                    <Detail label="Provas" value={String(version.exam_count)} />
-                    <Detail label="Questões" value={String(version.question_count)} />
-                    <Detail
-                      label="Atualização"
-                      value={new Date(version.last_updated_at).toLocaleDateString("pt-BR")}
-                    />
-                    <Detail label="Responsável" value={version.reviewed_by || "Não informado"} />
-                  </dl>
-                  {version.notes ? (
-                    <p className="mt-4 text-sm leading-6 text-slate-600">{version.notes}</p>
-                  ) : null}
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
               <p className="text-sm leading-6 text-slate-500">
                 Nenhuma versão metodológica revisada foi cadastrada ainda.
@@ -134,7 +138,7 @@ export default async function RadarMethodologyPage() {
           </CardHeader>
           <CardContent>
             <div className="flex gap-3">
-              <FileText className="mt-0.5 h-5 w-5 text-violet-600" aria-hidden="true" />
+              <FileText className="mt-0.5 h-5 w-5 text-blue-700" aria-hidden="true" />
               <p className="text-sm leading-6 text-slate-700">
                 Antes de reproduzir uma questão oficial antiga, a plataforma deve verificar
                 fonte do Inep, atribuição, integridade do enunciado, imagens, gabarito,
@@ -146,9 +150,9 @@ export default async function RadarMethodologyPage() {
             <div className="mt-5 flex gap-3">
               <Database className="mt-0.5 h-5 w-5 text-blue-700" aria-hidden="true" />
               <p className="text-sm leading-6 text-slate-700">
-                Questões não revisadas não podem aparecer como alta prioridade. A migration
-                exige fonte verificada, gabarito verificado, revisão aprovada, justificativa
-                e nível de confiança para categorias altas.
+                Questões não revisadas não aparecem como alta prioridade. Para as
+                categorias altas, exigimos fonte verificada, gabarito conferido,
+                revisão aprovada, justificativa e nível de confiança registrado.
               </p>
             </div>
           </CardContent>
@@ -160,9 +164,13 @@ export default async function RadarMethodologyPage() {
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <dt className="text-xs font-semibold uppercase text-slate-500">{label}</dt>
-      <dd className="mt-1 text-sm font-semibold leading-6 text-slate-800">{value}</dd>
+    <div className="flex items-baseline justify-between gap-3">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="tnum truncate text-right text-xs font-semibold text-slate-800">
+        {value}
+      </dd>
     </div>
   );
 }

@@ -54,11 +54,14 @@ export function QuestionBankClient({
     questionId: string;
     isCorrect: boolean;
     explanation: string;
+    correctOption: string;
   } | null>(null);
   const [answerState, setAnswerState] = useState(() =>
     Object.fromEntries(
       questions.flatMap((question) => {
         const answer = latestAnswer(question);
+        // O gabarito e a resolução não vêm mais no payload; para respostas já
+        // persistidas eles só reaparecem se o aluno responder de novo.
         return answer
           ? [
               [
@@ -66,7 +69,8 @@ export function QuestionBankClient({
                 {
                   selectedOption: answer.selected_option,
                   isCorrect: answer.is_correct,
-                  explanation: question.explanation,
+                  explanation: "",
+                  correctOption: "",
                 },
               ],
             ]
@@ -138,8 +142,10 @@ export function QuestionBankClient({
             questionId: question.id,
             isCorrect: persistedResult.isCorrect,
             explanation: persistedResult.explanation,
+            correctOption: persistedResult.correctOption,
           }
         : null;
+  const knownCorrectOption = Boolean(currentResult?.correctOption);
   const displayedSelected =
     selected || (question ? answerState[question.id]?.selectedOption ?? "" : "");
   const accessBlocked = !access.hasPlatformAccess;
@@ -169,16 +175,29 @@ export function QuestionBankClient({
           [question.id]: {
             selectedOption: selected,
             isCorrect: Boolean(response.isCorrect),
-            explanation: response.explanation ?? question.explanation,
+            explanation: response.explanation ?? "",
+            correctOption: response.correctOption ?? "",
           },
         }));
         setResult({
           questionId: question.id,
           isCorrect: Boolean(response.isCorrect),
-          explanation: response.explanation ?? question.explanation,
+          explanation: response.explanation ?? "",
+          correctOption: response.correctOption ?? "",
         });
       }
     });
+  }
+
+  function resetFilters() {
+    setArea("Todas");
+    setDiscipline("Todas");
+    setTopic("Todos");
+    setDifficulty("Todas");
+    setYear("Todos");
+    setStatus("Todas");
+    setSearch("");
+    move(0);
   }
 
   function addReview() {
@@ -200,11 +219,11 @@ export function QuestionBankClient({
     <>
       <Card className="mb-6">
         <CardContent>
-          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
-            <Filter className="h-4 w-4 text-blue-700" aria-hidden="true" />
+          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-950">
+            <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
             Filtros
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Select label="Área" value={area} options={areas} onChange={(value) => { setArea(value); move(0); }} />
             <Select label="Disciplina" value={discipline} options={disciplines} onChange={(value) => { setDiscipline(value); move(0); }} />
             <Select label="Tópico" value={topic} options={topics} onChange={(value) => { setTopic(value); move(0); }} />
@@ -212,8 +231,10 @@ export function QuestionBankClient({
             <Select label="Ano" value={year} options={years} onChange={(value) => { setYear(value); move(0); }} />
             <Select label="Status" value={status} options={["Todas", "Respondida", "Não respondida", "Favoritas"]} onChange={(value) => { setStatus(value); move(0); }} />
             <label className="block md:col-span-2">
-              <span className="text-sm font-semibold text-slate-700">Busca</span>
-              <div className="mt-2 flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-blue-400">
+              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                Busca
+              </span>
+              <div className="mt-1.5 flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 transition-colors focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300">
                 <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
                 <input
                   value={search}
@@ -234,7 +255,12 @@ export function QuestionBankClient({
         <EmptyState
           icon={Search}
           title="Nenhuma questão encontrada"
-          description="Ajuste os filtros para continuar treinando."
+          description="Nenhuma questão corresponde aos filtros escolhidos. Limpe os filtros para voltar a ver todas as questões."
+          action={
+            <Button variant="outline" onClick={resetFilters}>
+              Limpar filtros
+            </Button>
+          }
         />
       ) : (
         <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
@@ -249,7 +275,7 @@ export function QuestionBankClient({
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge tone="blue">{question.subjects.area}</Badge>
-                  <Badge tone="violet">{question.topics.name}</Badge>
+                  <Badge tone="blue">{question.topics.name}</Badge>
                   <Badge tone="slate">{question.difficulty}</Badge>
                 </div>
               </div>
@@ -268,7 +294,7 @@ export function QuestionBankClient({
                       >
                         <Image
                           src={media.url}
-                          alt={media.alt_text || "Midia da questao"}
+                          alt={media.alt_text || "Mídia da questão"}
                           width={media.width ?? 1000}
                           height={media.height ?? 600}
                           unoptimized
@@ -280,7 +306,7 @@ export function QuestionBankClient({
                             <span>
                               {" "}
                               Fonte: {media.source_pdf || "PDF original"}
-                              {media.source_page ? `, pagina ${media.source_page}` : ""}.
+                              {media.source_page ? `, página ${media.source_page}` : ""}.
                             </span>
                           ) : null}
                         </figcaption>
@@ -302,9 +328,9 @@ export function QuestionBankClient({
                 <div className="mt-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
                   <ImageIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
                   <p>
-                    Esta questao depende de midia, mas nenhuma imagem verificada
-                    esta associada no banco. Ela deve permanecer fora da
-                    importacao aprovada ate a revisao editorial concluir a midia.
+                    Esta questão depende de uma imagem que ainda está em revisão
+                    editorial. Assim que a mídia for verificada, ela aparecerá
+                    aqui completa.
                   </p>
                 </div>
               ) : null}
@@ -315,22 +341,24 @@ export function QuestionBankClient({
                   .map((option) => {
                     const isSelected = displayedSelected === option.option_key;
                     const isCorrect =
-                      currentResult && question.correct_option === option.option_key;
+                      currentResult && knownCorrectOption &&
+                      currentResult.correctOption === option.option_key;
                     const isWrong =
-                      currentResult && isSelected && question.correct_option !== option.option_key;
+                      currentResult && knownCorrectOption && isSelected &&
+                      currentResult.correctOption !== option.option_key;
 
                     return (
                       <button
                         key={option.id}
                         type="button"
                         onClick={() => !currentResult && setSelected(option.option_key)}
-                        className={`flex w-full items-start gap-3 rounded-lg border p-4 text-left transition ${
+                        className={`flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
                           isCorrect
                             ? "border-emerald-300 bg-emerald-50"
                             : isWrong
                               ? "border-rose-300 bg-rose-50"
                               : isSelected
-                                ? "border-blue-300 bg-blue-50"
+                                ? "border-blue-300 bg-blue-50 text-blue-900"
                                 : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50"
                         }`}
                       >
@@ -406,23 +434,30 @@ export function QuestionBankClient({
             </CardContent>
           </Card>
 
-          <aside className="space-y-6">
+          <aside>
             <Card>
               <CardHeader>
                 <CardTitle>Detalhes</CardTitle>
               </CardHeader>
-              <CardContent className="space-y-4">
-                <Detail label="Disciplina" value={question.subjects.name} />
-                <Detail label="Tópico" value={question.topics.name} />
-                <Detail label="Dificuldade" value={question.difficulty} />
-                <Detail label="Origem" value={question.source} />
-                <Detail
-                  label="Histórico"
-                  value={`${Math.max(question.user_question_answers?.length ?? 0, answerState[question.id] ? 1 : 0)} resposta(s)`}
-                />
+              <CardContent>
+                <dl className="divide-y divide-slate-100">
+                  <Detail label="Disciplina" value={question.subjects.name} />
+                  <Detail label="Tópico" value={question.topics.name} />
+                  <Detail label="Dificuldade" value={question.difficulty} />
+                  <Detail label="Origem" value={question.source} />
+                  <Detail
+                    label="Histórico"
+                    value={`${Math.max(question.user_question_answers?.length ?? 0, answerState[question.id] ? 1 : 0)} resposta(s)`}
+                  />
+                  <Detail
+                    label="Resultados"
+                    value={`${filtered.length} questões (página ${currentIndex + 1} de ${totalPages})`}
+                  />
+                </dl>
                 <Button
                   variant="outline"
                   full
+                  className="mt-4"
                   onClick={addReview}
                   disabled={pending || accessBlocked}
                 >
@@ -434,17 +469,12 @@ export function QuestionBankClient({
                   {reviewState[question.id] ? "Remover da revisão" : "Adicionar à revisão"}
                 </Button>
                 {accessBlocked ? (
-                  <PremiumGate compact feature="A revisão de erros completa" />
+                  <PremiumGate
+                    compact
+                    className="mt-4"
+                    feature="A revisão de erros completa"
+                  />
                 ) : null}
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent>
-                <p className="text-sm font-bold text-slate-950">Paginação</p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Página {currentIndex + 1} de {totalPages}. {filtered.length} questões
-                  encontradas.
-                </p>
               </CardContent>
             </Card>
           </aside>
@@ -467,11 +497,13 @@ function Select({
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-400"
+        className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
       >
         {options.map((option) => (
           <option key={option}>{option}</option>
@@ -483,9 +515,13 @@ function Select({
 
 function Detail({ label, value }: { label: string; value: string }) {
   return (
-    <div>
-      <p className="text-xs font-semibold uppercase text-slate-500">{label}</p>
-      <p className="mt-1 text-sm font-semibold leading-6 text-slate-800">{value}</p>
+    <div className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+      <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </dt>
+      <dd className="text-right text-sm font-medium leading-5 text-slate-800">
+        {value}
+      </dd>
     </div>
   );
 }
@@ -504,7 +540,7 @@ function getQuestionMedia(question?: QuestionRecord) {
 
   return {
     url: question.media_url,
-    alt: question.media_alt || "Midia da questao",
+    alt: question.media_alt || "Mídia da questão",
     width,
     height,
   };

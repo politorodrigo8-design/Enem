@@ -38,15 +38,15 @@ export function PremiumGate({
       <Notice tone="info" icon={Lock}>
         <div className={compact ? "space-y-3" : "space-y-4"}>
           <div>
-            <p className="font-semibold text-blue-950">Acesso necessario</p>
+            <p className="font-semibold text-blue-950">Acesso necessário</p>
             <p className="mt-1">
-              {feature} exige o NexoENEM Completo ativo. Finalize a compra ou
-              solicite uma liberacao administrativa.
+              {feature} faz parte do NexoENEM Completo. Finalize a compra para
+              liberar o acesso.
             </p>
           </div>
           <Link href="/checkout" className={buttonClasses({ variant: "primary", size: "sm" })}>
             <Send className="h-4 w-4" aria-hidden="true" />
-            Ir para checkout
+            Concluir compra
           </Link>
         </div>
       </Notice>

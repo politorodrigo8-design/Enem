@@ -18,10 +18,10 @@ export default async function EditorialPage() {
       <div>
         <DashboardPageHeader
           title="Editorial"
-          description="Area restrita para revisao, classificacao e aprovacao de questoes."
+          description="Área restrita para revisão, classificação e aprovação de questões."
         />
         <Notice tone="warning">
-          Esta area e restrita a administradores. Nenhuma questao foi carregada
+          Esta área é restrita a administradores. Nenhuma questão foi carregada
           ou alterada.
         </Notice>
       </div>
@@ -33,11 +33,11 @@ export default async function EditorialPage() {
       <div>
         <DashboardPageHeader
           title="Editorial"
-          description="Area restrita para revisao, classificacao e aprovacao de questoes."
+          description="Área restrita para revisão, classificação e aprovação de questões."
         />
         <Notice tone="warning">
-          Configure SUPABASE_SERVICE_ROLE_KEY para carregar e salvar alteracoes
-          editoriais com permissao administrativa.
+          Configure SUPABASE_SERVICE_ROLE_KEY para carregar e salvar alterações
+          editoriais com permissão administrativa.
         </Notice>
       </div>
     );
@@ -62,7 +62,7 @@ export default async function EditorialPage() {
     <div>
       <DashboardPageHeader
         title="Editorial"
-        description="Revise status, enunciado, alternativas, classificacao, resolucao e midia antes de importar ou publicar."
+        description="Revise status, enunciado, alternativas, classificação, resolução e mídia antes de importar ou publicar."
       />
 
       {error ? (

@@ -5,7 +5,8 @@ type BadgeTone = "blue" | "violet" | "green" | "red" | "slate" | "amber";
 
 const tones: Record<BadgeTone, string> = {
   blue: "bg-blue-50 text-blue-700 ring-blue-200",
-  violet: "bg-violet-50 text-violet-700 ring-violet-200",
+  // "violet" é alias legado de "blue" — a marca usa um único accent (DESIGN.md).
+  violet: "bg-blue-50 text-blue-700 ring-blue-200",
   green: "bg-emerald-50 text-emerald-700 ring-emerald-200",
   red: "bg-rose-50 text-rose-700 ring-rose-200",
   slate: "bg-slate-50 text-slate-600 ring-slate-200",

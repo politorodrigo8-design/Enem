@@ -1,14 +1,17 @@
 "use client";
 
-import { Search, SlidersHorizontal, Target } from "lucide-react";
+import { AlertTriangle, Layers, ListChecks, Search } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Card, CardContent } from "@/components/ui/card";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
 import type { AccessContext } from "@/lib/access";
 import { calculatePriorityScore, priorityLabel } from "@/lib/db/scoring";
 import type { TopicWithSubject } from "@/lib/db/types";
 import { priorityTone } from "@/lib/utils";
+
+const selectClasses =
+  "h-9 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700";
 
 export function RadarClient({
   topics,
@@ -27,18 +30,21 @@ export function RadarClient({
     [topics],
   );
 
+  const allRows = useMemo(() => {
+    return topics.map((topic) => {
+      const performance = topic.user_topic_performance?.[0];
+      const score = performance?.priority_score || calculatePriorityScore(topic, performance);
+      return {
+        topic,
+        performance,
+        score,
+        label: priorityLabel(score),
+      };
+    });
+  }, [topics]);
+
   const rows = useMemo(() => {
-    return topics
-      .map((topic) => {
-        const performance = topic.user_topic_performance?.[0];
-        const score = performance?.priority_score || calculatePriorityScore(topic, performance);
-        return {
-          topic,
-          performance,
-          score,
-          label: priorityLabel(score),
-        };
-      })
+    return allRows
       .filter((row) => {
         const matchesArea = area === "Todas" || row.topic.subjects.area === area;
         const matchesPriority = priority === "Todas" || row.label === priority;
@@ -59,18 +65,52 @@ export function RadarClient({
         }
         return b.score - a.score;
       });
-  }, [area, order, priority, search, topics]);
+  }, [allRows, area, order, priority, search]);
   const visibleRows = access.hasPlatformAccess ? rows : [];
+
+  const maxCount = allRows.filter((row) => row.label.includes("máxima")).length;
+  const highCount = allRows.filter((row) => row.label.includes("alta")).length;
+  const withoutAnswers = allRows.filter((row) => !row.performance?.total_answers).length;
+
+  function clearFilters() {
+    setArea("Todas");
+    setPriority("Todas");
+    setSearch("");
+    setOrder("personalizada");
+  }
 
   return (
     <>
-      <Card className="mb-6">
-        <CardContent>
-          <div className="mb-4 flex items-center gap-2 text-sm font-bold text-slate-900">
-            <SlidersHorizontal className="h-4 w-4 text-blue-700" aria-hidden="true" />
-            Filtros e ordenação
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          label="Tópicos mapeados"
+          value={String(allRows.length)}
+          helper="com recorrência histórica"
+          icon={Layers}
+        />
+        <StatCard
+          label="Prioridade máxima"
+          value={String(maxCount)}
+          helper="tópicos mais urgentes"
+          icon={AlertTriangle}
+        />
+        <StatCard
+          label="Prioridade alta"
+          value={String(highCount)}
+          helper="para o próximo ciclo"
+          icon={ListChecks}
+        />
+        <StatCard
+          label="Sem respostas"
+          value={String(withoutAnswers)}
+          helper="responda para personalizar"
+          icon={Search}
+        />
+      </section>
+
+      <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-end">
+          <div className="grid flex-1 gap-3 sm:grid-cols-3">
             <Select label="Área" value={area} options={areas} onChange={setArea} />
             <Select
               label="Prioridade"
@@ -87,80 +127,110 @@ export function RadarClient({
             <Select
               label="Ordenar por"
               value={order}
-              options={["personalizada", "recorrencia", "desempenho"]}
+              options={[
+                { value: "personalizada", label: "Prioridade personalizada" },
+                { value: "recorrencia", label: "Recorrência" },
+                { value: "desempenho", label: "Desempenho" },
+              ]}
               onChange={setOrder}
             />
-            <label className="block">
-              <span className="text-sm font-semibold text-slate-700">Busca</span>
-              <div className="mt-2 flex h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-blue-400">
-                <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
-                <input
-                  value={search}
-                  onChange={(event) => setSearch(event.target.value)}
-                  className="w-full bg-transparent text-sm text-slate-900 outline-none"
-                  placeholder="Buscar tópico"
-                />
-              </div>
-            </label>
           </div>
-        </CardContent>
-      </Card>
-
-      {visibleRows.length === 0 ? (
-        <EmptyState
-          icon={Search}
-          title="Nenhum tópico encontrado"
-          description="Ajuste os filtros para visualizar prioridades."
-        />
-      ) : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {visibleRows.map(({ topic, performance, score, label }) => (
-            <Card key={topic.id}>
-              <CardContent>
-                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-500">
-                      {topic.subjects.area} • {topic.subjects.name}
-                    </p>
-                    <h2 className="mt-1 text-xl font-bold text-slate-950">{topic.name}</h2>
-                  </div>
-                  <span
-                    className={`inline-flex w-fit rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset ${priorityTone(label)}`}
-                  >
-                    {label}
-                  </span>
-                </div>
-                <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                  <Metric label="Recorrência" value={`${topic.historical_recurrence}%`} />
-                  <Metric
-                    label="Respondidas"
-                    value={String(performance?.total_answers ?? 0)}
-                  />
-                  <Metric label="Score" value={String(score)} />
-                </div>
-                <div className="mt-5 space-y-3">
-                  <Progress value={Number(topic.historical_recurrence)} label="Recorrência histórica" />
-                  <Progress
-                    value={Number(performance?.accuracy_percentage ?? 0)}
-                    label="Desempenho do aluno"
-                    tone={(performance?.accuracy_percentage ?? 0) < 55 ? "red" : "green"}
-                  />
-                </div>
-                <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex gap-3">
-                    <Target className="mt-0.5 h-5 w-5 text-blue-700" aria-hidden="true" />
-                    <p className="text-sm leading-6 text-slate-700">
-                      {performance?.total_answers
-                        ? "A prioridade personalizada considera seu histórico de respostas neste tópico."
-                        : "Responda questões deste tópico para personalizar o score com sua taxa de erro."}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+          <label className="block lg:w-64">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Busca
+            </span>
+            <div className="mt-1.5 flex h-9 items-center gap-2 rounded-lg border border-slate-200 bg-white px-2.5 transition-colors focus-within:border-blue-400 hover:border-slate-300">
+              <Search className="h-4 w-4 shrink-0 text-slate-400" aria-hidden="true" />
+              <input
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+                placeholder="Buscar tópico ou disciplina"
+              />
+            </div>
+          </label>
         </div>
-      )}
+
+        {visibleRows.length === 0 ? (
+          <div className="p-4">
+            <EmptyState
+              icon={Search}
+              title="Nenhum tópico encontrado"
+              description="Ajuste os filtros ou limpe a busca para visualizar as prioridades."
+              action={
+                <Button type="button" variant="outline" onClick={clearFilters}>
+                  Limpar filtros
+                </Button>
+              }
+            />
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[720px] text-sm">
+              <thead>
+                <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2.5 font-semibold">Tópico</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Recorrência</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Respondidas</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Acerto</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Score</th>
+                  <th className="px-4 py-2.5 text-right font-semibold">Prioridade</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {visibleRows.map(({ topic, performance, score, label }) => {
+                  const answered = performance?.total_answers ?? 0;
+                  const accuracy = Math.round(performance?.accuracy_percentage ?? 0);
+                  return (
+                    <tr key={topic.id} className="transition-colors hover:bg-slate-50">
+                      <td className="px-4 py-3">
+                        <p className="font-semibold text-slate-950">{topic.name}</p>
+                        <p className="mt-0.5 text-xs text-slate-500">
+                          {topic.subjects.area} • {topic.subjects.name}
+                        </p>
+                      </td>
+                      <td className="tnum px-4 py-3 text-right text-slate-700">
+                        {topic.historical_recurrence}%
+                      </td>
+                      <td className="tnum px-4 py-3 text-right text-slate-700">
+                        {answered}
+                      </td>
+                      <td
+                        className={`tnum px-4 py-3 text-right font-semibold ${
+                          answered === 0
+                            ? "text-slate-400"
+                            : accuracy < 55
+                              ? "text-rose-600"
+                              : "text-slate-900"
+                        }`}
+                      >
+                        {answered === 0 ? "—" : `${accuracy}%`}
+                      </td>
+                      <td className="tnum px-4 py-3 text-right font-semibold text-slate-900">
+                        {score}
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <span
+                          className={`inline-flex rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset ${priorityTone(label)}`}
+                        >
+                          {label}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      {visibleRows.length > 0 ? (
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          Tópicos sem respostas aparecem com acerto “—”. Responda questões deles para
+          personalizar a prioridade com sua taxa de erro.
+        </p>
+      ) : null}
     </>
   );
 }
@@ -173,30 +243,29 @@ function Select({
 }: {
   label: string;
   value: string;
-  options: string[];
+  options: (string | { value: string; label: string })[];
   onChange: (value: string) => void;
 }) {
   return (
     <label className="block">
-      <span className="text-sm font-semibold text-slate-700">{label}</span>
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </span>
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-400"
+        className={`mt-1.5 ${selectClasses}`}
       >
-        {options.map((option) => (
-          <option key={option}>{option}</option>
-        ))}
+        {options.map((option) => {
+          const optionValue = typeof option === "string" ? option : option.value;
+          const optionLabel = typeof option === "string" ? option : option.label;
+          return (
+            <option key={optionValue} value={optionValue}>
+              {optionLabel}
+            </option>
+          );
+        })}
       </select>
     </label>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <p className="text-xs font-semibold text-slate-500">{label}</p>
-      <p className="mt-1 text-lg font-bold text-slate-950">{value}</p>
-    </div>
   );
 }

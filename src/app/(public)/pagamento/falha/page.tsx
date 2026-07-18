@@ -10,12 +10,12 @@ export default function PaymentFailurePage() {
         <Card>
           <CardContent className="p-8 sm:p-10">
             <XCircle className="h-10 w-10 text-rose-600" aria-hidden="true" />
-            <h1 className="mt-5 text-3xl font-bold text-slate-950">
-              Pagamento nao aprovado
+            <h1 className="mt-5 text-3xl font-display font-semibold tracking-tight text-slate-950">
+              Pagamento não aprovado
             </h1>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              Nenhum acesso foi liberado. Voce pode tentar novamente ou falar
-              com o suporte para conferir o status do pedido.
+              Nenhuma cobrança foi concluída. Você pode tentar novamente ou
+              falar com o suporte para conferir o status do pedido.
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link href="/checkout" className={buttonClasses({ variant: "primary", size: "lg" })}>

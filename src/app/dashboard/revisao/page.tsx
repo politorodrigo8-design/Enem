@@ -8,8 +8,8 @@ export default async function ReviewPage() {
   return (
     <div>
       <DashboardPageHeader
-        title="Revisao de erros"
-        description="Revise questoes erradas ou marcadas, refaca tentativas e indique dominio do conteudo."
+        title="Revisão de erros"
+        description="Revise questões erradas ou marcadas, refaça tentativas e indique domínio do conteúdo."
       />
       <ReviewClient questions={questions} />
     </div>

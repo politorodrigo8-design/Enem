@@ -14,13 +14,13 @@ export default async function QuestionsPage() {
   return (
     <div>
       <DashboardPageHeader
-        title="Banco de questoes"
-        description="Treine com questoes carregadas do Supabase, salve respostas e atualize seu desempenho."
+        title="Banco de questões"
+        description="Treine com questões comentadas, registre suas respostas e acompanhe seu desempenho."
       />
 
       <Notice tone="info" className="mb-6">
-        Todas as questoes desta versao sao autorais e demonstrativas. Nenhuma
-        questao oficial real foi copiada integralmente.
+        As questões desta versão são autorais, criadas pela nossa equipe para
+        treino. Nenhuma questão oficial foi copiada integralmente.
       </Notice>
 
       <QuestionBankClient

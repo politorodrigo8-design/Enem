@@ -1,6 +1,12 @@
 import fs from "node:fs";
 import path from "node:path";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
+import { canEditEditorial } from "@/lib/editorial/rules.mjs";
 import { BatchPreviewClient } from "./batch-preview-client";
+
+export const dynamic = "force-dynamic";
 
 const importFiles = [
   "enem-piloto-matematica.json",
@@ -9,7 +15,24 @@ const importFiles = [
   "enem-piloto-linguagens.json",
 ];
 
-export default function Lote001PreviewPage() {
+export default async function Lote001PreviewPage() {
+  // Página de QA interna: expõe enunciado, gabarito e resolução do lote pago.
+  // Restrita a administradores — sem isso, o conteúdo pago vaza numa URL pública.
+  if (!isSupabaseConfigured()) notFound();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) notFound();
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("access_level")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (!canEditEditorial(profile?.access_level)) notFound();
+
   const questions = importFiles.flatMap((fileName) => {
     const filePath = path.join(process.cwd(), "supabase", "imports", fileName);
     const rows = JSON.parse(fs.readFileSync(filePath, "utf8")) as Array<Record<string, unknown>>;

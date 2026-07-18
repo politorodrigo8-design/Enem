@@ -79,8 +79,8 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
     return (
       <EmptyState
         icon={Search}
-        title="Nenhuma questao carregada"
-        description="Importe questoes revisadas ou ajuste os filtros administrativos."
+        title="Nenhuma questão carregada"
+        description="Importe questões revisadas ou ajuste os filtros administrativos."
       />
     );
   }
@@ -95,12 +95,12 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="mt-2 h-11 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:border-blue-400"
-                placeholder="Enunciado, topico ou numero"
+                className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                placeholder="Enunciado, tópico ou número"
               />
             </label>
             <Select label="Status" value={status} options={["todos", ...reviewStatuses]} onChange={setStatus} />
-            <Select label="Area" value={area} options={areas} onChange={setArea} />
+            <Select label="Área" value={area} options={areas} onChange={setArea} />
           </CardContent>
         </Card>
 
@@ -113,14 +113,14 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
                 key={question.id}
                 type="button"
                 onClick={() => setSelectedId(question.id)}
-                className={`w-full rounded-lg border p-3 text-left transition ${
+                className={`w-full rounded-lg border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
                   active
-                    ? "border-blue-300 bg-blue-50"
-                    : "border-slate-200 bg-white hover:border-blue-200"
+                    ? "border-blue-300 bg-blue-50 text-blue-900"
+                    : "border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50"
                 }`}
               >
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-bold text-slate-950">
+                  <p className={`tnum text-sm font-bold ${active ? "text-blue-900" : "text-slate-950"}`}>
                     {question.year} Q{question.question_number ?? "?"}
                   </p>
                   <Badge tone={itemDraft.review_status === "approved" ? "green" : "slate"}>
@@ -162,14 +162,14 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
               <Select label="Status" value={draft.review_status} options={reviewStatuses} onChange={(value) => updateDraft({ review_status: value as EditorialQuestionInput["review_status"] })} />
               <Select label="Dificuldade" value={draft.difficulty} options={difficulties} onChange={(value) => updateDraft({ difficulty: value as EditorialQuestionInput["difficulty"] })} />
               <Select label="Gabarito" value={draft.correct_option} options={["A", "B", "C", "D", "E"]} onChange={(value) => updateDraft({ correct_option: value as EditorialQuestionInput["correct_option"] })} />
-              <Field label="Versao" value={draft.classification_version} onChange={(value) => updateDraft({ classification_version: value })} />
+              <Field label="Versão" value={draft.classification_version} onChange={(value) => updateDraft({ classification_version: value })} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="Area" value={draft.area} onChange={(value) => updateDraft({ area: value })} />
+              <Field label="Área" value={draft.area} onChange={(value) => updateDraft({ area: value })} />
               <Field label="Disciplina" value={draft.subject} onChange={(value) => updateDraft({ subject: value })} />
-              <Field label="Topico" value={draft.topic} onChange={(value) => updateDraft({ topic: value })} />
-              <Field label="Subtopico" value={draft.subtopic ?? ""} onChange={(value) => updateDraft({ subtopic: value })} />
+              <Field label="Tópico" value={draft.topic} onChange={(value) => updateDraft({ topic: value })} />
+              <Field label="Subtópico" value={draft.subtopic ?? ""} onChange={(value) => updateDraft({ subtopic: value })} />
             </div>
 
             <Textarea label="Enunciado" value={draft.statement} onChange={(value) => updateDraft({ statement: value })} rows={8} />
@@ -184,19 +184,19 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
                 />
               ))}
             </div>
-            <Textarea label="Resolucao" value={draft.explanation} onChange={(value) => updateDraft({ explanation: value })} rows={5} />
+            <Textarea label="Resolução" value={draft.explanation} onChange={(value) => updateDraft({ explanation: value })} rows={5} />
             <Textarea label="Notas editoriais" value={draft.editorial_notes ?? ""} onChange={(value) => updateDraft({ editorial_notes: value })} rows={3} />
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
               <Checkbox label="Revisada" checked={draft.reviewed} onChange={(value) => updateDraft({ reviewed: value })} />
               <Checkbox label="Fonte verificada" checked={draft.source_verified} onChange={(value) => updateDraft({ source_verified: value })} />
               <Checkbox label="Gabarito verificado" checked={draft.answer_verified} onChange={(value) => updateDraft({ answer_verified: value })} />
-              <Checkbox label="Midia verificada" checked={draft.media_verified} onChange={(value) => updateDraft({ media_verified: value })} />
-              <Checkbox label="Exige midia" checked={draft.media_required} onChange={(value) => updateDraft({ media_required: value })} />
+              <Checkbox label="Mídia verificada" checked={draft.media_verified} onChange={(value) => updateDraft({ media_verified: value })} />
+              <Checkbox label="Exige mídia" checked={draft.media_required} onChange={(value) => updateDraft({ media_required: value })} />
             </div>
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm font-bold text-slate-950">Midia e fonte original</p>
+              <p className="text-sm font-bold text-slate-950">Mídia e fonte original</p>
               <div className="mt-3 grid gap-3 md:grid-cols-2">
                 {selectedQuestion.question_media?.length ? (
                   selectedQuestion.question_media.map((media) => (
@@ -204,14 +204,14 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
                       key={media.id}
                       href={media.url}
                       target="_blank"
-                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700"
+                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                     >
                       <ExternalLink className="h-4 w-4" aria-hidden="true" />
-                      {media.media_type} {media.source_page ? `pagina ${media.source_page}` : ""}
+                      {media.media_type} {media.source_page ? `página ${media.source_page}` : ""}
                     </a>
                   ))
                 ) : (
-                  <p className="text-sm text-slate-600">Nenhuma midia associada no banco.</p>
+                  <p className="text-sm text-slate-600">Nenhuma mídia associada.</p>
                 )}
               </div>
             </div>
@@ -219,7 +219,7 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
             <div className="flex justify-end">
               <Button onClick={save} disabled={pending}>
                 <Save className="h-4 w-4" aria-hidden="true" />
-                Salvar alteracoes
+                Salvar alterações
               </Button>
             </div>
           </CardContent>
@@ -277,7 +277,7 @@ function Select({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none focus:border-blue-400"
+        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >
         {options.map((option) => (
           <option key={option}>{option}</option>
@@ -302,7 +302,7 @@ function Field({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-lg border border-slate-200 px-3 text-sm text-slate-900 outline-none focus:border-blue-400"
+        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       />
     </label>
   );
@@ -326,7 +326,7 @@ function Textarea({
         value={value}
         rows={rows}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm leading-6 text-slate-900 outline-none focus:border-blue-400"
+        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       />
     </label>
   );
@@ -342,12 +342,12 @@ function Checkbox({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700">
+    <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="h-4 w-4"
+        className="h-4 w-4 accent-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       />
       {label}
     </label>

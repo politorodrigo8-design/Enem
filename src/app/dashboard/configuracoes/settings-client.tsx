@@ -180,7 +180,7 @@ export function SettingsClient({
                 autoComplete="off"
                 value={form.available_days}
                 onChange={(event) => setForm((current) => ({ ...current, available_days: event.target.value }))}
-                className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-400"
+                className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
               />
             </label>
             <label className="block md:col-span-2" htmlFor={`${formId}-study-preferences`}>
@@ -192,23 +192,25 @@ export function SettingsClient({
                 value={preferencesText}
                 onChange={(event) => setPreferencesText(event.target.value)}
                 rows={4}
-                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-950 outline-none focus:border-blue-400"
+                className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 placeholder="Ex.: prefiro estudar à noite, revisar por questões e fazer simulados aos sábados."
               />
             </label>
           </div>
 
-          <div>
-            <p className="text-sm font-semibold text-slate-700">Áreas de maior dificuldade</p>
-            <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className="border-t border-slate-100 pt-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Áreas de maior dificuldade
+            </p>
+            <p className="mt-1 text-xs leading-5 text-slate-500">
+              Use 1 para baixa dificuldade e 5 para alta dificuldade.
+            </p>
+            <div className="mt-2 divide-y divide-slate-100">
               {areas.map((area) => (
-                <label key={area} className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <span className="text-sm font-bold text-slate-900">{area}</span>
-                    <span className="text-sm font-semibold text-blue-700">
-                      {form.perceived_difficulties[area]}/5
-                    </span>
-                  </div>
+                <label key={area} className="flex items-center gap-4 py-3">
+                  <span className="w-44 shrink-0 text-sm font-medium text-slate-900">
+                    {area}
+                  </span>
                   <input
                     type="range"
                     name={`perceived_difficulties_${area}`}
@@ -225,8 +227,11 @@ export function SettingsClient({
                         },
                       }))
                     }
-                    className="mt-4 w-full accent-blue-700"
+                    className="w-full accent-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700"
                   />
+                  <span className="tnum w-8 shrink-0 text-right text-sm font-semibold text-blue-700">
+                    {form.perceived_difficulties[area]}/5
+                  </span>
                 </label>
               ))}
             </div>
@@ -287,7 +292,7 @@ export function SettingsClient({
               onChange={(confirmPassword) => setPasswords((current) => ({ ...current, confirmPassword }))}
             />
             <p id={`${formId}-password-help`} className="text-xs leading-5 text-slate-500">
-              Preencha os dois campos com a mesma senha para habilitar a alteracao.
+              Preencha os dois campos com a mesma senha para habilitar a alteração.
             </p>
             <Button
               type="button"
@@ -305,7 +310,7 @@ export function SettingsClient({
         <Card>
           <CardContent>
             <div className="flex items-start gap-3">
-              <UserCog className="mt-1 h-5 w-5 text-violet-600" aria-hidden="true" />
+              <UserCog className="mt-1 h-5 w-5 text-blue-700" aria-hidden="true" />
               <div>
                 <p className="text-sm font-bold text-slate-950">Sessão</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
@@ -362,7 +367,7 @@ function Input({
         max={max}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none focus:border-blue-400"
+        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       />
     </label>
   );

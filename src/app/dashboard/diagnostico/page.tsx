@@ -9,7 +9,7 @@ export default async function DiagnosisPage() {
     <div>
       <DashboardPageHeader
         title="Meu diagnóstico"
-        description="Salve objetivo, rotina e dificuldades percebidas para recalcular prioridades no banco."
+        description="Informe objetivo, rotina e dificuldades percebidas para recalcular suas prioridades de estudo."
       />
       <DiagnosisClient profile={profile} />
     </div>

@@ -22,7 +22,12 @@ export async function POST(request: NextRequest) {
 
   const rawBody = await request.text();
   const payload = parseJson(rawBody);
-  const eventType = String(payload?.type ?? payload?.topic ?? payload?.action ?? "unknown");
+  const queryTopic =
+    request.nextUrl.searchParams.get("type") ??
+    request.nextUrl.searchParams.get("topic");
+  const eventType = String(
+    payload?.type ?? payload?.topic ?? payload?.action ?? queryTopic ?? "unknown",
+  );
   const dataId =
     request.nextUrl.searchParams.get("data.id") ??
     request.nextUrl.searchParams.get("data_id") ??
@@ -43,6 +48,12 @@ export async function POST(request: NextRequest) {
     if (!validSignature) {
       return NextResponse.json({ ok: false, message: "invalid signature" }, { status: 401 });
     }
+  } else if (process.env.NODE_ENV === "production") {
+    // Fail-closed: sem secret em produção, qualquer POST anônimo seria aceito.
+    return NextResponse.json(
+      { ok: false, message: "webhook secret not configured" },
+      { status: 503 },
+    );
   }
 
   const admin = createAdminClient();
@@ -57,14 +68,29 @@ export async function POST(request: NextRequest) {
     .select("*")
     .single();
 
+  let savedPaymentEvent: PaymentEvent;
   if (eventError) {
     if (eventError.code === "23505") {
-      return NextResponse.json({ ok: true, duplicate: true });
-    }
+      // Evento já registrado. Se um processamento anterior falhou (processed = false),
+      // reprocessa em vez de descartar como duplicado — senão o reenvio do Mercado
+      // Pago nunca conclui a concessão de acesso de quem pagou.
+      const { data: existing } = await admin
+        .from("payment_events")
+        .select("*")
+        .eq("provider", "mercado_pago")
+        .eq("provider_event_id", providerEventId)
+        .maybeSingle();
 
-    return NextResponse.json({ ok: false, message: eventError.message }, { status: 500 });
+      if (!existing || (existing as PaymentEvent).processed) {
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
+      savedPaymentEvent = existing as PaymentEvent;
+    } else {
+      return NextResponse.json({ ok: false, message: "event insert error" }, { status: 500 });
+    }
+  } else {
+    savedPaymentEvent = paymentEvent as PaymentEvent;
   }
-  const savedPaymentEvent = paymentEvent as PaymentEvent;
 
   try {
     if (!dataId || !eventType.includes("payment")) {

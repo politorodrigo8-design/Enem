@@ -9,8 +9,7 @@ import { Logo } from "@/components/ui/logo";
 const links = [
   { label: "Como funciona", href: "/#como-funciona" },
   { label: "Radar ENEM", href: "/#radar" },
-  { label: "Produto", href: "/#precos" },
-  { label: "Reembolso", href: "/reembolso" },
+  { label: "Preços", href: "/#precos" },
 ];
 
 export function PublicHeader() {
@@ -25,7 +24,7 @@ export function PublicHeader() {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-slate-600 hover:text-blue-700"
+              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-950"
             >
               {link.label}
             </Link>

@@ -9,13 +9,18 @@ import {
   PlayCircle,
   RotateCcw,
   Target,
+  TrendingUp,
+  XCircle,
 } from "lucide-react";
+import Link from "next/link";
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaBars } from "@/components/charts/area-bars";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -40,6 +45,13 @@ export function SimulationsClient({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [seconds, setSeconds] = useState(0);
   const [finished, setFinished] = useState(false);
+  // O gabarito não vem mais no payload; a correção por questão vem da action.
+  const [finishData, setFinishData] = useState<{
+    correct: number;
+    total: number;
+    percentage: number;
+    correctness: Record<string, boolean>;
+  } | null>(null);
   const [pending, startTransition] = useTransition();
 
   const examQuestions = useMemo(
@@ -63,6 +75,7 @@ export function SimulationsClient({
         setAnswers({});
         setSeconds(0);
         setFinished(false);
+        setFinishData(null);
       }
     });
   }
@@ -86,72 +99,118 @@ export function SimulationsClient({
     startTransition(async () => {
       const result = await finishSimulationAction(userSimulationId);
       toast[result.ok ? "success" : "error"](result.message);
-      if (result.ok) setFinished(true);
+      if (result.ok) {
+        const correctness: Record<string, boolean> = {};
+        (result.results ?? []).forEach((item) => {
+          correctness[item.questionId] = item.isCorrect;
+        });
+        setFinishData({
+          correct: result.correct ?? 0,
+          total: result.total ?? examQuestions.length,
+          percentage: result.percentage ?? 0,
+          correctness,
+        });
+        setFinished(true);
+      }
     });
   }
 
   if (active && finished) {
-    const correct = examQuestions.filter(
-      (question) => answers[question.id] === question.correct_option,
-    ).length;
-    const percentage = examQuestions.length
-      ? Math.round((correct / examQuestions.length) * 100)
-      : 0;
-    const areaMetrics = getAreaMetrics(examQuestions, answers);
+    const correctness = finishData?.correctness ?? {};
+    const correct = finishData?.correct ?? 0;
+    const totalCount = finishData?.total ?? examQuestions.length;
+    const percentage = finishData?.percentage ?? 0;
+    const areaMetrics = getAreaMetrics(examQuestions, correctness);
+    const wrongQuestions = examQuestions.filter(
+      (question) => Boolean(answers[question.id]) && !correctness[question.id],
+    );
 
     return (
       <div>
-        <div className="mb-6 flex justify-end">
-          <Button variant="outline" onClick={() => setActive(null)}>
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-base font-semibold text-slate-950">
+            Resultado: {active.title}
+          </h2>
+          <Button variant="outline" size="sm" onClick={() => setActive(null)}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Voltar aos simulados
           </Button>
         </div>
-        <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
+
+        <section className="grid gap-4 md:grid-cols-3">
+          <StatCard
+            label="Acertos"
+            value={`${correct}/${totalCount}`}
+            helper="questões respondidas"
+            icon={CheckCircle2}
+          />
+          <StatCard
+            label="Aproveitamento"
+            value={`${percentage}%`}
+            helper="retrato do treino, não previsão de nota"
+            icon={TrendingUp}
+          />
+          <StatCard
+            label="Para revisar"
+            value={String(wrongQuestions.length)}
+            helper="erros registrados nesta tentativa"
+            icon={RotateCcw}
+          />
+        </section>
+
+        <section className="mt-6 grid gap-6 xl:grid-cols-2">
           <Card>
+            <CardHeader>
+              <CardTitle>Acertos por área</CardTitle>
+            </CardHeader>
             <CardContent>
-              <div className="rounded-lg bg-blue-700 p-6 text-white">
-                <p className="text-sm font-semibold text-blue-100">Total de acertos</p>
-                <p className="mt-2 text-5xl font-bold">
-                  {correct}/{examQuestions.length}
-                </p>
-                <p className="mt-3 text-sm leading-6 text-blue-50">
-                  {percentage}% de aproveitamento. Estimativa educacional simples,
-                  sem TRI real.
-                </p>
-              </div>
-              <div className="mt-5">
+              {areaMetrics.length ? (
                 <AreaBars data={areaMetrics} />
-              </div>
+              ) : (
+                <p className="text-sm leading-6 text-slate-500">
+                  Responda ao menos uma questão para ver o aproveitamento por área.
+                </p>
+              )}
             </CardContent>
           </Card>
-          <div className="grid gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Principais erros</CardTitle>
-              </CardHeader>
-              <CardContent className="grid gap-3 md:grid-cols-3">
-                {examQuestions
-                  .filter((question) => answers[question.id] !== question.correct_option)
-                  .slice(0, 3)
-                  .map((question) => (
-                    <div key={question.id} className="rounded-lg bg-rose-50 p-4">
-                      <p className="text-sm font-bold text-rose-800">
-                        {question.topics.name}
-                      </p>
-                      <p className="mt-2 text-xs leading-5 text-rose-700">
-                        Revise a resolução e adicione ao plano semanal.
-                      </p>
-                    </div>
+          <Card>
+            <CardHeader>
+              <CardTitle>Principais erros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {wrongQuestions.length ? (
+                <ul className="divide-y divide-slate-100">
+                  {wrongQuestions.slice(0, 5).map((question) => (
+                    <li key={question.id} className="flex gap-3 py-2.5 first:pt-0 last:pb-0">
+                      <XCircle
+                        className="mt-0.5 h-4 w-4 shrink-0 text-rose-600"
+                        aria-hidden="true"
+                      />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-950">
+                          {question.topics.name}
+                        </p>
+                        <p className="text-xs leading-5 text-slate-500">
+                          {question.subjects.area} • revise a resolução e adicione ao
+                          plano semanal
+                        </p>
+                      </div>
+                    </li>
                   ))}
-              </CardContent>
-            </Card>
-            <Notice tone="success" icon={CheckCircle2}>
-              Próximo passo recomendado: refazer os tópicos com menor acerto e
-              gerar um novo plano semanal.
-            </Notice>
-          </div>
-        </div>
+                </ul>
+              ) : (
+                <p className="text-sm leading-6 text-slate-500">
+                  Nenhum erro registrado nesta tentativa. Bom trabalho.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </section>
+
+        <Notice tone="success" icon={CheckCircle2} className="mt-6">
+          Próximo passo recomendado: refazer os tópicos com menor acerto e
+          gerar um novo plano semanal.
+        </Notice>
       </div>
     );
   }
@@ -176,14 +235,14 @@ export function SimulationsClient({
                 <span>
                   Questão {questionIndex + 1} de {examQuestions.length}
                 </span>
-                <span>{Math.round(progress)}%</span>
+                <span className="tnum">{Math.round(progress)}%</span>
               </div>
               <Progress value={progress} />
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge tone="blue">{current.subjects.area}</Badge>
               <Badge tone="slate">{current.difficulty}</Badge>
-              <Badge tone="violet">{current.topics.name}</Badge>
+              <Badge tone="blue">{current.topics.name}</Badge>
             </div>
             <p className="mt-6 text-lg leading-8 text-slate-900">
               {current.statement}
@@ -197,9 +256,9 @@ export function SimulationsClient({
                     key={option.id}
                     type="button"
                     onClick={() => selectAnswer(current, option.option_key)}
-                    className={`flex items-start gap-3 rounded-lg border p-4 text-left transition ${
+                    className={`flex items-start gap-3 rounded-lg border p-3.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
                       selected === option.option_key
-                        ? "border-blue-300 bg-blue-50"
+                        ? "border-blue-300 bg-blue-50 text-blue-900"
                         : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50"
                     }`}
                   >
@@ -241,6 +300,25 @@ export function SimulationsClient({
     );
   }
 
+  if (!simulations.length) {
+    return (
+      <EmptyState
+        icon={Target}
+        title="Nenhum simulado disponível"
+        description="Novos simulados aparecem aqui assim que forem publicados. Enquanto isso, continue treinando no banco de questões."
+        action={
+          <Link
+            href="/dashboard/questoes"
+            className={buttonClasses({ variant: "primary" })}
+          >
+            <PlayCircle className="h-4 w-4" aria-hidden="true" />
+            Treinar no banco de questões
+          </Link>
+        }
+      />
+    );
+  }
+
   return (
     <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {simulations.map((simulation) => {
@@ -259,14 +337,25 @@ export function SimulationsClient({
                   {simulation.status}
                 </span>
               </div>
-              <h2 className="mt-5 text-xl font-bold text-slate-950">{simulation.title}</h2>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
+              <h2 className="mt-4 text-lg font-bold tracking-tight text-slate-950">
+                {simulation.title}
+              </h2>
+              <p className="mt-1.5 text-sm leading-6 text-slate-600">
                 {simulation.description}
               </p>
-              <div className="mt-5 grid grid-cols-3 gap-3">
-                <Info icon={BarChart3} label={`${simulation.simulation_questions.length} questões`} />
-                <Info icon={Clock} label={`${simulation.duration_minutes} min`} />
-                <Info icon={Flag} label={simulation.difficulty} />
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-slate-100 pt-4 text-xs font-medium text-slate-600">
+                <span className="tnum inline-flex items-center gap-1.5">
+                  <BarChart3 className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                  {simulation.simulation_questions.length} questões
+                </span>
+                <span className="tnum inline-flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                  {simulation.duration_minutes} min
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <Flag className="h-3.5 w-3.5 text-slate-400" aria-hidden="true" />
+                  {simulation.difficulty}
+                </span>
               </div>
               {lastAttempt?.status === "Finalizado" ? (
                 <Progress
@@ -317,33 +406,23 @@ function Timer({
   const rest = (seconds % 60).toString().padStart(2, "0");
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
+    <div className="tnum rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
       {minutes}:{rest}
-    </div>
-  );
-}
-
-function Info({ icon: Icon, label }: { icon: typeof Clock; label: string }) {
-  return (
-    <div className="rounded-lg bg-slate-50 p-3">
-      <Icon className="h-4 w-4 text-slate-500" aria-hidden="true" />
-      <p className="mt-2 text-xs font-semibold leading-5 text-slate-700">{label}</p>
     </div>
   );
 }
 
 function getAreaMetrics(
   questions: QuestionRecord[],
-  answers: Record<string, string>,
+  correctness: Record<string, boolean>,
 ) {
   const metrics = new Map<string, { answered: number; correct: number }>();
 
   questions.forEach((question) => {
-    const selected = answers[question.id];
-    if (!selected) return;
+    if (!(question.id in correctness)) return;
     const current = metrics.get(question.subjects.area) ?? { answered: 0, correct: 0 };
     current.answered += 1;
-    current.correct += selected === question.correct_option ? 1 : 0;
+    current.correct += correctness[question.id] ? 1 : 0;
     metrics.set(question.subjects.area, current);
   });
 

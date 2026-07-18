@@ -11,7 +11,7 @@ export default async function SimulationsPage() {
     <div>
       <DashboardPageHeader
         title="Simulados"
-        description="Inicie tentativas reais, salve respostas no Supabase e finalize com percentual simples."
+        description="Faça simulados cronometrados, registre suas respostas e veja o aproveitamento por área."
       />
       <SimulationsClient simulations={simulations} access={access} />
     </div>

@@ -1,16 +1,23 @@
-import { Clock3, ListChecks, Target, Timer, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, ListChecks, Target, Timer, TrendingUp } from "lucide-react";
 import { AreaBars } from "@/components/charts/area-bars";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
-import { Badge } from "@/components/ui/badge";
+import { StatCard } from "@/components/dashboard/stat-card";
+import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Progress } from "@/components/ui/progress";
 import { getAreaMetrics, getQuestionRecords } from "@/lib/db/queries";
 
-const statusTone = {
-  Dominado: "green",
-  Atencao: "amber",
-  Critico: "red",
+const statusStyles = {
+  Dominado: "text-emerald-600",
+  "Atenção": "text-amber-600",
+  "Crítico": "text-rose-600",
+} as const;
+
+const statusBadgeStyles = {
+  Dominado: "bg-emerald-50 text-emerald-700 ring-emerald-200",
+  "Atenção": "bg-amber-50 text-amber-700 ring-amber-200",
+  "Crítico": "bg-rose-50 text-rose-700 ring-rose-200",
 } as const;
 
 export default async function PerformancePage() {
@@ -32,98 +39,111 @@ export default async function PerformancePage() {
   const subjectRows = buildPerformanceRows(answers, "subject");
   const topicRows = buildPerformanceRows(answers, "topic");
   const dominated = topicRows.filter((item) => item.status === "Dominado");
-  const attention = topicRows.filter((item) => item.status === "Atencao");
-  const critical = topicRows.filter((item) => item.status === "Critico");
+  const attention = topicRows.filter((item) => item.status === "Atenção");
+  const critical = topicRows.filter((item) => item.status === "Crítico");
 
   return (
     <div>
       <DashboardPageHeader
         title="Meu desempenho"
-        description="Calculos reais de acertos por area, disciplina e assunto a partir do banco."
+        description="Cálculo de acertos por área, disciplina e assunto a partir das suas respostas."
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <MetricCard icon={ListChecks} label="Questoes respondidas" value={String(answers.length)} helper="respostas salvas" />
-        <MetricCard icon={Target} label="Taxa geral de acertos" value={`${accuracy}%`} helper={`${correct} acertos`} />
-        <MetricCard icon={Timer} label="Tempo medio por questao" value={`${avgTime}s`} helper="quando informado" />
-        <MetricCard icon={TrendingUp} label="Evolucao semanal" value={answers.length ? "Ativa" : "Sem dados"} helper="sem TRI real" />
+        <StatCard
+          label="Questões respondidas"
+          value={String(answers.length)}
+          helper="respostas registradas"
+          icon={ListChecks}
+        />
+        <StatCard
+          label="Taxa geral de acertos"
+          value={`${accuracy}%`}
+          helper={`${correct} acertos`}
+          icon={Target}
+        />
+        <StatCard
+          label="Tempo médio por questão"
+          value={`${avgTime}s`}
+          helper="quando informado"
+          icon={Timer}
+        />
+        <StatCard
+          label="Evolução semanal"
+          value={answers.length ? "Ativa" : "Sem dados"}
+          helper="com base no seu treino"
+          icon={TrendingUp}
+        />
       </section>
 
       {!answers.length ? (
         <div className="mt-6">
           <EmptyState
             icon={ListChecks}
-            title="Ainda nao ha desempenho"
-            description="Responda questoes ou finalize simulados para calcular metricas reais."
+            title="Ainda não há dados de desempenho"
+            description="Responda questões ou finalize simulados para acompanhar suas métricas por área, disciplina e assunto."
+            action={
+              <Link
+                href="/dashboard/questoes"
+                className={buttonClasses({ variant: "primary" })}
+              >
+                Responder questões
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            }
           />
         </div>
-      ) : null}
+      ) : (
+        <>
+          <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Taxa de acertos por disciplina</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3">
+                <PerformanceTable rows={subjectRows} firstColumn="Disciplina" />
+              </CardContent>
+            </Card>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Taxa de acertos por disciplina</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {subjectRows.map((item) => (
-              <div key={item.name} className="rounded-lg border border-slate-200 p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-slate-950">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.answered} respostas</p>
-                  </div>
-                  <Badge tone={statusTone[item.status]}>{item.status}</Badge>
-                </div>
-                <Progress
-                  value={item.accuracy}
-                  tone={item.status === "Critico" ? "red" : item.status === "Dominado" ? "green" : "blue"}
-                />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle>Taxa de acertos por área</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {areaMetrics.length ? (
+                  <AreaBars data={areaMetrics} />
+                ) : (
+                  <p className="text-sm leading-6 text-slate-500">
+                    Sem respostas por área ainda.
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </section>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Taxa de acertos por area</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {areaMetrics.length ? (
-              <AreaBars data={areaMetrics} />
-            ) : (
-              <p className="text-sm text-slate-500">Sem respostas por area ainda.</p>
-            )}
-          </CardContent>
-        </Card>
-      </section>
+          <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+            <Card>
+              <CardHeader>
+                <CardTitle>Desempenho por assunto</CardTitle>
+              </CardHeader>
+              <CardContent className="pt-3">
+                <PerformanceTable rows={topicRows} firstColumn="Assunto" />
+              </CardContent>
+            </Card>
 
-      <section className="mt-6 grid gap-6 xl:grid-cols-[1fr_0.9fr]">
-        <Card>
-          <CardHeader>
-            <CardTitle>Desempenho por assunto</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {topicRows.map((item) => (
-              <div key={item.name} className="rounded-lg border border-slate-200 p-4">
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="text-sm font-bold text-slate-950">{item.name}</p>
-                    <p className="text-xs text-slate-500">{item.answered} respostas</p>
-                  </div>
-                  <Badge tone={statusTone[item.status]}>{item.status}</Badge>
-                </div>
-                <Progress value={item.accuracy} />
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <div className="space-y-6">
-          <SubjectGroup title="Conteudos dominados" items={dominated} tone="green" />
-          <SubjectGroup title="Conteudos em atencao" items={attention} tone="amber" />
-          <SubjectGroup title="Conteudos criticos" items={critical} tone="red" />
-        </div>
-      </section>
+            <Card className="h-fit">
+              <CardHeader>
+                <CardTitle>Resumo por situação</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-5 pt-4">
+                <StatusGroup title="Conteúdos dominados" items={dominated} status="Dominado" />
+                <StatusGroup title="Conteúdos em atenção" items={attention} status="Atenção" />
+                <StatusGroup title="Conteúdos críticos" items={critical} status="Crítico" />
+              </CardContent>
+            </Card>
+          </section>
+        </>
+      )}
     </div>
   );
 }
@@ -152,66 +172,91 @@ function buildPerformanceRows(
       name,
       answered: metric.answered,
       accuracy,
-      status: accuracy >= 75 ? "Dominado" : accuracy >= 55 ? "Atencao" : "Critico",
+      status: accuracy >= 75 ? "Dominado" : accuracy >= 55 ? "Atenção" : "Crítico",
     } as const;
   });
 }
 
-function MetricCard({
-  icon: Icon,
-  label,
-  value,
-  helper,
+type PerformanceRow = ReturnType<typeof buildPerformanceRows>[number];
+
+function PerformanceTable({
+  rows,
+  firstColumn,
 }: {
-  icon: typeof Clock3;
-  label: string;
-  value: string;
-  helper: string;
+  rows: PerformanceRow[];
+  firstColumn: string;
 }) {
+  const sorted = rows.slice().sort((a, b) => a.accuracy - b.accuracy);
+
   return (
-    <Card>
-      <CardContent>
-        <div className="flex items-start justify-between gap-4">
-          <div>
-            <p className="text-sm font-semibold text-slate-500">{label}</p>
-            <p className="mt-2 text-2xl font-bold text-slate-950">{value}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p>
-          </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-            <Icon className="h-5 w-5" aria-hidden="true" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[420px] text-sm">
+        <thead>
+          <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
+            <th className="py-2 pr-4 font-semibold">{firstColumn}</th>
+            <th className="px-4 py-2 text-right font-semibold">Respostas</th>
+            <th className="py-2 pl-4 text-right font-semibold">Acerto</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {sorted.map((item) => (
+            <tr key={item.name}>
+              <td className="py-2.5 pr-4">
+                <span className="font-semibold text-slate-900">{item.name}</span>
+              </td>
+              <td className="tnum px-4 py-2.5 text-right text-slate-600">
+                {item.answered}
+              </td>
+              <td className="py-2.5 pl-4 text-right">
+                <span className={`tnum font-semibold ${statusStyles[item.status]}`}>
+                  {item.accuracy}%
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-function SubjectGroup({
+function StatusGroup({
   title,
   items,
-  tone,
+  status,
 }: {
   title: string;
   items: Array<{ name: string; accuracy: number }>;
-  tone: "green" | "amber" | "red";
+  status: keyof typeof statusBadgeStyles;
 }) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {items.length ? (
-          items.map((item) => (
-            <div key={item.name} className="flex items-center justify-between gap-4">
-              <span className="text-sm font-semibold text-slate-700">{item.name}</span>
-              <Badge tone={tone}>{item.accuracy}%</Badge>
-            </div>
-          ))
-        ) : (
-          <p className="text-sm text-slate-500">Sem itens nesta categoria.</p>
-        )}
-      </CardContent>
-    </Card>
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {title}
+        </p>
+        <span
+          className={`tnum inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${statusBadgeStyles[status]}`}
+        >
+          {items.length}
+        </span>
+      </div>
+      {items.length ? (
+        <ul className="mt-2 divide-y divide-slate-100">
+          {items.map((item) => (
+            <li key={item.name} className="flex items-center justify-between gap-4 py-2">
+              <span className="text-sm text-slate-700">{item.name}</span>
+              <span className={`tnum text-sm font-semibold ${statusStyles[status]}`}>
+                {item.accuracy}%
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <p className="mt-2 text-sm leading-6 text-slate-500">
+          Nenhum assunto nesta categoria por enquanto.
+        </p>
+      )}
+    </div>
   );
 }

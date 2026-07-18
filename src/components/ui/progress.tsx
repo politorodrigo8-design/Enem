@@ -9,7 +9,8 @@ type ProgressProps = {
 
 const tones = {
   blue: "bg-blue-700",
-  violet: "bg-violet-600",
+  // "violet" é alias legado de "blue" — a marca usa um único accent (DESIGN.md).
+  violet: "bg-blue-700",
   green: "bg-emerald-500",
   red: "bg-rose-500",
 };
@@ -27,7 +28,7 @@ export function Progress({
       {label ? (
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="font-medium text-slate-700">{label}</span>
-          <span className="font-semibold text-slate-950">{safeValue}%</span>
+          <span className="tnum font-semibold text-slate-950">{safeValue}%</span>
         </div>
       ) : null}
       <div

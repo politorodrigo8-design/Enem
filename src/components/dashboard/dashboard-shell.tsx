@@ -28,18 +28,36 @@ import type { AccessLevel } from "@/lib/access";
 import { accessLevelLabel } from "@/lib/access";
 
 const navigation = [
-  { label: "Visão geral", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Meu diagnóstico", href: "/dashboard/diagnostico", icon: ClipboardList },
-  { label: "Radar ENEM", href: "/dashboard/radar", icon: Radar },
-  { label: "Banco de questões", href: "/dashboard/questoes", icon: BookOpen },
-  { label: "Simulados", href: "/dashboard/simulados", icon: Target },
-  { label: "Plano de estudos", href: "/dashboard/plano", icon: CalendarDays },
-  { label: "Meu desempenho", href: "/dashboard/desempenho", icon: BarChart3 },
-  { label: "Revisão de erros", href: "/dashboard/revisao", icon: SearchCheck },
-  { label: "Treino prioritário", href: "/dashboard/treino-prioritario", icon: ShieldCheck },
-  { label: "Editorial", href: "/dashboard/editorial", icon: FilePenLine, adminOnly: true },
-  { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
-  { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
+  {
+    group: null,
+    items: [{ label: "Visão geral", href: "/dashboard", icon: LayoutDashboard }],
+  },
+  {
+    group: "Estudar",
+    items: [
+      { label: "Meu diagnóstico", href: "/dashboard/diagnostico", icon: ClipboardList },
+      { label: "Plano de estudos", href: "/dashboard/plano", icon: CalendarDays },
+      { label: "Treino prioritário", href: "/dashboard/treino-prioritario", icon: ShieldCheck },
+      { label: "Banco de questões", href: "/dashboard/questoes", icon: BookOpen },
+      { label: "Simulados", href: "/dashboard/simulados", icon: Target },
+      { label: "Revisão de erros", href: "/dashboard/revisao", icon: SearchCheck },
+    ],
+  },
+  {
+    group: "Analisar",
+    items: [
+      { label: "Radar ENEM", href: "/dashboard/radar", icon: Radar },
+      { label: "Meu desempenho", href: "/dashboard/desempenho", icon: BarChart3 },
+    ],
+  },
+  {
+    group: "Conta",
+    items: [
+      { label: "Editorial", href: "/dashboard/editorial", icon: FilePenLine, adminOnly: true },
+      { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
+      { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
+    ],
+  },
 ];
 
 export function DashboardShell({
@@ -84,28 +102,53 @@ export function DashboardShell({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="space-y-1 px-3 py-4" aria-label="Menu do aluno">
-          {navigation.filter((item) => !item.adminOnly || accessLevel === "admin").map((item) => {
-            const active =
-              pathname === item.href ||
-              (item.href !== "/dashboard" && pathname.startsWith(item.href));
-            const Icon = item.icon;
+        <nav
+          className="h-[calc(100%-4rem-6.5rem)] space-y-5 overflow-y-auto px-3 py-4"
+          aria-label="Menu do aluno"
+        >
+          {navigation.map((section) => {
+            const items = section.items.filter(
+              (item) => !("adminOnly" in item && item.adminOnly) || accessLevel === "admin",
+            );
+            if (!items.length) return null;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
-                  active
-                    ? "bg-blue-700 text-white shadow-sm shadow-blue-900/20"
-                    : "text-slate-700 hover:bg-slate-100 hover:text-blue-700",
-                )}
-              >
-                <Icon className="h-5 w-5" aria-hidden="true" />
-                {item.label}
-              </Link>
+              <div key={section.group ?? "principal"}>
+                {section.group ? (
+                  <p className="mb-1.5 px-3 text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    {section.group}
+                  </p>
+                ) : null}
+                <div className="space-y-0.5">
+                  {items.map((item) => {
+                    const active =
+                      pathname === item.href ||
+                      (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                    const Icon = item.icon;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        onClick={() => setOpen(false)}
+                        aria-current={active ? "page" : undefined}
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          active
+                            ? "bg-blue-50 font-semibold text-blue-900"
+                            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
+                        )}
+                      >
+                        <Icon
+                          className={cn("h-4.5 w-4.5", active ? "text-blue-700" : "text-slate-400")}
+                          aria-hidden="true"
+                        />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
             );
           })}
         </nav>
@@ -117,7 +160,7 @@ export function DashboardShell({
             <div>
               <p className="text-sm font-bold text-blue-950">{accessLabel}</p>
               <p className="text-xs leading-5 text-blue-800">
-                {betaTester ? "Acesso de testes" : "Pagamento unico"}
+                {betaTester ? "Acesso de testes" : "Pagamento único"}
               </p>
             </div>
           </div>
@@ -142,10 +185,9 @@ export function DashboardShell({
             >
               <Menu className="h-5 w-5" />
             </button>
-            <div>
-              <p className="text-sm font-semibold text-slate-500">NexoENEM</p>
-              <p className="text-base font-bold text-slate-950">Área do aluno</p>
-            </div>
+            <p className="text-sm font-semibold text-slate-500">
+              Bons estudos, {fullName.split(" ")[0] || "aluno"}
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden md:block">
@@ -157,7 +199,7 @@ export function DashboardShell({
                 {email || accessLabel}
               </p>
             </div>
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-600 text-sm font-bold text-white">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-700 text-sm font-bold text-white">
               {initials || "NE"}
             </div>
             <form action={signOutAction}>

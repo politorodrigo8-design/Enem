@@ -37,6 +37,15 @@ function logQueryError(queryName: string, error: QueryError | null) {
   });
 }
 
+// O gabarito (correct_option) e a resolução (explanation) nunca devem chegar ao
+// cliente junto da questão: o payload RSC é inspecionável e revelaria a resposta
+// antes do envio. Esses campos voltam apenas na resposta da action, após responder.
+function stripAnswerKey<T extends { correct_option: string; explanation: string }>(
+  question: T,
+): T {
+  return { ...question, correct_option: "", explanation: "" };
+}
+
 async function attachQuestionMedia(
   supabase: Awaited<ReturnType<typeof createClient>>,
   questions: QuestionRecord[],
@@ -164,7 +173,8 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
     throw new Error(error.message);
   }
 
-  return attachQuestionMedia(supabase, (data ?? []) as unknown as QuestionRecord[]);
+  const records = ((data ?? []) as unknown as QuestionRecord[]).map(stripAnswerKey);
+  return attachQuestionMedia(supabase, records);
 }
 
 export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
@@ -324,10 +334,10 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
     ...simulation,
     simulation_questions: simulation.simulation_questions.map((item) => ({
       ...item,
-      questions: {
+      questions: stripAnswerKey({
         ...item.questions,
         question_media: mediaByQuestion.get(item.questions.id) ?? [],
-      },
+      }),
     })),
   }));
 }

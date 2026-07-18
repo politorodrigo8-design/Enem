@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { AreaBars } from "@/components/charts/area-bars";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
+import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,7 +28,7 @@ export default async function DashboardPage() {
     {
       label: "Questões respondidas",
       value: String(data.answered),
-      helper: "salvas no banco",
+      helper: "desde o início",
       icon: CheckCircle2,
     },
     {
@@ -45,7 +46,7 @@ export default async function DashboardPage() {
     {
       label: "Simulados",
       value: hasAnswers ? "Ativo" : "Comece agora",
-      helper: "sem TRI real nesta etapa",
+      helper: "treinos no formato da prova",
       icon: Flame,
     },
   ];
@@ -54,7 +55,7 @@ export default async function DashboardPage() {
     <div>
       <DashboardPageHeader
         title="Visão geral"
-        description="Seu painel usa dados reais do Supabase: respostas, prioridades e plano semanal."
+        description="Suas respostas, prioridades e plano semanal em um só lugar."
         action={
           <Link
             href="/dashboard/diagnostico"
@@ -68,20 +69,13 @@ export default async function DashboardPage() {
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {metrics.map((metric) => (
-          <Card key={metric.label}>
-            <CardContent>
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="text-sm font-semibold text-slate-500">{metric.label}</p>
-                  <p className="mt-2 text-2xl font-bold text-slate-950">{metric.value}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-500">{metric.helper}</p>
-                </div>
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                  <metric.icon className="h-5 w-5" aria-hidden="true" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <StatCard
+            key={metric.label}
+            label={metric.label}
+            value={metric.value}
+            helper={metric.helper}
+            icon={metric.icon}
+          />
         ))}
       </section>
 
@@ -90,7 +84,16 @@ export default async function DashboardPage() {
           <EmptyState
             icon={Target}
             title="Seu painel ainda está vazio"
-            description="Faça o diagnóstico ou responda suas primeiras questões para gerar prioridades personalizadas."
+            description="Faça o diagnóstico para mapear seu ponto de partida — suas prioridades personalizadas aparecem aqui em seguida."
+            action={
+              <Link
+                href="/dashboard/diagnostico"
+                className={buttonClasses({ variant: "primary" })}
+              >
+                Começar diagnóstico
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            }
           />
         </div>
       ) : null}
@@ -190,7 +193,7 @@ export default async function DashboardPage() {
           <CardContent>
             <Progress value={data.planProgress} label="Plano concluído" tone="green" />
             <div className="mt-5 flex items-center justify-between border-t border-slate-100 pt-4">
-              <p className="text-sm text-slate-600">Estimativa educacional simples</p>
+              <p className="text-sm text-slate-600">Média geral até aqui</p>
               <Badge tone="green">{data.accuracy}% de acerto</Badge>
             </div>
           </CardContent>

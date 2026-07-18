@@ -9,7 +9,7 @@ export default async function OnboardingPage() {
     <div>
       <DashboardPageHeader
         title="Primeiros passos"
-        description="Configure objetivo, rotina e dificuldades antes do diagnostico inicial."
+        description="Configure objetivo, rotina e dificuldades antes do diagnóstico inicial."
       />
       <OnboardingClient profile={profile} />
     </div>

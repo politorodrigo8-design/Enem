@@ -10,12 +10,12 @@ export default function PaymentPendingPage() {
         <Card>
           <CardContent className="p-8 sm:p-10">
             <Clock className="h-10 w-10 text-amber-600" aria-hidden="true" />
-            <h1 className="mt-5 text-3xl font-bold text-slate-950">
+            <h1 className="mt-5 text-3xl font-display font-semibold tracking-tight text-slate-950">
               Pagamento pendente
             </h1>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              O acesso sera liberado automaticamente quando o Mercado Pago
-              confirmar o pagamento pelo webhook.
+              Seu acesso será liberado automaticamente assim que o Mercado Pago
+              confirmar o pagamento.
             </p>
             <Link href="/checkout" className={buttonClasses({ variant: "primary", size: "lg", className: "mt-8" })}>
               Voltar ao checkout

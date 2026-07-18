@@ -126,7 +126,9 @@ export async function submitQuestionAnswerAction(input: {
   selectedOption: string;
   responseTimeSeconds?: number;
   source?: "question_bank" | "review" | "high_priority";
-}): Promise<ActionResult & { isCorrect?: boolean; explanation?: string }> {
+}): Promise<
+  ActionResult & { isCorrect?: boolean; explanation?: string; correctOption?: string }
+> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
 
@@ -176,6 +178,7 @@ export async function submitQuestionAnswerAction(input: {
     message: result.isCorrect ? "Resposta correta." : "Resposta registrada para revisão.",
     isCorrect: result.isCorrect,
     explanation: result.explanation,
+    correctOption: question.correct_option,
   };
 }
 
@@ -340,21 +343,45 @@ export async function saveSimulationAnswerAction(input: {
 
 export async function finishSimulationAction(
   userSimulationId: string,
-): Promise<ActionResult> {
+): Promise<
+  ActionResult & {
+    results?: Array<{ questionId: string; isCorrect: boolean }>;
+    correct?: number;
+    total?: number;
+    percentage?: number;
+  }
+> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase, user } = context;
   const { data: answers, error: answersError } = await supabase
     .from("user_simulation_answers")
-    .select("is_correct")
+    .select("question_id, is_correct")
     .eq("user_simulation_id", userSimulationId);
 
   if (answersError) return { ok: false, message: answersError.message };
 
-  const total = answers?.length ?? 0;
+  const { data: simulation, error: simulationError } = await supabase
+    .from("user_simulations")
+    .select("total_questions")
+    .eq("id", userSimulationId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (simulationError || !simulation) {
+    return { ok: false, message: simulationError?.message ?? "Simulado não encontrado." };
+  }
+
+  const answered = answers?.length ?? 0;
   const correct = answers?.filter((answer) => answer.is_correct).length ?? 0;
-  const percentage = total ? Math.round((correct / total) * 100) : 0;
+  // Percentual sobre o total de questões do simulado, não sobre as respondidas.
+  const totalQuestions = simulation.total_questions || answered;
+  const percentage = totalQuestions ? Math.round((correct / totalQuestions) * 100) : 0;
+  const results = (answers ?? []).map((answer) => ({
+    questionId: answer.question_id,
+    isCorrect: Boolean(answer.is_correct),
+  }));
 
   const { error } = await supabase
     .from("user_simulations")
@@ -364,7 +391,8 @@ export async function finishSimulationAction(
       score_percentage: percentage,
       status: "Finalizado",
     })
-    .eq("id", userSimulationId);
+    .eq("id", userSimulationId)
+    .eq("user_id", user.id);
 
   if (error) return { ok: false, message: error.message };
   await recordProductEvent({
@@ -372,10 +400,17 @@ export async function finishSimulationAction(
     userId: user.id,
     eventName: "simulation_completed",
     route: "/dashboard/simulados",
-    metadata: { total_questions: total, correct_answers: correct },
+    metadata: { total_questions: totalQuestions, correct_answers: correct },
   });
   revalidatePath("/dashboard/simulados");
-  return { ok: true, message: "Simulado finalizado." };
+  return {
+    ok: true,
+    message: "Simulado finalizado.",
+    results,
+    correct,
+    total: totalQuestions,
+    percentage,
+  };
 }
 
 export async function generateStudyPlanAction(): Promise<ActionResult> {
@@ -472,11 +507,18 @@ export async function completeStudyPlanItemAction(itemId: string): Promise<Actio
 
 async function refreshTopicPerformance(userId: string, topicId: string) {
   const supabase = await createClient();
-  const { data: answers } = await supabase
+  const { data: answers, error: answersError } = await supabase
     .from("user_question_answers")
     .select("is_correct, questions!inner(topic_id)")
     .eq("user_id", userId)
     .eq("questions.topic_id", topicId);
+
+  // Não gravar zeros por cima do desempenho real se a leitura falhar.
+  if (answersError) {
+    console.error("[NexoENEM] refreshTopicPerformance", answersError.message);
+    return;
+  }
+
   const { data: topic } = await supabase
     .from("topics")
     .select("*")

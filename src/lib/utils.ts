@@ -8,11 +8,11 @@ export function priorityTone(priority: string) {
   }
 
   if (priority.includes("alta")) {
-    return "bg-violet-50 text-violet-700 ring-violet-200";
+    return "bg-amber-50 text-amber-700 ring-amber-200";
   }
 
   if (priority.includes("média")) {
-    return "bg-sky-50 text-sky-700 ring-sky-200";
+    return "bg-blue-50 text-blue-700 ring-blue-200";
   }
 
   return "bg-slate-50 text-slate-600 ring-slate-200";
@@ -36,4 +36,18 @@ export function statusTone(status: string) {
 
 export function clampPercent(value: number) {
   return Math.max(0, Math.min(100, value));
+}
+
+/**
+ * Returns a redirect target that is guaranteed to stay inside the app.
+ * Rejects absolute URLs (https://evil.com) and protocol-relative ones
+ * (//evil.com) that would otherwise cause an open redirect.
+ */
+export function safeInternalPath(
+  value: string | null | undefined,
+  fallback = "/dashboard",
+) {
+  if (!value) return fallback;
+  if (!value.startsWith("/") || value.startsWith("//")) return fallback;
+  return value;
 }

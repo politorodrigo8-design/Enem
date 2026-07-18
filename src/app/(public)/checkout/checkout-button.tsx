@@ -18,7 +18,7 @@ export function CheckoutButton({ disabled }: { disabled: boolean }) {
       const payload = await response.json();
 
       if (!response.ok || !payload.ok) {
-        const nextMessage = payload.message ?? "Nao foi possivel iniciar o pagamento.";
+        const nextMessage = payload.message ?? "Não foi possível iniciar o pagamento.";
         setMessage(nextMessage);
         toast.error(nextMessage);
         return;

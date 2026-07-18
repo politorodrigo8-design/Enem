@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -13,19 +13,27 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const fraunces = Fraunces({
+  variable: "--font-display",
+  subsets: ["latin"],
+  weight: "variable",
+  style: ["normal"],
+  axes: ["opsz"],
+});
+
 export const metadata: Metadata = {
   title: {
     default: "NexoENEM | Preparação estratégica para o ENEM",
     template: "%s | NexoENEM",
   },
   description:
-    "Plataforma web para priorizar estudos do ENEM com diagnóstico, Radar ENEM, banco de questões e plano estratégico demonstrativo.",
+    "Descubra o que estudar para aumentar sua nota no ENEM: diagnóstico, Radar de prioridades, banco de questões e plano semanal de estudos.",
   applicationName: "NexoENEM",
   keywords: ["ENEM", "estudos", "simulado", "desempenho", "plano de estudos"],
   openGraph: {
     title: "NexoENEM",
     description:
-      "Descubra o que estudar para aumentar sua nota no ENEM com estratégia e dados demonstrativos.",
+      "Descubra o que estudar para aumentar sua nota no ENEM com diagnóstico, prioridades e plano semanal.",
     type: "website",
   },
 };
@@ -39,7 +47,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       data-scroll-behavior="smooth"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         {children}

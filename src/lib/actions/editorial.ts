@@ -54,10 +54,12 @@ type AdminSingleQueryResult = {
 
 type AdminQuery = {
   upsert: (values: Record<string, unknown>, options?: Record<string, string>) => AdminQuery;
+  insert: (values: Record<string, unknown>) => AdminQuery;
   update: (values: Record<string, unknown>) => AdminQuery;
   select: (columns: string) => AdminQuery;
   eq: (column: string, value: unknown) => AdminQuery;
   single: () => Promise<AdminSingleQueryResult>;
+  maybeSingle: () => Promise<AdminSingleQueryResult>;
   then: Promise<AdminQueryResult>["then"];
 };
 
@@ -147,10 +149,27 @@ export async function updateEditorialQuestionAction(
   }
   const subjectId = String(subject.id);
 
-  const { data: topic, error: topicError } = await admin
+  // Não usar upsert por slug: em conflito o PostgREST faria UPDATE de todas as
+  // colunas enviadas, zerando historical_recurrence/priority_weight/strategic_importance
+  // (curadoria) de um tópico já existente e corrompendo o priority_score de todos.
+  // Só inserimos quando o tópico ainda não existe.
+  const { data: existingTopic, error: existingTopicError } = await admin
     .from("topics")
-    .upsert(
-      {
+    .select("id")
+    .eq("slug", topicSlug)
+    .maybeSingle();
+
+  if (existingTopicError) {
+    return { ok: false, message: existingTopicError.message };
+  }
+
+  let topicId: string;
+  if (existingTopic) {
+    topicId = String(existingTopic.id);
+  } else {
+    const { data: topic, error: topicError } = await admin
+      .from("topics")
+      .insert({
         subject_id: subjectId,
         name: value.topic,
         slug: topicSlug,
@@ -158,16 +177,15 @@ export async function updateEditorialQuestionAction(
         priority_weight: 0,
         difficulty_level: normalizeDifficulty(value.difficulty),
         strategic_importance: 0,
-      },
-      { onConflict: "slug" },
-    )
-    .select("id")
-    .single();
+      })
+      .select("id")
+      .single();
 
-  if (topicError || !topic) {
-    return { ok: false, message: topicError?.message ?? "Nao foi possivel salvar topico." };
+    if (topicError || !topic) {
+      return { ok: false, message: topicError?.message ?? "Nao foi possivel salvar topico." };
+    }
+    topicId = String(topic.id);
   }
-  const topicId = String(topic.id);
 
   const now = new Date().toISOString();
   const { error: questionError } = await admin

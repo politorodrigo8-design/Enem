@@ -5,11 +5,11 @@ export default function TermsPage() {
     <LegalPage
       title="Termos de uso"
       sections={[
-        ["Status do texto", "Texto provisório para revisão jurídica antes da publicação comercial."],
+        ["Versão preliminar", "Este texto pode ser atualizado até a abertura das vendas. Avisaremos quando a versão final for publicada."],
         ["Produto", "O NexoENEM Completo é uma plataforma de estudos para o ENEM com pagamento único e acesso pelo prazo informado no checkout."],
         ["Sem garantia de resultado", "A plataforma organiza estudos e desempenho, mas não promete aprovação, nota garantida, previsão exata, questão certa ou tema confirmado."],
-        ["Acesso", "O dashboard é liberado apenas após pagamento aprovado pelo gateway ou liberação administrativa."],
-        ["Conteúdo demonstrativo", "Enquanto o lançamento não estiver pronto, dados demonstrativos devem permanecer identificados como demonstrativos."],
+        ["Acesso", "O acesso à plataforma é liberado após a confirmação do pagamento."],
+        ["Estimativas educacionais", "Indicadores como o Radar ENEM são estimativas educacionais e aparecem identificados como tal na plataforma."],
         ["Contato", "Solicitações podem ser enviadas para suporte@nexoenem.com."],
       ]}
     />

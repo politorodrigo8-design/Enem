@@ -23,7 +23,7 @@ export default async function RadarPage() {
     <div>
       <DashboardPageHeader
         title="Radar ENEM"
-        description="Recorrência, desempenho e prioridade personalizada calculados com dados do banco."
+        description="Recorrência dos temas na prova, seu desempenho e prioridade personalizada em um só lugar."
         action={
           <Link
             href="/dashboard/radar/metodologia"
@@ -35,9 +35,9 @@ export default async function RadarPage() {
       />
 
       <Notice tone="warning" className="mb-6">
-        As prioridades apresentadas são estimativas educacionais baseadas em
-        recorrência fictícia demonstrativa, desempenho e regras simples. Não
-        representam previsão exata da prova.
+        As prioridades são estimativas de estudo baseadas na recorrência
+        histórica dos temas, no seu desempenho e em regras transparentes. Elas
+        não representam previsão exata da prova.
       </Notice>
 
       <RadarClient topics={topics} access={access} />

@@ -1,4 +1,7 @@
+import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
+import { buttonClasses } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { getAccessContext } from "@/lib/access";
 import {
@@ -20,11 +23,20 @@ export default async function HighPriorityTrainingPage() {
       <DashboardPageHeader
         title="Treino de alta prioridade"
         description="Seleção por regras: recorrência histórica, desempenho, erros recentes, meta, tempo disponível e confiança editorial."
+        action={
+          <Link
+            href="/dashboard/questoes"
+            className={buttonClasses({ variant: "outline" })}
+          >
+            Ver banco completo
+            <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        }
       />
 
       <Notice tone="warning" className="mb-6">
-        O score de prioridade é uma estimativa educacional. Ele não é TRI real,
-        não usa IA e não afirma que uma questão específica vai cair no ENEM.
+        A prioridade é uma estimativa para orientar o estudo. Ela não afirma
+        que uma questão específica vai cair no ENEM.
       </Notice>
 
       <HighPriorityTrainingClient
