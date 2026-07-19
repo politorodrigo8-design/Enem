@@ -293,10 +293,11 @@ O coração do produto. `getTopicsWithPerformance()` + `getHighPriorityQuestionR
 Lista questões com enunciado, mídia, alternativas. Responder → `submitQuestionAnswerAction` insere em `user_question_answers`, **recalcula acurácia e priority_score do tópico** (`refreshTopicPerformance`) e registra telemetria. Favoritar/marcar para revisão funciona (`user_question_reviews`).
 - ⚠️ `response_time_seconds: 0` hardcoded (`question-bank-client.tsx:162`) — o tempo nunca é medido, distorcendo a métrica de tempo médio no Desempenho.
 
-### 9.6 `/dashboard/simulados` — ✅ REAL, com bugs
+### 9.6 `/dashboard/simulados` — ✅ REAL
 Fluxo completo: `startSimulationAction` (cria `user_simulations`) → `saveSimulationAnswerAction` (upsert por questão) → `finishSimulationAction` (recalcula % no servidor).
-- ⚠️ "Refazer" sempre INSERE nova tentativa (duplicação) e a leitura de "última tentativa" não tem `ORDER BY` → pode exibir tentativa arbitrária.
-- ⚠️ O simulado **"personalizado" não personaliza nada** — a descrição promete montar prova a partir das prioridades, mas usa as `simulation_questions` fixas do banco.
+
+**Montador dinâmico** (`generateSimulationAction`): monta um simulado na hora a partir do banco único de questões, por filtros de área, quantidade (5–90), dificuldade, língua estrangeira e "priorizar meus pontos fracos". O sorteio agrupa por tópico e faz round-robin para não concentrar o simulado num assunto só; com priorização, os tópicos de maior `priority_score` do aluno entram primeiro. O simulado gerado é gravado em `simulations` com `is_generated=true` e `created_by`, visível apenas ao dono (RLS), e reaproveita todo o fluxo de execução dos simulados de catálogo — que passam a ser apenas presets da mesma mecânica.
+- ⚠️ "Refazer" ainda INSERE nova tentativa (histórico duplicado); a leitura de "última tentativa" já ordena por `started_at desc`.
 
 ### 9.7 `/dashboard/plano` — Plano de estudos — ✅ REAL
 `generateStudyPlanAction`: arquiva o plano da semana, lê horas/dias disponíveis do perfil, seleciona os **top-7 tópicos por priority_score** (fallback: recorrência histórica), cria `study_plans` + `study_plan_items` com duração e meta de questões calculadas por regra. Marcar item como concluído persiste.
@@ -368,6 +369,10 @@ A metodologia é documentada e versionada (`radar_methodology_versions`) e a pá
 | `004_beta_access_and_product_readiness.sql` | `access_level`/`access_expires_at`/`beta_tester`/`onboarding_completed`/`study_preferences` em profiles; beta_applications, beta_feedback, product_events, radar_methodology_versions; **~35 colunas editoriais** em questions; trigger anti-escalonamento |
 | `005_paid_product_checkout_access.sql` | Modelo comercial: products, orders, payment_events; `access_level` vira unpaid/paid/beta/admin; funções `has_platform_access`, `grant_paid_access_for_order`, `revoke_paid_access_for_order`; RLS de conteúdo fechada por acesso pago |
 | `006_question_media_and_review_toggle.sql` | `questions.media_required` + tabela question_media |
+| `007_secure_access_rpcs.sql` | Restringe execução das RPCs de concessão de acesso ao service_role |
+| `009_question_language.sql` | `questions.language` (`en`/`es`) para as questões de língua estrangeira |
+| `010_generated_simulations.sql` | Simulados gerados pelo aluno: `created_by`, `is_generated`, `criteria` + RLS de dono |
+| `011_service_role_grants.sql` | Devolve DML ao `service_role` em todo o schema (ver 12.2) |
 
 ### 11.2 Entidades principais
 
@@ -402,6 +407,8 @@ A metodologia é documentada e versionada (`radar_methodology_versions`) e a pá
 
 ### 12.2 Riscos abertos
 
+0. **`service_role` sem DML (corrigido em `011`)** — as migrations 002/003 concederam privilégios só a `authenticated`, o que removeu os defaults do `service_role` em todo o schema `public`. Consequência: **qualquer** operação com a service key falhava com `permission denied` — incluindo o webhook de pagamento (gravar `payment_events`, atualizar `orders`/`profiles`) e a área editorial admin. Foi descoberto ao rodar o importador e corrigido pela migration `011_service_role_grants.sql`. **Aplicar essa migration no banco remoto antes de qualquer venda real.**
+
 1. **Webhook fail-open sem secret** (§7.3 #1) — o mais grave.
 2. `beta_applications` aceita INSERT de `anon` sem rate-limit (só unique de e-mail) — spam possível.
 3. DoS leve de idempotência: `provider_event_id` derivado de campo controlável pelo remetente; um atacante que pré-insira o id faz o webhook legítimo virar `duplicate`.
@@ -414,37 +421,48 @@ A metodologia é documentada e versionada (`radar_methodology_versions`) e a pá
 
 ### 13.1 Origem do conteúdo
 
-As questões são **transcrições fiéis de provas oficiais do ENEM** (não geradas por IA), extraídas de **PDFs do INEP baixados localmente** (cadernos + gabaritos, 2020–2024, aplicação regular e PPL), listados em `scripts/enem-pilot-sources.json` com política explícita de não buscar nada da internet. A extração foi feita numa máquina Windows (caminhos `C:\Users\USER\Downloads\...` ficaram gravados nos dados).
+As questões são **transcrições fiéis de provas oficiais do ENEM** (não geradas por IA), extraídas dos **PDFs públicos do INEP** (`download.inep.gov.br`) — cadernos e gabaritos de **2020 a 2025**, Dia 1 e Dia 2, aplicação regular impressa. Os arquivos ficam em `provas-oficiais/` (ignorado pelo git) e são listados em `scripts/enem-pilot-sources.json`, que registra a origem oficial.
 
 ### 13.2 Etapas do pipeline (`scripts/`)
 
-1. **`enem-pilot-pipeline.py`** (~60KB, PyMuPDF) — inventaria os PDFs, casa prova↔gabarito, mapeia questão→área pela faixa de numeração (1–45 Linguagens, 46–90 Humanas, 91–135 Natureza, 136–180 Matemática), extrai enunciado/alternativas, classifica tópico por regex, calcula priority_score. Processa apenas os **2 anos mais recentes** (limite de 4 pares de arquivos). Só grava no import questões aprovadas+verificadas.
-2. **`enem-media-batch001.py`** — extrai recortes de imagem dos PDFs com coordenadas registradas e audita.
-3. **`enem-review-batch001.py` / `enem-editorial-batch.py`** — revisão editorial em lote (feita por IA, "Codex editorial batch review"); **não aprova automaticamente** — aprovação exige resolução + classificação + verificação de mídia.
-4. **`enem-finalize-batch001.py`** — finalização pós-auditoria visual.
-5. **`scripts/import-questions.mjs`** — importador Node/Zod para o Supabase: upsert de subjects/topics, insert de questions/options/media, dedup por fingerprint, rollback em erro. `superRefine` só aceita questões com `source_verified + answer_verified + reviewed + review_status='approved'`.
+1. **`enem-pilot-pipeline.py`** (PyMuPDF) — inventaria os PDFs, casa prova↔gabarito, mapeia questão→área pela faixa de numeração (1–45 Linguagens, 46–90 Humanas, 91–135 Natureza, 136–180 Matemática), extrai enunciado/alternativas, detecta idioma das questões 1–5, classifica tópico por regex e calcula priority_score. Processa até **6 anos** (12 pares). Cai para OCR quando a extração de texto vem corrompida. Só grava no import questões aprovadas+verificadas.
+2. **`enem-media-extract.py`** — recorta a região de cada questão com mídia obrigatória (texto + figuras + alternativas em diagrama) para `public/enem-media/oficial/` e gera o `media-map.json`.
+3. **`enem-editorial-export.py`** — divide as questões extraídas em lotes de trabalho editorial (`--only-pending` exporta só o que falta).
+4. **`enem-editorial-apply.py`** — valida e mescla as decisões editoriais, anexa a mídia e gera os arquivos de import.
+5. **`enem-recurrence-report.py`** — mede a recorrência por tópico no corpus e compara com as estimativas públicas.
+6. **`scripts/import-questions.mjs`** — importador Node/Zod para o Supabase: upsert de subjects/topics, insert de questions/options/media, dedup por fingerprint, rollback em erro. `superRefine` só aceita questões com `source_verified + answer_verified + reviewed + review_status='approved'` e tópico dentro da taxonomia.
+7. **`scripts/update-topic-recurrence.mjs`** — grava a recorrência medida em `topics.historical_recurrence`/`strategic_importance`.
 
-Meta interna declarada no código: **300 questões** (Matemática 100, Natureza 80, Humanas 60, Linguagens 60).
+Scripts legados da primeira leva (`enem-media-batch001.py`, `enem-review-batch001.py`, `enem-editorial-batch.py`, `enem-finalize-batch001.py`) seguem no repositório, mas foram substituídos pela esteira acima.
 
-### 13.3 Estado atual do conteúdo — O GARGALO DO PROJETO
+Meta interna declarada no código: **300 questões** (Matemática 100, Natureza 80, Humanas 60, Linguagens 60) — já superada (ver 13.3).
 
-| Arquivo de import | Questões | Anos |
-|---|---|---|
-| `enem-piloto-humanas.json` | 7 | 2023–2024 |
-| `enem-piloto-linguagens.json` | 5 | 2023–2024 |
-| `enem-piloto-matematica.json` | 2 | 2024 |
-| `enem-piloto-natureza.json` | **0** (vazio) | — |
-| **Total** | **14** | **~5% da meta de 300** |
+**Taxonomia congelada** (`src/lib/questions/taxonomy.json`): área → disciplina → tópico, com um `recurrence_hint` por tópico vindo dos levantamentos públicos de recorrência. O importador **rejeita** qualquer questão cujo par disciplina/tópico não exista nela, o que impede que lotes diferentes inventem nomes divergentes e quebrem os filtros e o Radar.
 
-+ 12 questões demo fictícias triviais no `seed.sql` (`is_demo: true`, nível fundamental, só para popular UI em dev).
+### 13.3 Estado atual do conteúdo
 
-**Qualidade das 14 é alta:** enunciados completos com textos de apoio reais (576–1.524 caracteres), 5 alternativas, gabarito, resolução correta (amostras verificadas), metadados editoriais ricos (tópico, dificuldade, caderno/cor, URL do gabarito oficial, notas editoriais, versão de classificação) e honestidade nas flags (`confidence_level: "baixa"`, `priority_is_educational_estimate: true`).
+Fonte: os 24 PDFs oficiais do INEP (prova + gabarito, Dia 1 e Dia 2, **2020 a 2025**) em `provas-oficiais/` (fora do git; rebaixáveis pelo manifesto).
 
-**Problemas de conteúdo:**
-- **Volume irrisório** — inviável vender com 14 questões.
-- **Mídia descasada:** 7 de 8 `media_url` referenciam PNGs inexistentes (todos `media_required: false`, então não quebra, mas são URLs mortas); inversamente, 26 dos 27 PNGs em `public/enem-media/batch-001/` são **órfãos** de questões nunca finalizadas.
-- **Caminhos Windows** persistidos em `source_url`/`official_exam_url`.
-- **Resoluções revisadas por IA**, não por professor — risco de erro em escala não auditado por especialista.
+| Área | Questões no banco | Tópicos | Anos |
+|---|---:|---:|---|
+| Linguagens | 256 | 17 | 2020–2025 |
+| Ciências Humanas | 237 | 31 | 2020–2025 |
+| Ciências da Natureza | 215 | 25 | 2020–2025 |
+| Matemática | 172 | 14 | 2020–2025 |
+| **Total** | **880** | **87** | **~293% da meta de 300** |
+
+Composição: 1.109 questões extraídas → 961 completas e únicas → **880 aprovadas e importadas**; 249 marcadas `needs_review` (dependem de recurso visual ou de conferência humana) e 55 rejeitadas pela validação. 49 questões de língua estrangeira (inglês e espanhol, com gabaritos distintos) e 31 com imagem obrigatória anexada.
+
+**Mídia:** `scripts/enem-media-extract.py` recorta a região da questão no PDF original (texto + figuras + alternativas em diagrama) e grava em `public/enem-media/oficial/`, com `media-map.json` ligando cada imagem à questão. 203 imagens geradas.
+
+**Correções estruturais aplicadas ao pipeline nesta rodada:**
+- **Gabarito de espanhol** — o gabarito do Dia 1 traz duas colunas (inglês/espanhol) com respostas diferentes para as questões 1–5; o parser lia só a primeira e atribuía o gabarito do inglês às 30 questões de espanhol. Corrigido com chave `(idioma, número)`.
+- **Alternativas** — a detecção agora exige a cadeia ordenada A→B→C→D→E, eliminando falsos positivos em poemas e fórmulas (148 extrações incompletas → 65).
+- **Idioma** — inglês e espanhol deixaram de ser tratados como duplicatas; ambos são importados com a coluna `language`.
+- **PDFs de 2021** — os arquivos daquele ano trazem subconjuntos de fonte sem mapa Unicode e a extração retornava lixo em ~100% das questões. O pipeline detecta a corrupção e cai para **OCR por coluna** (Tesseract em português), preservando a ordem de leitura; os marcadores circulados Ⓐ–Ⓔ, que o OCR não reconhece, são remapeados por posição.
+- **Casamento prova↔gabarito** — passou a comparar o número do caderno, não a string com a cor.
+
+**Limitações conhecidas:** 2021 é recuperado parcialmente (93 de ~175 questões); as resoluções foram redigidas e conferidas por IA contra o gabarito oficial (a validação exige que a explicação cite a letra oficial), mas **não passaram por professor humano**.
 
 ### 13.4 Risco jurídico (importante)
 
@@ -508,14 +526,15 @@ As provas do ENEM são obras do INEP/MEC, e os textos de apoio e imagens (fotos,
 
 ### Bloqueadores de lançamento (ordem de prioridade)
 
-1. **CONTEÚDO** — 14 questões. Rodar o pipeline nos anos restantes (2020–2022 + PPL) e chegar às 300; Natureza está em zero.
-2. **JURÍDICO** — parecer sobre reprodução de provas do INEP em produto pago + finalizar termos/privacidade (LGPD)/reembolso (prazo CDC).
-3. **Webhook fail-open** — exigir `MERCADO_PAGO_WEBHOOK_SECRET` (rejeitar 401 sem ele).
-4. **`sandbox_init_point`** priorizado — inverter para `init_point` em produção.
-5. **Credenciais hardcoded no login** — remover `defaultValues`.
-6. **E-mail de confirmação de compra** — ligar os templates a um provedor (Resend etc.).
-7. **Footer** — apontar Termos/Privacidade/Contato para as rotas reais.
-8. **`/lote-001-preview`** — remover ou proteger (quebra em serverless + expõe QA).
+1. ~~**CONTEÚDO**~~ — ✅ **resolvido**: 880 questões oficiais de 2020–2025 importadas nas 4 áreas (ver 13.3). Resta a revisão humana por professor das resoluções e o tratamento das 249 questões em `needs_review`.
+2. **JURÍDICO** — parecer sobre reprodução de provas do INEP em produto pago + finalizar termos/privacidade (LGPD)/reembolso (prazo CDC). **Agora é o bloqueador nº 1**, e ficou mais material: o banco reproduz 880 questões oficiais, com recortes de imagem das provas.
+3. **Aplicar `011_service_role_grants.sql` no banco remoto** — sem ela o webhook de pagamento não consegue gravar nada (ver 12.2).
+4. **Webhook fail-open** — exigir `MERCADO_PAGO_WEBHOOK_SECRET` (rejeitar 401 sem ele).
+5. **`sandbox_init_point`** priorizado — inverter para `init_point` em produção.
+6. **Credenciais hardcoded no login** — remover `defaultValues`.
+7. **E-mail de confirmação de compra** — ligar os templates a um provedor (Resend etc.).
+8. **Footer** — apontar Termos/Privacidade/Contato para as rotas reais.
+9. **`/lote-001-preview`** — remover ou proteger (quebra em serverless + expõe QA).
 
 ### Correções desejáveis (não bloqueiam)
 
@@ -555,8 +574,31 @@ npm run build    # build de produção
 npm run lint     # eslint
 npm test         # 11 testes node --test
 
-# Importar questões no Supabase
-node scripts/import-questions.mjs supabase/imports/enem-piloto-humanas.json
+# --- Pipeline de conteúdo (ordem completa) ---
+# 0. Baixar as provas oficiais (uma vez), para provas-oficiais/
+#    https://download.inep.gov.br/enem/provas_e_gabaritos/{ano}_{PV|GB}_impresso_{D1|D2}_{CD1|CD7}.pdf
+
+# 1. Ambiente Python (PyMuPDF) + OCR em português (necessário para 2021)
+python3.14 -m venv .venv && .venv/bin/pip install -r scripts/requirements-enem-pipeline.txt
+# tesseract + por.traineddata em $TESSDATA_PREFIX
+
+# 2. Extrair questões dos PDFs
+TESSDATA_PREFIX=... .venv/bin/python scripts/enem-pilot-pipeline.py
+
+# 3. Recortar a mídia das questões que dependem de imagem
+.venv/bin/python scripts/enem-media-extract.py
+
+# 4. Exportar lotes editoriais → revisar → aplicar decisões
+python3 scripts/enem-editorial-export.py                 # todos
+python3 scripts/enem-editorial-export.py --only-pending  # só o que falta
+python3 scripts/enem-editorial-apply.py
+
+# 5. Importar no Supabase (preview sem --commit)
+node scripts/import-questions.mjs --file supabase/imports/enem-piloto-humanas.json --commit
+
+# 6. Medir recorrência e gravar nos tópicos
+python3 scripts/enem-recurrence-report.py
+node scripts/update-topic-recurrence.mjs --commit
 
 # Variáveis de ambiente necessárias (.env.local)
 NEXT_PUBLIC_SUPABASE_URL=

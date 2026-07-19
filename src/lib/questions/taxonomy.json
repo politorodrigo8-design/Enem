@@ -1,0 +1,133 @@
+{
+  "version": "2026-07-18.1",
+  "notes": "Taxonomia oficial congelada. Toda questao importada precisa usar exatamente estes nomes de area, disciplina (subject) e topico. Subtopico e texto livre. recurrence_hint vem dos levantamentos publicos de recorrencia 2009-2024 e da propria base extraida 2020-2025; e estimativa educacional, nao previsao.",
+  "areas": {
+    "Matematica": {
+      "Matematica": [
+        { "topic": "Numeros e operacoes", "recurrence_hint": "alta" },
+        { "topic": "Razao, proporcao e porcentagem", "recurrence_hint": "alta" },
+        { "topic": "Escalas e unidades de medida", "recurrence_hint": "media" },
+        { "topic": "Matematica financeira", "recurrence_hint": "media" },
+        { "topic": "Estatistica", "recurrence_hint": "alta" },
+        { "topic": "Probabilidade", "recurrence_hint": "alta" },
+        { "topic": "Analise combinatoria", "recurrence_hint": "media" },
+        { "topic": "Interpretacao de graficos e tabelas", "recurrence_hint": "alta" },
+        { "topic": "Funcoes", "recurrence_hint": "alta" },
+        { "topic": "Equacoes e inequacoes", "recurrence_hint": "media" },
+        { "topic": "Sequencias e progressoes", "recurrence_hint": "baixa" },
+        { "topic": "Geometria plana", "recurrence_hint": "alta" },
+        { "topic": "Geometria espacial", "recurrence_hint": "alta" },
+        { "topic": "Geometria analitica", "recurrence_hint": "baixa" },
+        { "topic": "Trigonometria", "recurrence_hint": "baixa" }
+      ]
+    },
+    "Ciencias da Natureza": {
+      "Biologia": [
+        { "topic": "Ecologia e meio ambiente", "recurrence_hint": "alta" },
+        { "topic": "Genetica e evolucao", "recurrence_hint": "alta" },
+        { "topic": "Citologia e bioquimica", "recurrence_hint": "alta" },
+        { "topic": "Fisiologia humana", "recurrence_hint": "alta" },
+        { "topic": "Imunologia e saude", "recurrence_hint": "media" },
+        { "topic": "Botanica e zoologia", "recurrence_hint": "baixa" },
+        { "topic": "Biotecnologia", "recurrence_hint": "media" }
+      ],
+      "Fisica": [
+        { "topic": "Mecanica", "recurrence_hint": "alta" },
+        { "topic": "Energia e trabalho", "recurrence_hint": "alta" },
+        { "topic": "Eletricidade e magnetismo", "recurrence_hint": "alta" },
+        { "topic": "Ondas e acustica", "recurrence_hint": "alta" },
+        { "topic": "Optica", "recurrence_hint": "media" },
+        { "topic": "Termologia e termodinamica", "recurrence_hint": "media" },
+        { "topic": "Hidrostatica", "recurrence_hint": "baixa" },
+        { "topic": "Fisica moderna", "recurrence_hint": "baixa" }
+      ],
+      "Quimica": [
+        { "topic": "Estequiometria", "recurrence_hint": "alta" },
+        { "topic": "Solucoes e concentracao", "recurrence_hint": "alta" },
+        { "topic": "Funcoes inorganicas", "recurrence_hint": "media" },
+        { "topic": "Quimica organica", "recurrence_hint": "alta" },
+        { "topic": "Eletroquimica", "recurrence_hint": "media" },
+        { "topic": "Termoquimica", "recurrence_hint": "media" },
+        { "topic": "Cinetica e equilibrio quimico", "recurrence_hint": "media" },
+        { "topic": "Atomistica e tabela periodica", "recurrence_hint": "baixa" },
+        { "topic": "Separacao de misturas e propriedades", "recurrence_hint": "media" },
+        { "topic": "Quimica ambiental", "recurrence_hint": "media" },
+        { "topic": "Radioatividade", "recurrence_hint": "baixa" }
+      ]
+    },
+    "Ciencias Humanas": {
+      "Historia": [
+        { "topic": "Brasil Colonia", "recurrence_hint": "media" },
+        { "topic": "Brasil Imperio", "recurrence_hint": "media" },
+        { "topic": "Republica Velha", "recurrence_hint": "media" },
+        { "topic": "Era Vargas", "recurrence_hint": "alta" },
+        { "topic": "Ditadura militar e redemocratizacao", "recurrence_hint": "alta" },
+        { "topic": "Idade Antiga e Media", "recurrence_hint": "baixa" },
+        { "topic": "Idade Moderna", "recurrence_hint": "media" },
+        { "topic": "Idade Contemporanea", "recurrence_hint": "alta" },
+        { "topic": "Historia da America", "recurrence_hint": "media" },
+        { "topic": "Escravidao e cultura afro-brasileira", "recurrence_hint": "alta" },
+        { "topic": "Povos indigenas", "recurrence_hint": "media" }
+      ],
+      "Geografia": [
+        { "topic": "Urbanizacao", "recurrence_hint": "alta" },
+        { "topic": "Globalizacao e geopolitica", "recurrence_hint": "alta" },
+        { "topic": "Meio ambiente e sustentabilidade", "recurrence_hint": "alta" },
+        { "topic": "Populacao e migracoes", "recurrence_hint": "alta" },
+        { "topic": "Agricultura e agropecuaria", "recurrence_hint": "media" },
+        { "topic": "Industria e energia", "recurrence_hint": "media" },
+        { "topic": "Cartografia", "recurrence_hint": "media" },
+        { "topic": "Clima e relevo", "recurrence_hint": "media" },
+        { "topic": "Hidrografia", "recurrence_hint": "baixa" }
+      ],
+      "Filosofia": [
+        { "topic": "Filosofia antiga", "recurrence_hint": "media" },
+        { "topic": "Filosofia moderna e contemporanea", "recurrence_hint": "media" },
+        { "topic": "Etica e moral", "recurrence_hint": "alta" },
+        { "topic": "Politica e Estado", "recurrence_hint": "media" },
+        { "topic": "Teoria do conhecimento", "recurrence_hint": "baixa" }
+      ],
+      "Sociologia": [
+        { "topic": "Cidadania e direitos", "recurrence_hint": "alta" },
+        { "topic": "Trabalho e sociedade", "recurrence_hint": "alta" },
+        { "topic": "Cultura e identidade", "recurrence_hint": "media" },
+        { "topic": "Movimentos sociais", "recurrence_hint": "media" },
+        { "topic": "Desigualdade social", "recurrence_hint": "media" },
+        { "topic": "Midia e sociedade", "recurrence_hint": "media" }
+      ]
+    },
+    "Linguagens": {
+      "Lingua Portuguesa": [
+        { "topic": "Interpretacao textual", "recurrence_hint": "alta" },
+        { "topic": "Generos textuais", "recurrence_hint": "alta" },
+        { "topic": "Funcoes da linguagem", "recurrence_hint": "media" },
+        { "topic": "Variacao linguistica", "recurrence_hint": "alta" },
+        { "topic": "Norma e gramatica contextualizada", "recurrence_hint": "media" },
+        { "topic": "Coesao e coerencia", "recurrence_hint": "media" },
+        { "topic": "Publicidade e midia", "recurrence_hint": "media" },
+        { "topic": "Linguagem verbal e nao verbal", "recurrence_hint": "alta" }
+      ],
+      "Literatura": [
+        { "topic": "Escolas literarias", "recurrence_hint": "media" },
+        { "topic": "Poesia", "recurrence_hint": "media" },
+        { "topic": "Prosa", "recurrence_hint": "media" },
+        { "topic": "Literatura contemporanea e marginal", "recurrence_hint": "media" }
+      ],
+      "Ingles": [
+        { "topic": "Interpretacao de texto em ingles", "recurrence_hint": "alta" }
+      ],
+      "Espanhol": [
+        { "topic": "Interpretacao de texto em espanhol", "recurrence_hint": "alta" }
+      ],
+      "Artes": [
+        { "topic": "Artes visuais e musica", "recurrence_hint": "media" }
+      ],
+      "Educacao Fisica": [
+        { "topic": "Corpo, saude e praticas corporais", "recurrence_hint": "media" }
+      ],
+      "Tecnologias": [
+        { "topic": "Tecnologias da informacao e comunicacao", "recurrence_hint": "baixa" }
+      ]
+    }
+  }
+}

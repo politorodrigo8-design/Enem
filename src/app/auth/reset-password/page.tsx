@@ -39,38 +39,43 @@ export default function ResetPasswordPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-xl">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="animate-rise mb-8 flex items-center justify-between">
           <Logo />
           <Link href="/login" className={buttonClasses({ variant: "ghost", size: "sm" })}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Login
           </Link>
         </div>
-        <Card>
-          <CardContent className="p-6 sm:p-8">
-            <h1 className="text-2xl font-bold text-slate-950">Definir nova senha</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Informe uma nova senha para continuar usando o NexoENEM.
-            </p>
-            <form className="mt-6 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
-              <PasswordField
-                label="Nova senha"
-                error={form.formState.errors.password?.message}
-                register={form.register("password")}
-              />
-              <PasswordField
-                label="Confirmar nova senha"
-                error={form.formState.errors.confirmPassword?.message}
-                register={form.register("confirmPassword")}
-              />
-              {message ? <p className="text-sm font-semibold text-slate-700">{message}</p> : null}
-              <Button type="submit" full size="lg" disabled={pending}>
-                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Atualizar senha
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+        <div
+          className="animate-rise"
+          style={{ "--rise-delay": "70ms" } as React.CSSProperties}
+        >
+          <Card>
+            <CardContent className="p-6 sm:p-8">
+              <h1 className="text-2xl font-bold text-slate-950">Definir nova senha</h1>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Informe uma nova senha para continuar usando o NexoENEM.
+              </p>
+              <form className="mt-6 space-y-4" onSubmit={form.handleSubmit(onSubmit)}>
+                <PasswordField
+                  label="Nova senha"
+                  error={form.formState.errors.password?.message}
+                  register={form.register("password")}
+                />
+                <PasswordField
+                  label="Confirmar nova senha"
+                  error={form.formState.errors.confirmPassword?.message}
+                  register={form.register("confirmPassword")}
+                />
+                {message ? <p className="text-sm font-semibold text-slate-700">{message}</p> : null}
+                <Button type="submit" full size="lg" disabled={pending}>
+                  {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                  Atualizar senha
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </main>
   );

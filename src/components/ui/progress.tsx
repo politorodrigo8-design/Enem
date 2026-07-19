@@ -39,7 +39,10 @@ export function Progress({
         aria-valuenow={safeValue}
       >
         <div
-          className={cn("h-full rounded-md transition-all", tones[tone])}
+          className={cn(
+            "h-full rounded-md transition-[width] duration-700 ease-out",
+            tones[tone],
+          )}
           style={{ width: `${safeValue}%` }}
         />
       </div>

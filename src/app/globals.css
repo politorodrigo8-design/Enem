@@ -54,3 +54,85 @@ textarea {
   border-radius: 0.2em;
   background: rgb(253 230 138 / 0.75); /* amber-200 */
 }
+
+/* ── Sistema de motion (DESIGN.md) ─────────────────────────────
+   Entradas: 400-500ms ease-out, deslocamento curto, stagger 60-80ms.
+   Micro-interações: 150ms. Tudo desligado em prefers-reduced-motion. */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Entrada imediata (hero, troca de página). Stagger via --rise-delay. */
+.animate-rise {
+  animation: rise 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: var(--rise-delay, 0ms);
+}
+
+/* Entrada de overlays (dropdown, modal). */
+.animate-pop {
+  animation: pop 160ms ease-out both;
+}
+
+/* Acordeões <details> com abertura suave (progressive enhancement). */
+details::details-content {
+  transition:
+    content-visibility 300ms allow-discrete,
+    opacity 300ms ease-out,
+    block-size 300ms ease-out;
+  opacity: 0;
+  block-size: 0;
+  overflow: clip;
+}
+
+details[open]::details-content {
+  opacity: 1;
+  block-size: auto;
+}
+
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    interpolate-size: allow-keywords;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-pop {
+    animation: none;
+  }
+
+  .reveal-fx {
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  details::details-content {
+    transition: none;
+    opacity: 1;
+    block-size: auto;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

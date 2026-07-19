@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { Reveal } from "@/components/ui/reveal";
 
 export function LegalPage({
   title,
@@ -10,20 +11,25 @@ export function LegalPage({
   return (
     <main className="bg-slate-50 py-16">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-display font-semibold tracking-tight text-slate-950">{title}</h1>
-        <p className="mt-4 text-base leading-7 text-slate-600">
+        <h1 className="animate-rise text-4xl font-display font-semibold tracking-tight text-slate-950">{title}</h1>
+        <p
+          className="animate-rise mt-4 text-base leading-7 text-slate-600"
+          style={{ "--rise-delay": "70ms" } as React.CSSProperties}
+        >
           Versão preliminar. A versão final será publicada antes da abertura das vendas.
         </p>
-        <Card className="mt-8">
-          <CardContent className="space-y-7 p-8">
-            {sections.map(([heading, body]) => (
-              <section key={heading}>
-                <h2 className="text-lg font-bold text-slate-950">{heading}</h2>
-                <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p>
-              </section>
-            ))}
-          </CardContent>
-        </Card>
+        <Reveal delay={140}>
+          <Card className="mt-8">
+            <CardContent className="space-y-7 p-8">
+              {sections.map(([heading, body]) => (
+                <section key={heading}>
+                  <h2 className="text-lg font-bold text-slate-950">{heading}</h2>
+                  <p className="mt-2 text-sm leading-7 text-slate-600">{body}</p>
+                </section>
+              ))}
+            </CardContent>
+          </Card>
+        </Reveal>
       </div>
     </main>
   );

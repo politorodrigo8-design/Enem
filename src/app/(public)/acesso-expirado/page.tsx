@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function ExpiredAccessPage() {
   return (
     <main className="bg-slate-50 py-16">
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
+      <div className="animate-rise mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-8 sm:p-10">
             <CalendarX className="h-10 w-10 text-amber-600" aria-hidden="true" />

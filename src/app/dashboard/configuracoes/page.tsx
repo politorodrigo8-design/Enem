@@ -11,7 +11,7 @@ export default async function SettingsPage() {
   return (
     <div>
       <DashboardPageHeader
-        title="Configurações"
+        title="Meu perfil"
         description="Edite seus dados de estudo, rotina, preferências e segurança da conta."
       />
 

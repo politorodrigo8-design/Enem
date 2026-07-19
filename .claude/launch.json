@@ -3,9 +3,10 @@
   "configurations": [
     {
       "name": "nexoenem-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
-      "port": 3000
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["NEXT_DIST_DIR=.next-claude", "npm", "run", "dev"],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }

@@ -24,7 +24,7 @@ const initialForm = {
   easy_to_understand: true,
 };
 
-export function FeedbackButton() {
+export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -47,10 +47,21 @@ export function FeedbackButton() {
 
   return (
     <>
-      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <MessageSquare className="h-4 w-4" aria-hidden="true" />
-        Enviar feedback
-      </Button>
+      {minimal ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-2 text-xs font-medium text-slate-400 transition-colors hover:text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        >
+          <MessageSquare className="h-3.5 w-3.5" aria-hidden="true" />
+          Enviar feedback
+        </button>
+      ) : (
+        <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+          <MessageSquare className="h-4 w-4" aria-hidden="true" />
+          Enviar feedback
+        </Button>
+      )}
 
       {open ? (
         <div
@@ -59,7 +70,7 @@ export function FeedbackButton() {
           aria-modal="true"
           aria-labelledby="feedback-title"
         >
-          <div className="w-full max-w-lg rounded-xl bg-white p-6 shadow-lg shadow-slate-900/15">
+          <div className="animate-pop w-full max-w-lg rounded-xl bg-white p-6 shadow-lg shadow-slate-900/15">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 id="feedback-title" className="text-lg font-bold text-slate-950">

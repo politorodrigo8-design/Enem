@@ -38,8 +38,14 @@ Estética nomeada: **"caderno de prova"** — editorial, papel claro, tinta escu
 
 ## Motion
 
-- 150–250ms, `ease-out`, apenas `transition-colors`/`opacity`/`transform` discretos.
-- Sem bounce, sem fade-in universal no scroll, sem parallax.
+Sistema nomeado (implementado em `globals.css` + `components/ui/reveal.tsx`):
+
+- **Entradas de conteúdo:** `<Reveal>` (viewport, uma vez) ou `.animate-rise` (no mount) — 400–500ms, `cubic-bezier(0.22,1,0.36,1)`, deslocamento ≤ 12px. Irmãos escalonados com 60–80ms (`delay`/`--rise-delay`). Revelar SEÇÕES e GRUPOS, não cada átomo.
+- **Overlays** (dropdown, modal): `.animate-pop`, 160ms.
+- **Micro-interações:** 150ms — botões com `active:scale-[0.98]`, hovers por cor, tabs por cor/borda. Cards clicáveis podem ter lift sutil (`hover:-translate-y-0.5 hover:shadow-md`).
+- **Acordeões `<details>`:** abertura suave via CSS global (já aplicada).
+- **Barras de progresso:** largura animada (600–700ms ease-out).
+- Sem bounce, sem parallax, sem loops infinitos decorativos. Tudo respeita `prefers-reduced-motion` (o CSS global já desliga).
 
 ## Copy (pt-BR)
 

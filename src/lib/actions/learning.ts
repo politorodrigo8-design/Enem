@@ -6,6 +6,7 @@ import { accessRequiredMessage, getAccessContext } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
+import { recalculateDiagnosisPriorities } from "@/lib/db/diagnosis";
 import { calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
 import type { ActionResult } from "@/lib/actions/auth";
 import type { AccessContext } from "@/lib/access";
@@ -93,32 +94,14 @@ export async function saveDiagnosisAction(
     },
   });
 
-  const { data: topics } = await supabase.from("topics").select("*, subjects (*)");
-  const upserts =
-    topics?.map((topic) => {
-      const areaDifficulty = Number(
-        parsed.data.perceived_difficulties[
-          (topic.subjects as { area: string }).area
-        ] ?? 3,
-      );
-      const score =
-        calculatePriorityScore(topic, undefined) + Number((areaDifficulty * 1.2).toFixed(2));
-
-      return {
-        user_id: user.id,
-        topic_id: topic.id,
-        priority_score: score,
-      };
-    }) ?? [];
-
-  if (upserts.length) {
-    await supabase
-      .from("user_topic_performance")
-      .upsert(upserts, { onConflict: "user_id,topic_id" });
-  }
+  await recalculateDiagnosisPriorities(
+    supabase,
+    user.id,
+    parsed.data.perceived_difficulties,
+  );
 
   revalidatePath("/dashboard", "layout");
-  return { ok: true, message: "Diagnóstico salvo e prioridades recalculadas." };
+  return { ok: true, message: "Diagnóstico atualizado e prioridades recalculadas." };
 }
 
 export async function submitQuestionAnswerAction(input: {
@@ -164,8 +147,8 @@ export async function submitQuestionAnswerAction(input: {
         : "question_answered",
     route:
       input.source === "high_priority"
-        ? "/dashboard/treino-prioritario"
-        : "/dashboard/questoes",
+        ? "/dashboard/praticar?tab=prioritarias"
+        : "/dashboard/praticar?tab=banco",
     metadata: {
       question_id: question.id,
       is_correct: result.isCorrect,
@@ -196,7 +179,7 @@ export async function addQuestionReviewAction(questionId: string): Promise<Actio
   );
 
   if (error) return { ok: false, message: error.message };
-  revalidatePath("/dashboard/revisao");
+  revalidatePath("/dashboard/praticar");
   return { ok: true, message: "Questão adicionada à revisão." };
 }
 
@@ -226,20 +209,18 @@ export async function toggleQuestionReviewAction(
       .eq("user_id", user.id);
 
     if (error) return { ok: false, message: error.message };
-    revalidatePath("/dashboard/questoes");
-    revalidatePath("/dashboard/revisao");
+    revalidatePath("/dashboard/praticar");
     return { ok: true, reviewed: toggle.reviewed, message: toggle.message };
   }
 
   if (!toggle.row) {
-    return { ok: false, message: "Nao foi possivel montar o favorito da questao." };
+    return { ok: false, message: "Não foi possível marcar a questão para revisão." };
   }
 
   const { error } = await supabase.from("user_question_reviews").insert(toggle.row);
 
   if (error) return { ok: false, message: error.message };
-  revalidatePath("/dashboard/questoes");
-  revalidatePath("/dashboard/revisao");
+  revalidatePath("/dashboard/praticar");
   return { ok: true, reviewed: toggle.reviewed, message: toggle.message };
 }
 
@@ -254,7 +235,7 @@ export async function markReviewMasteredAction(questionId: string): Promise<Acti
     .eq("question_id", questionId);
 
   if (error) return { ok: false, message: error.message };
-  revalidatePath("/dashboard/revisao");
+  revalidatePath("/dashboard/praticar");
   return { ok: true, message: "Conteúdo marcado como dominado." };
 }
 
@@ -413,6 +394,154 @@ export async function finishSimulationAction(
   };
 }
 
+const SIMULATION_AREAS = [
+  "Matematica",
+  "Ciencias da Natureza",
+  "Ciencias Humanas",
+  "Linguagens",
+] as const;
+
+export type GenerateSimulationCriteria = {
+  title?: string;
+  areas: string[];
+  topics?: string[];
+  questionCount: number;
+  difficulty?: "Baixa" | "Média" | "Alta" | null;
+  prioritizeWeaknesses?: boolean;
+  foreignLanguage?: "en" | "es";
+};
+
+export async function generateSimulationAction(
+  criteria: GenerateSimulationCriteria,
+): Promise<{ ok: boolean; message: string; simulationId?: string }> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
+  const { supabase, user } = context;
+
+  const areas = (criteria.areas ?? []).filter((area) =>
+    (SIMULATION_AREAS as readonly string[]).includes(area),
+  );
+  if (!areas.length) {
+    return { ok: false, message: "Escolha pelo menos uma área da prova." };
+  }
+  const questionCount = Math.floor(criteria.questionCount);
+  if (!Number.isFinite(questionCount) || questionCount < 5 || questionCount > 90) {
+    return { ok: false, message: "O simulado precisa ter entre 5 e 90 questões." };
+  }
+  const foreignLanguage = criteria.foreignLanguage === "es" ? "es" : "en";
+
+  let query = supabase
+    .from("questions")
+    .select("id, topic_id, difficulty, language, subjects!inner(area), topics(name)")
+    .in("subjects.area", areas)
+    .or(`language.is.null,language.eq.${foreignLanguage}`);
+  if (criteria.difficulty) {
+    query = query.eq("difficulty", criteria.difficulty);
+  }
+  if (criteria.topics?.length) {
+    query = query.in("topics.name", criteria.topics);
+  }
+  const { data: candidates, error: candidatesError } = await query.limit(2000);
+  if (candidatesError) return { ok: false, message: candidatesError.message };
+  if (!candidates || candidates.length < questionCount) {
+    return {
+      ok: false,
+      message: `O banco tem ${candidates?.length ?? 0} questões para esses filtros; reduza a quantidade ou amplie os critérios.`,
+    };
+  }
+
+  let weaknessByTopic = new Map<string, number>();
+  if (criteria.prioritizeWeaknesses) {
+    const { data: performance } = await supabase
+      .from("user_topic_performance")
+      .select("topic_id, priority_score")
+      .eq("user_id", user.id);
+    weaknessByTopic = new Map(
+      (performance ?? []).map((row) => [row.topic_id as string, Number(row.priority_score) || 0]),
+    );
+  }
+
+  // Sorteio balanceado: agrupa por tópico e faz round-robin para não concentrar
+  // o simulado em um único assunto; com prioridade, tópicos mais fracos vêm antes.
+  const byTopic = new Map<string, typeof candidates>();
+  for (const candidate of candidates) {
+    const key = (candidate.topic_id as string) ?? "sem-topico";
+    if (!byTopic.has(key)) byTopic.set(key, []);
+    byTopic.get(key)!.push(candidate);
+  }
+  const groups = Array.from(byTopic.entries());
+  for (const [, group] of groups) group.sort(() => Math.random() - 0.5);
+  groups.sort(([topicA], [topicB]) => {
+    if (!criteria.prioritizeWeaknesses) return Math.random() - 0.5;
+    return (weaknessByTopic.get(topicB) ?? 0) - (weaknessByTopic.get(topicA) ?? 0);
+  });
+  const picked: string[] = [];
+  let round = 0;
+  while (picked.length < questionCount) {
+    let addedThisRound = false;
+    for (const [, group] of groups) {
+      if (picked.length >= questionCount) break;
+      const candidate = group[round];
+      if (candidate) {
+        picked.push(candidate.id as string);
+        addedThisRound = true;
+      }
+    }
+    if (!addedThisRound) break;
+    round += 1;
+  }
+  if (picked.length < questionCount) {
+    return { ok: false, message: "Não foi possível montar o simulado com os filtros atuais." };
+  }
+
+  const title =
+    criteria.title?.trim() ||
+    `Simulado personalizado — ${new Date().toLocaleDateString("pt-BR")}`;
+  const { data: simulation, error: simulationError } = await supabase
+    .from("simulations")
+    .insert({
+      title,
+      description: `Gerado a partir do banco de questões (${areas.join(", ")}).`,
+      duration_minutes: questionCount * 3,
+      difficulty: criteria.difficulty ?? "Média",
+      status: "Disponível",
+      created_by: user.id,
+      is_generated: true,
+      criteria: {
+        areas,
+        topics: criteria.topics ?? null,
+        question_count: questionCount,
+        difficulty: criteria.difficulty ?? null,
+        prioritize_weaknesses: Boolean(criteria.prioritizeWeaknesses),
+        foreign_language: foreignLanguage,
+      },
+    })
+    .select("id")
+    .single();
+  if (simulationError || !simulation) {
+    return { ok: false, message: simulationError?.message ?? "Falha ao criar o simulado." };
+  }
+
+  const { error: questionsError } = await supabase.from("simulation_questions").insert(
+    picked.map((questionId, index) => ({
+      simulation_id: simulation.id,
+      question_id: questionId,
+      position: index + 1,
+    })),
+  );
+  if (questionsError) {
+    await supabase.from("simulations").delete().eq("id", simulation.id);
+    return { ok: false, message: questionsError.message };
+  }
+
+  revalidatePath("/dashboard/simulados");
+  return {
+    ok: true,
+    message: `Simulado montado com ${picked.length} questões do banco.`,
+    simulationId: simulation.id,
+  };
+}
+
 export async function generateStudyPlanAction(): Promise<ActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
@@ -473,12 +602,12 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     if (error) return { ok: false, message: error.message };
   }
 
-  revalidatePath("/dashboard/plano");
+  revalidatePath("/dashboard");
   await recordProductEvent({
     supabase,
     userId: user.id,
     eventName: "study_plan_generated",
-    route: "/dashboard/plano",
+    route: "/dashboard",
     metadata: { item_count: items.length },
   });
   return { ok: true, message: "Plano semanal gerado com regras." };
@@ -498,10 +627,10 @@ export async function completeStudyPlanItemAction(itemId: string): Promise<Actio
     supabase,
     userId: user.id,
     eventName: "study_plan_item_completed",
-    route: "/dashboard/plano",
+    route: "/dashboard",
     metadata: { item_id: itemId },
   });
-  revalidatePath("/dashboard/plano");
+  revalidatePath("/dashboard");
   return { ok: true, message: "Atividade concluída." };
 }
 

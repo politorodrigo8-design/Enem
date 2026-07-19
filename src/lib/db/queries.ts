@@ -313,7 +313,8 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
     `,
     )
     .eq("user_simulations.user_id", user.id)
-    .order("title");
+    .order("title")
+    .order("started_at", { referencedTable: "user_simulations", ascending: false });
 
   if (error) {
     logQueryError("simulations.with_questions_and_user_attempts", error);

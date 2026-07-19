@@ -10,7 +10,9 @@ import type { Profile } from "@/lib/db/types";
 import type { OnboardingInput } from "@/lib/schemas/beta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DifficultyScale } from "@/components/dashboard/difficulty-scale";
 import { Badge } from "@/components/ui/badge";
+import { Reveal } from "@/components/ui/reveal";
 
 const areas = [
   "Linguagens",
@@ -107,6 +109,7 @@ export function SettingsClient({
 
   return (
     <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+      <Reveal delay={0}>
       <Card>
         <CardHeader>
           <CardTitle>Perfil e rotina</CardTitle>
@@ -202,37 +205,22 @@ export function SettingsClient({
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Áreas de maior dificuldade
             </p>
-            <p className="mt-1 text-xs leading-5 text-slate-500">
-              Use 1 para baixa dificuldade e 5 para alta dificuldade.
-            </p>
-            <div className="mt-2 divide-y divide-slate-100">
+            <div className="mt-2 max-w-xl divide-y divide-slate-100">
               {areas.map((area) => (
-                <label key={area} className="flex items-center gap-4 py-3">
-                  <span className="w-44 shrink-0 text-sm font-medium text-slate-900">
-                    {area}
-                  </span>
-                  <input
-                    type="range"
-                    name={`perceived_difficulties_${area}`}
-                    aria-label={`Dificuldade em ${area}`}
-                    min={1}
-                    max={5}
-                    value={form.perceived_difficulties[area]}
-                    onChange={(event) =>
-                      setForm((current) => ({
-                        ...current,
-                        perceived_difficulties: {
-                          ...current.perceived_difficulties,
-                          [area]: Number(event.target.value),
-                        },
-                      }))
-                    }
-                    className="w-full accent-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-blue-700"
-                  />
-                  <span className="tnum w-8 shrink-0 text-right text-sm font-semibold text-blue-700">
-                    {form.perceived_difficulties[area]}/5
-                  </span>
-                </label>
+                <DifficultyScale
+                  key={area}
+                  label={area}
+                  value={form.perceived_difficulties[area]}
+                  onChange={(value) =>
+                    setForm((current) => ({
+                      ...current,
+                      perceived_difficulties: {
+                        ...current.perceived_difficulties,
+                        [area]: value,
+                      },
+                    }))
+                  }
+                />
               ))}
             </div>
           </div>
@@ -243,8 +231,9 @@ export function SettingsClient({
           </Button>
         </CardContent>
       </Card>
+      </Reveal>
 
-      <div className="space-y-6">
+      <Reveal delay={80} className="space-y-6">
         <Card>
           <CardHeader>
             <CardTitle>Status do acesso</CardTitle>
@@ -326,7 +315,7 @@ export function SettingsClient({
             </div>
           </CardContent>
         </Card>
-      </div>
+      </Reveal>
     </div>
   );
 }

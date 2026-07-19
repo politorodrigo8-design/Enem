@@ -4,7 +4,7 @@
 The default run is intentionally conservative:
 - it inventories every attached PDF;
 - it matches proofs to attached answer keys when possible;
-- it processes only the two most recent complete confirmed years, up to four pairs;
+- it processes up to six complete confirmed years (twelve proof/answer-key pairs);
 - it writes empty Supabase import files unless rows are approved and verified.
 
 Install dependency in the ignored work directory:
@@ -20,8 +20,11 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import subprocess
 import sys
+import tempfile
 import unicodedata
 from collections import Counter, defaultdict
 from dataclasses import dataclass
@@ -57,12 +60,13 @@ AREA_BY_RANGE = [
     (136, 180, "Matematica"),
 ]
 
-MAX_PROCESSED_PAIRS = 4
+MAX_PROCESSED_PAIRS = 12
+OCR_CORRUPTION_THRESHOLD = 0.02
 PILOT_QUOTAS = {
-    "Matematica": 15,
-    "Ciencias da Natureza": 10,
-    "Ciencias Humanas": 8,
-    "Linguagens": 7,
+    "Matematica": 100,
+    "Ciencias da Natureza": 80,
+    "Ciencias Humanas": 60,
+    "Linguagens": 60,
 }
 
 PRIORITY_WEIGHTS = {
@@ -269,10 +273,15 @@ def build_inventory(paths: list[Path], ignored_paths: list[Path]) -> list[dict[s
         item["question_count"] = len(item["question_numbers"])
         if item["type"] == "gabarito":
             answer_map = parse_answer_key_text(text)
-            item["answer_numbers"] = sorted(answer_map)
-            item["answer_count"] = len(answer_map)
+            # Language-specific entries are keyed by (language, number); the
+            # inventory counts only the plain per-number answers.
+            numeric_answers = {
+                number: answer for number, answer in answer_map.items() if isinstance(number, int)
+            }
+            item["answer_numbers"] = sorted(numeric_answers)
+            item["answer_count"] = len(numeric_answers)
             item["annulled_questions"] = sorted(
-                number for number, answer in answer_map.items() if answer == "Anulado"
+                number for number, answer in numeric_answers.items() if answer == "Anulado"
             )
             item["question_count"] = item["answer_count"]
         item["relevant_pages"] = find_question_pages(pdf.pages)
@@ -285,8 +294,8 @@ def build_inventory(paths: list[Path], ignored_paths: list[Path]) -> list[dict[s
 
         if item["type"] == "prova" and item["question_count"] != 90:
             item["problems"].append("Quantidade de marcadores de questao diferente de 90.")
-        if item["type"] == "gabarito" and item["answer_count"] != 90:
-            item["problems"].append("Quantidade de respostas diferente de 90.")
+        if item["type"] == "gabarito" and not 88 <= item["answer_count"] <= 90:
+            item["problems"].append("Quantidade de respostas fora da faixa esperada (88-90; anuladas aparecem sem letra).")
         if item["type"] == "prova" and item["answer_key_file"] is None:
             item["problems"].append("Gabarito correspondente ainda nao identificado entre os anexos.")
         if item["year"] is None:
@@ -298,13 +307,61 @@ def build_inventory(paths: list[Path], ignored_paths: list[Path]) -> list[dict[s
     return inventory
 
 
+def corruption_ratio(text: str) -> float:
+    """Share of unmapped glyphs. Some INEP booklets (notably 2021) embed font
+    subsets without a ToUnicode CMap, so extraction returns control codes
+    instead of letters."""
+    if not text:
+        return 0.0
+    broken = sum(1 for char in text if ord(char) < 0x20 and char not in "\n\t\r")
+    return broken / len(text)
+
+
+def ocr_page_by_columns(page: "fitz.Page") -> str:
+    """OCR a two-column exam page one column at a time, so the recovered text
+    keeps the printed reading order (a full-page OCR interleaves the columns)."""
+    tessdata = os.environ.get("TESSDATA_PREFIX")
+    if not tessdata:
+        return ""
+    env = dict(os.environ, TESSDATA_PREFIX=tessdata)
+    middle = page.rect.width / 2
+    chunks: list[str] = []
+    for x0, x1 in ((0, middle), (middle, page.rect.width)):
+        clip = fitz.Rect(x0, 0, x1, page.rect.height)
+        pixmap = page.get_pixmap(matrix=fitz.Matrix(3, 3), clip=clip)
+        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as handle:
+            temp_path = handle.name
+        try:
+            pixmap.save(temp_path)
+            result = subprocess.run(
+                ["tesseract", temp_path, "stdout", "-l", "por", "--psm", "6"],
+                capture_output=True,
+                text=True,
+                env=env,
+                check=False,
+            )
+            chunks.append(result.stdout)
+        finally:
+            Path(temp_path).unlink(missing_ok=True)
+    return "\n".join(chunks)
+
+
 def read_pdf(path: Path) -> PdfText:
     doc = fitz.open(path)
     pages: list[str] = []
     image_counts: list[int] = []
+    ocr_pages = 0
     for page in doc:
-        pages.append(page.get_text("text"))
+        text = page.get_text("text")
+        if corruption_ratio(text) > OCR_CORRUPTION_THRESHOLD:
+            recovered = ocr_page_by_columns(page)
+            if recovered and corruption_ratio(recovered) <= OCR_CORRUPTION_THRESHOLD:
+                text = recovered
+                ocr_pages += 1
+        pages.append(text)
         image_counts.append(len(page.get_images(full=True)))
+    if ocr_pages:
+        print(f"  OCR aplicado em {ocr_pages} pagina(s) de {path.name}")
     return PdfText(pages=pages, metadata=dict(doc.metadata or {}), image_counts=image_counts)
 
 
@@ -444,6 +501,15 @@ def confidence_for(item: dict[str, Any]) -> str:
     return "baixa"
 
 
+def booklet_number(booklet: str | None) -> str | None:
+    """'Caderno 7 - AZUL' and 'Caderno 7' are the same booklet. OCR fallback can
+    drop the colour word, so match on the number alone."""
+    if not booklet:
+        return None
+    match = re.search(r"caderno\s*(\d+)", normalize(booklet))
+    return match.group(1) if match else normalize(booklet)
+
+
 def match_answer_keys(inventory: list[dict[str, Any]]) -> None:
     answer_keys = [item for item in inventory if item["type"] == "gabarito" and not item["duplicate_of"]]
     proofs = [item for item in inventory if item["type"] == "prova" and not item["duplicate_of"]]
@@ -455,14 +521,14 @@ def match_answer_keys(inventory: list[dict[str, Any]]) -> None:
             if key.get("year") == proof.get("year")
             and key.get("exam_day") == proof.get("exam_day")
             and key.get("application") == proof.get("application")
-            and key.get("booklet") == proof.get("booklet")
-            and key.get("answer_count") == 90
+            and booklet_number(key.get("booklet")) == booklet_number(proof.get("booklet"))
+            and 88 <= (key.get("answer_count") or 0) <= 90
         ]
         if len(matches) == 1:
             proof["answer_key_file"] = matches[0]["file_name"]
             proof["answer_verified"] = True
             proof["association_confidence"] = "alta"
-            proof["association_observation"] = "Ano, aplicacao, dia, caderno e 90 respostas conferem."
+            proof["association_observation"] = "Ano, aplicacao, dia, caderno e contagem de respostas conferem (anuladas sem letra sao toleradas)."
             matches[0]["matched_proof_file"] = proof["file_name"]
             matches[0]["answer_verified"] = True
             matches[0]["association_confidence"] = "alta"
@@ -582,6 +648,27 @@ def parse_answer_key(path: Path) -> dict[int, str]:
 def parse_answer_key_text(text: str) -> dict[int, str]:
     lines = [normalize_spaces(line) for line in text.splitlines()]
     answer_map: dict[int, str] = {}
+
+    # Day-1 keys list questions 1-5 twice, side by side, under an
+    # "INGLES / ESPANHOL" header: number, english answer, spanish answer.
+    # Those rows feed the ("en"/"es", number) entries; everything else is
+    # keyed by number alone.
+    foreign_header = next(
+        (index for index, line in enumerate(lines) if normalize(line) == "ingles"),
+        None,
+    )
+    foreign_zone = range(0, 0)
+    if foreign_header is not None:
+        foreign_zone = range(foreign_header, min(foreign_header + 40, len(lines)))
+
+    def read_letter(candidate: str) -> str | None:
+        normalized = normalize(candidate)
+        if re.fullmatch(r"[abcde]", normalized):
+            return normalized.upper()
+        if normalized in ("anulado", "anulada"):
+            return "Anulado"
+        return None
+
     for index, line in enumerate(lines):
         if not re.fullmatch(r"\d{1,3}", line):
             continue
@@ -589,14 +676,19 @@ def parse_answer_key_text(text: str) -> dict[int, str]:
         if not 1 <= number <= 180:
             continue
 
+        letters: list[str] = []
         for candidate in lines[index + 1 : index + 4]:
-            normalized_candidate = normalize(candidate)
-            if re.fullmatch(r"[abcde]", normalized_candidate):
-                answer_map.setdefault(number, normalized_candidate.upper())
+            letter = read_letter(candidate)
+            if letter is None:
                 break
-            if normalized_candidate in ("anulado", "anulada"):
-                answer_map.setdefault(number, "Anulado")
-                break
+            letters.append(letter)
+
+        if not letters:
+            continue
+        if number <= 5 and index in foreign_zone and len(letters) >= 2:
+            answer_map.setdefault(("en", number), letters[0])
+            answer_map.setdefault(("es", number), letters[1])
+        answer_map.setdefault(number, letters[0])
     return answer_map
 
 
@@ -614,6 +706,11 @@ def extract_questions_from_proof(proof: dict[str, Any], answer_map: dict[int, st
         offset += len(page_text)
 
     combined = "".join(combined_parts)
+    language_headers = [
+        (m.start(), "en" if "ingl" in m.group(0).lower() else "es")
+        for m in re.finditer(r"(?i)op[cç][aã]o\s+(?:ingl[eê]s|espanhol)", combined)
+    ]
+    foreign_occurrences: dict[int, int] = {}
     starts = list(re.finditer(r"(?i)quest(?:a|ã)o\s+0*(\d{1,3})\b", combined))
     questions = []
     for index, match in enumerate(starts):
@@ -626,15 +723,38 @@ def extract_questions_from_proof(proof: dict[str, Any], answer_map: dict[int, st
         subject, topic, subtopic = classify_question(statement, area)
         page = page_number_for_offset(match.start(), page_for_offset)
         media_required = question_has_media(statement, pdf.image_counts, page)
+        options_in_media = bool(statement) and not any(options.get(key) for key in "ABCDE")
+        if options_in_media:
+            media_required = True
+        language = None
+        if number <= 5 and proof.get("exam_day") == "1":
+            preceding = [lang for pos, lang in language_headers if pos <= match.start()]
+            if preceding:
+                language = preceding[-1]
+            else:
+                detected_by_text = detect_foreign_language(statement, options)
+                # ENEM prints the English block before the Spanish block.
+                occurrence_default = "en" if foreign_occurrences.get(number, 0) == 0 else "es"
+                language = detected_by_text or occurrence_default
+            foreign_occurrences[number] = foreign_occurrences.get(number, 0) + 1
         correct_option = answer_map.get(number)
+        if language:
+            correct_option = answer_map.get((language, number), correct_option)
         extraction_complete = bool(statement and all(options.get(key) for key in "ABCDE"))
         is_annulled = correct_option == "Anulado"
         review_status = "pending" if extraction_complete and correct_option and not is_annulled else "needs_review"
         editorial_notes = ["Classificacao automatica inicial; requer revisao editorial antes de importacao."]
         if number <= 5 and proof.get("exam_day") == "1":
-            editorial_notes.append("Questao de lingua estrangeira; confirmar idioma antes de uso editorial.")
+            detected = {"en": "ingles", "es": "espanhol"}.get(language, "nao detectado")
+            editorial_notes.append(
+                f"Questao de lingua estrangeira (idioma detectado: {detected}); confirmar antes de uso editorial."
+            )
         if media_required:
             editorial_notes.append("Midia detectada; verificar exibicao e direitos antes de aprovacao.")
+        if options_in_media:
+            editorial_notes.append(
+                "Alternativas em imagem/diagrama (sem texto extraivel); anexar midia das alternativas antes de aprovacao."
+            )
         if is_annulled:
             editorial_notes.append("Questao anulada no gabarito oficial.")
         question = {
@@ -643,6 +763,7 @@ def extract_questions_from_proof(proof: dict[str, Any], answer_map: dict[int, st
             "exam_day": proof.get("exam_day"),
             "booklet": proof.get("booklet"),
             "question_number": number,
+            "language": language,
             "statement": statement,
             "option_a": options.get("A"),
             "option_b": options.get("B"),
@@ -701,19 +822,65 @@ def extract_questions_from_proof(proof: dict[str, Any], answer_map: dict[int, st
     return questions
 
 
+def locate_option_chain(cleaned: str) -> list[tuple[str, int]] | None:
+    """Find the real options block: the A->B->C->D->E marker chain closest to the
+    end of the question block. Statements that contain lines starting with a bare
+    capital letter (poems, formulas, headers) produce spurious matches; requiring
+    the full ordered chain and preferring the latest valid start avoids them."""
+    marker_re = re.compile(r"(?m)^[ \t]*([ABCDE])[ \t]+\S")
+    positions: dict[str, list[int]] = {key: [] for key in "ABCDE"}
+    for match in marker_re.finditer(cleaned):
+        positions[match.group(1)].append(match.start())
+
+    best_chain: list[tuple[str, int]] | None = None
+    for start_a in positions["A"]:
+        chain = [("A", start_a)]
+        cursor = start_a
+        for key in "BCDE":
+            nxt = next((pos for pos in positions[key] if pos > cursor), None)
+            if nxt is None:
+                chain = []
+                break
+            chain.append((key, nxt))
+            cursor = nxt
+        if chain:
+            best_chain = chain  # keep scanning: prefer the latest valid chain
+    return best_chain
+
+
+OCR_OPTION_MARKER_RE = re.compile(
+    r"(?m)^[ \t]*(?:[OQ0©®@€]{1,2}[\)\.]?|\(\s*[A-Ea-e0-9]\s*\)|[A-Ea-e][\)\.])[ \t]+(?=[A-Za-zÀ-ÿ0-9])"
+)
+
+
+def locate_ocr_option_chain(cleaned: str) -> list[tuple[str, int]] | None:
+    """Recover alternatives from OCR'd pages. The circled letters Ⓐ-Ⓔ do not
+    survive OCR (they come out as 'O', 'OQ', '€)'), but a question always has
+    exactly five alternatives in order, so the last run of five marker lines
+    can be mapped positionally to A-E."""
+    matches = list(OCR_OPTION_MARKER_RE.finditer(cleaned))
+    if len(matches) < 5:
+        return None
+    tail = matches[-5:]
+    # Reject runs spread over the whole block: real alternatives sit together.
+    if tail[-1].start() - tail[0].start() > 2500:
+        return None
+    return [(key, match.start()) for key, match in zip("ABCDE", tail)]
+
+
 def parse_options(block: str) -> dict[str, str | None]:
     cleaned = re.sub(r"\[\[PAGE \d+\]\]", " ", block)
-    matches = list(
-        re.finditer(
-            r"(?ms)^\s*([ABCDE])\s+(.*?)(?=^\s*[ABCDE]\s+|\Z)",
-            cleaned,
-        )
-    )
     options: dict[str, str | None] = {key: None for key in "ABCDE"}
-    for match in matches:
-        key = match.group(1)
-        text = clean_content_noise(match.group(2))
-        if key in options and text:
+    chain = locate_option_chain(cleaned) or locate_ocr_option_chain(cleaned)
+    if not chain:
+        return options
+    bounds = [pos for _, pos in chain] + [len(cleaned)]
+    for (key, start), end in zip(chain, bounds[1:]):
+        segment = cleaned[start:end]
+        segment = re.sub(rf"^[ \t]*{key}[ \t]+", "", segment)
+        segment = OCR_OPTION_MARKER_RE.sub("", segment, count=1)
+        text = clean_content_noise(segment)
+        if text:
             options[key] = text
     return options
 
@@ -721,16 +888,9 @@ def parse_options(block: str) -> dict[str, str | None]:
 def clean_statement(block: str, options: dict[str, str | None]) -> str:
     cleaned = re.sub(r"\[\[PAGE \d+\]\]", " ", block)
     cleaned = re.sub(r"(?i)^quest(?:a|ã)o\s+0*\d{1,3}\b", "", cleaned).strip()
-    first_option = None
-    for key in "ABCDE":
-        option = options.get(key)
-        if option:
-            marker = re.search(rf"(?m)^\s*{key}\s+", cleaned)
-            if marker:
-                first_option = marker.start()
-                break
-    if first_option is not None:
-        cleaned = cleaned[:first_option]
+    chain = locate_option_chain(cleaned) or locate_ocr_option_chain(cleaned)
+    if chain:
+        cleaned = cleaned[: chain[0][1]]
     return clean_content_noise(cleaned)
 
 
@@ -836,13 +996,30 @@ def infer_charge_pattern(statement: str, media_required: bool) -> str:
     return "interpretacao contextualizada"
 
 
+FOREIGN_LANGUAGE_HINTS = {
+    # Words distinctive of each language that do not overlap with the Portuguese
+    # framing text ("Disponivel em...", credits) present in every question block.
+    "en": {"the", "and", "of", "to", "is", "that", "with", "was", "for", "this", "from", "have", "not"},
+    "es": {"el", "los", "las", "una", "del", "muy", "y", "pero", "sus", "también", "según", "más", "esto"},
+}
+
+
+def detect_foreign_language(statement: str, options: dict[str, str | None]) -> str | None:
+    corpus = " ".join([statement or ""] + [options.get(key) or "" for key in "ABCDE"]).lower()
+    words = set(re.findall(r"[a-záéíóúñü]+", corpus))
+    scores = {lang: len(words & hints) for lang, hints in FOREIGN_LANGUAGE_HINTS.items()}
+    if max(scores.values()) < 3:
+        return None
+    return max(scores, key=lambda lang: scores[lang])
+
+
 def mark_duplicates(questions: list[dict[str, Any]]) -> None:
     seen_keys: dict[str, int] = {}
     seen_hashes: dict[str, int] = {}
     for index, question in enumerate(questions):
         source_key = "|".join(
             str(question.get(part) or "")
-            for part in ("year", "application", "exam_day", "booklet", "question_number")
+            for part in ("year", "application", "exam_day", "booklet", "question_number", "language")
         )
         text_hash = hashlib.sha256(normalize(question.get("statement") or "").encode("utf-8")).hexdigest()
         if source_key in seen_keys:
@@ -1043,6 +1220,7 @@ def to_import_row(question: dict[str, Any]) -> dict[str, Any]:
             "option_d",
             "option_e",
             "correct_option",
+            "language",
             "exam_edition",
             "exam_day",
             "discipline",

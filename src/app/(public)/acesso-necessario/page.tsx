@@ -19,7 +19,7 @@ export default async function AccessRequiredPage() {
 
   return (
     <main className="bg-slate-50 py-16">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
+      <div className="animate-rise mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-8 sm:p-10">
             <p className="text-sm font-semibold text-blue-700">Conta criada</p>

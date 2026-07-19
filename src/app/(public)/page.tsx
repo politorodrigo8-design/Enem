@@ -14,6 +14,7 @@ import { HeroPanel } from "@/components/marketing/hero-panel";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
+import { Reveal } from "@/components/ui/reveal";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 
 const problemItems = [
@@ -162,19 +163,28 @@ export default async function HomePage() {
       <section className="bg-paper">
         <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8 lg:py-24">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
+            <p className="animate-rise text-xs font-semibold uppercase tracking-widest text-blue-700">
               Preparação estratégica para o ENEM 2026
             </p>
-            <h1 className="mt-5 max-w-xl font-display text-5xl font-semibold leading-[1.08] tracking-tight text-slate-950 md:text-6xl">
+            <h1
+              className="animate-rise mt-5 max-w-xl font-display text-5xl font-semibold leading-[1.08] tracking-tight text-slate-950 md:text-6xl"
+              style={{ "--rise-delay": "70ms" } as React.CSSProperties}
+            >
               Pare de estudar no escuro. Descubra{" "}
               <span className="highlight">o que estudar</span> para subir sua
               nota.
             </h1>
-            <p className="mt-6 max-w-lg text-lg leading-8 text-slate-600">
+            <p
+              className="animate-rise mt-6 max-w-lg text-lg leading-8 text-slate-600"
+              style={{ "--rise-delay": "140ms" } as React.CSSProperties}
+            >
               Faça um diagnóstico, encontre seus maiores gargalos e siga uma
               rota semanal com os conteúdos que mais valem pontos para você.
             </p>
-            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+            <div
+              className="animate-rise mt-9 flex flex-col gap-3 sm:flex-row"
+              style={{ "--rise-delay": "210ms" } as React.CSSProperties}
+            >
               <Link
                 href="/checkout"
                 className={buttonClasses({ variant: "primary", size: "lg" })}
@@ -189,7 +199,10 @@ export default async function HomePage() {
                 Ver como funciona
               </Link>
             </div>
-            <ul className="mt-10 space-y-2.5">
+            <ul
+              className="animate-rise mt-10 space-y-2.5"
+              style={{ "--rise-delay": "280ms" } as React.CSSProperties}
+            >
               {[
                 "Sem promessa de nota garantida — com método para evoluir",
                 "Prioridades baseadas no seu desempenho real",
@@ -205,14 +218,19 @@ export default async function HomePage() {
               ))}
             </ul>
           </div>
-          <HeroPanel />
+          <div
+            className="animate-rise"
+            style={{ "--rise-delay": "180ms" } as React.CSSProperties}
+          >
+            <HeroPanel />
+          </div>
         </div>
       </section>
 
       {/* O problema */}
       <section className="border-t border-slate-100 bg-white py-16 sm:py-24">
         <div className="mx-auto grid max-w-7xl gap-12 px-4 sm:px-6 lg:grid-cols-[0.9fr_1.1fr] lg:px-8">
-          <div className="max-w-md">
+          <Reveal className="max-w-md">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               O problema
             </p>
@@ -224,18 +242,17 @@ export default async function HomePage() {
               mapa faz você gastar energia exatamente onde o impacto é menor. Os
               padrões se repetem todo ano:
             </p>
-          </div>
+          </Reveal>
           <ol className="lg:mt-2">
             {problemItems.map((item, index) => (
-              <li
-                key={item}
-                className="flex items-start gap-5 border-b border-slate-100 py-5 first:pt-0 last:border-b-0"
-              >
-                <span className="tnum text-sm font-semibold text-slate-300">
-                  0{index + 1}
-                </span>
-                <p className="text-lg font-medium leading-7 text-slate-800">{item}</p>
-              </li>
+              <Reveal key={item} delay={index * 70}>
+                <li className="flex items-start gap-5 border-b border-slate-100 py-5 first:pt-0 last:border-b-0">
+                  <span className="tnum text-sm font-semibold text-slate-300">
+                    0{index + 1}
+                  </span>
+                  <p className="text-lg font-medium leading-7 text-slate-800">{item}</p>
+                </li>
+              </Reveal>
             ))}
           </ol>
         </div>
@@ -244,29 +261,31 @@ export default async function HomePage() {
       {/* Como funciona — banda escura */}
       <section id="como-funciona" className="bg-slate-950 py-16 text-white sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
+          <Reveal className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-300">
               Como funciona
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight">
               Da dúvida ao plano semanal em quatro etapas.
             </h2>
-          </div>
+          </Reveal>
           <div className="mt-14 grid gap-10 md:grid-cols-2 lg:grid-cols-4">
             {steps.map((step, index) => (
-              <div key={step.title} className="relative border-t border-white/15 pt-6">
-                <span
-                  className="absolute -top-px left-0 h-px w-12 bg-blue-500"
-                  aria-hidden="true"
-                />
-                <span className="tnum font-display text-3xl font-semibold text-blue-400">
-                  0{index + 1}
-                </span>
-                <h3 className="mt-4 text-lg font-bold">{step.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-slate-400">
-                  {step.description}
-                </p>
-              </div>
+              <Reveal key={step.title} delay={index * 80}>
+                <div className="relative border-t border-white/15 pt-6">
+                  <span
+                    className="absolute -top-px left-0 h-px w-12 bg-blue-500"
+                    aria-hidden="true"
+                  />
+                  <span className="tnum font-display text-3xl font-semibold text-blue-400">
+                    0{index + 1}
+                  </span>
+                  <h3 className="mt-4 text-lg font-bold">{step.title}</h3>
+                  <p className="mt-2 text-sm leading-6 text-slate-400">
+                    {step.description}
+                  </p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -276,7 +295,7 @@ export default async function HomePage() {
       <section id="radar" className="bg-paper py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr]">
-            <div className="max-w-md">
+            <Reveal className="max-w-md">
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
                 Radar ENEM
               </p>
@@ -293,11 +312,12 @@ export default async function HomePage() {
                 estudo — nenhuma plataforma prevê a prova, e quem promete isso
                 não está sendo honesto com você.
               </p>
-            </div>
+            </Reveal>
             <div className="grid gap-5 md:grid-cols-2">
-              {radarDemo.map((group) => (
-                <div
+              {radarDemo.map((group, groupIndex) => (
+                <Reveal
                   key={group.area}
+                  delay={groupIndex * 90}
                   className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5"
                 >
                   <h3 className="mb-4 text-lg font-bold text-slate-950">{group.area}</h3>
@@ -324,7 +344,7 @@ export default async function HomePage() {
                       </div>
                     ))}
                   </div>
-                </div>
+                </Reveal>
               ))}
             </div>
           </div>
@@ -334,7 +354,7 @@ export default async function HomePage() {
       {/* O que você recebe */}
       <section className="bg-white py-16 sm:py-24">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <div className="max-w-2xl">
+          <Reveal className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               O que você recebe
             </p>
@@ -342,24 +362,23 @@ export default async function HomePage() {
               Tudo para decidir o{" "}
               <span className="highlight">próximo melhor estudo</span>.
             </h2>
-          </div>
+          </Reveal>
           <div className="mt-12 grid gap-x-16 md:grid-cols-2">
-            {features.map((feature) => (
-              <div
-                key={feature.title}
-                className="flex gap-5 border-b border-slate-100 py-7"
-              >
-                <feature.icon
-                  className="mt-1 h-6 w-6 shrink-0 text-blue-700"
-                  aria-hidden="true"
-                />
-                <div>
-                  <h3 className="text-lg font-bold text-slate-950">{feature.title}</h3>
-                  <p className="mt-1.5 text-sm leading-6 text-slate-600">
-                    {feature.description}
-                  </p>
+            {features.map((feature, index) => (
+              <Reveal key={feature.title} delay={(index % 2) * 80 + Math.floor(index / 2) * 50}>
+                <div className="flex gap-5 border-b border-slate-100 py-7">
+                  <feature.icon
+                    className="mt-1 h-6 w-6 shrink-0 text-blue-700"
+                    aria-hidden="true"
+                  />
+                  <div>
+                    <h3 className="text-lg font-bold text-slate-950">{feature.title}</h3>
+                    <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                      {feature.description}
+                    </p>
+                  </div>
                 </div>
-              </div>
+              </Reveal>
             ))}
           </div>
         </div>
@@ -368,7 +387,7 @@ export default async function HomePage() {
       {/* Preço */}
       <section id="precos" className="bg-paper py-16 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl text-center">
+          <Reveal className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               Acesso
             </p>
@@ -379,8 +398,11 @@ export default async function HomePage() {
               Sem mensalidade, sem renovação automática e sem venda casada de
               cursinho.
             </p>
-          </div>
-          <div className="mt-12 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5">
+          </Reveal>
+          <Reveal
+            delay={100}
+            className="mt-12 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5"
+          >
             <div className="grid md:grid-cols-[0.9fr_1.1fr]">
               <div className="flex flex-col justify-center bg-slate-950 p-10 text-white">
                 <p className="text-sm font-semibold text-blue-300">NexoENEM Completo</p>
@@ -420,7 +442,7 @@ export default async function HomePage() {
                 </div>
               </div>
             </div>
-          </div>
+          </Reveal>
           {!product.launch_ready ? (
             <Notice tone="warning" className="mt-6">
               As vendas ainda não estão abertas. Estamos finalizando os últimos
@@ -441,15 +463,15 @@ export default async function HomePage() {
       {/* FAQ */}
       <section className="bg-white py-16 sm:py-24">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
+          <Reveal className="text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               Perguntas frequentes
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
               Transparência antes de promessa.
             </h2>
-          </div>
-          <div className="mt-12 divide-y divide-slate-100 border-y border-slate-100">
+          </Reveal>
+          <Reveal delay={100} className="mt-12 divide-y divide-slate-100 border-y border-slate-100">
             {faqs.map((faq) => (
               <details key={faq.question} className="group py-2">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-4 text-base font-semibold text-slate-950 transition-colors hover:text-blue-800 [&::-webkit-details-marker]:hidden">
@@ -462,13 +484,13 @@ export default async function HomePage() {
                 <p className="pb-5 pr-9 text-sm leading-7 text-slate-600">{faq.answer}</p>
               </details>
             ))}
-          </div>
+          </Reveal>
         </div>
       </section>
 
       {/* CTA final */}
       <section className="bg-slate-950 py-20 text-white sm:py-28">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
+        <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
             A prova tem data marcada. Seu plano de estudos{" "}
             <span className="highlight text-slate-950">também deveria ter</span>.
@@ -488,7 +510,7 @@ export default async function HomePage() {
             Comprar acesso
             <ArrowRight className="h-5 w-5" aria-hidden="true" />
           </Link>
-        </div>
+        </Reveal>
       </section>
     </main>
   );

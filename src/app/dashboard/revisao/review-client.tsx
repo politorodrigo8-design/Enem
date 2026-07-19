@@ -94,7 +94,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
         description="Erros e questões marcadas aparecem aqui depois dos treinos. Responda questões para montar sua lista de revisão."
         action={
           <Link
-            href="/dashboard/questoes"
+            href="/dashboard/praticar?tab=banco"
             className={buttonClasses({ variant: "primary" })}
           >
             <PlayCircle className="h-4 w-4" aria-hidden="true" />

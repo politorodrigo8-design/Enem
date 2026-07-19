@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
+import { Reveal } from "@/components/ui/reveal";
 import { getAccessContext } from "@/lib/access";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 import { createClient } from "@/lib/supabase/server";
@@ -55,51 +56,69 @@ export default async function CheckoutPage() {
     <main className="bg-slate-50 py-12 sm:py-16">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 sm:px-6 lg:grid-cols-[1fr_420px] lg:px-8">
         <section>
-          <Badge tone="blue" className="mb-5">
-            Pagamento único
-          </Badge>
-          <h1 className="text-4xl font-display font-semibold tracking-tight leading-tight text-slate-950 md:text-5xl">
+          <div className="animate-rise">
+            <Badge tone="blue" className="mb-5">
+              Pagamento único
+            </Badge>
+          </div>
+          <h1
+            className="animate-rise text-4xl font-display font-semibold tracking-tight leading-tight text-slate-950 md:text-5xl"
+            style={{ "--rise-delay": "70ms" } as React.CSSProperties}
+          >
             {product.product_name}
           </h1>
-          <p className="mt-4 max-w-2xl text-lg leading-8 text-slate-600">
+          <p
+            className="animate-rise mt-4 max-w-2xl text-lg leading-8 text-slate-600"
+            style={{ "--rise-delay": "140ms" } as React.CSSProperties}
+          >
             Sua conta foi criada. Para entrar na plataforma, falta apenas
             concluir a compra.
           </p>
 
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+          <div
+            className="animate-rise mt-8 grid gap-4 sm:grid-cols-3"
+            style={{ "--rise-delay": "210ms" } as React.CSSProperties}
+          >
             <Info icon={CreditCard} title="Sem mensalidade" text="Cobrança única, sem renovação automática." />
             <Info icon={CalendarClock} title="Acesso até 2026" text="Validade até a data do ENEM 2026." />
             <Info icon={ShieldCheck} title="Compra protegida" text="Pagamento processado em ambiente seguro, com confirmação automática." />
           </div>
 
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Incluído no acesso completo</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {included.map((item) => (
-                  <div key={item} className="flex gap-3">
-                    <Check className="mt-0.5 h-5 w-5 text-emerald-600" aria-hidden="true" />
-                    <span className="text-sm font-semibold leading-6 text-slate-700">
-                      {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <Reveal>
+            <Card className="mt-8">
+              <CardHeader>
+                <CardTitle>Incluído no acesso completo</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {included.map((item) => (
+                    <div key={item} className="flex gap-3">
+                      <Check className="mt-0.5 h-5 w-5 text-emerald-600" aria-hidden="true" />
+                      <span className="text-sm font-semibold leading-6 text-slate-700">
+                        {item}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </Reveal>
 
           {!product.launch_ready ? (
-            <Notice tone="warning" className="mt-6">
-              As vendas ainda não foram abertas. Nenhuma cobrança é feita antes
-              do lançamento oficial — enquanto isso, você pode entrar na lista
-              de espera.
-            </Notice>
+            <Reveal delay={70}>
+              <Notice tone="warning" className="mt-6">
+                As vendas ainda não foram abertas. Nenhuma cobrança é feita antes
+                do lançamento oficial — enquanto isso, você pode entrar na lista
+                de espera.
+              </Notice>
+            </Reveal>
           ) : null}
         </section>
 
-        <aside>
+        <aside
+          className="animate-rise"
+          style={{ "--rise-delay": "180ms" } as React.CSSProperties}
+        >
           <Card className="sticky top-24">
             <CardContent>
               <div className="rounded-lg bg-slate-950 p-6 text-white">

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
+import { Reveal } from "@/components/ui/reveal";
 import { getRadarMethodologyVersions } from "@/lib/db/queries";
 
 const rules = [
@@ -48,6 +49,7 @@ export default async function RadarMethodologyPage() {
         de cobrança. Não representam previsão exata do conteúdo da prova.
       </Notice>
 
+      <Reveal delay={80}>
       <section className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
         <Card>
           <CardHeader>
@@ -88,7 +90,9 @@ export default async function RadarMethodologyPage() {
           </CardContent>
         </Card>
       </section>
+      </Reveal>
 
+      <Reveal delay={140}>
       <section className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -158,6 +162,7 @@ export default async function RadarMethodologyPage() {
           </CardContent>
         </Card>
       </section>
+      </Reveal>
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { StatCard } from "@/components/dashboard/stat-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
+import { Reveal } from "@/components/ui/reveal";
 import type { AccessContext } from "@/lib/access";
 import { calculatePriorityScore, priorityLabel } from "@/lib/db/scoring";
 import type { TopicWithSubject } from "@/lib/db/types";
@@ -82,32 +83,41 @@ export function RadarClient({
   return (
     <>
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          label="Tópicos mapeados"
-          value={String(allRows.length)}
-          helper="com recorrência histórica"
-          icon={Layers}
-        />
-        <StatCard
-          label="Prioridade máxima"
-          value={String(maxCount)}
-          helper="tópicos mais urgentes"
-          icon={AlertTriangle}
-        />
-        <StatCard
-          label="Prioridade alta"
-          value={String(highCount)}
-          helper="para o próximo ciclo"
-          icon={ListChecks}
-        />
-        <StatCard
-          label="Sem respostas"
-          value={String(withoutAnswers)}
-          helper="responda para personalizar"
-          icon={Search}
-        />
+        <Reveal delay={0}>
+          <StatCard
+            label="Tópicos mapeados"
+            value={String(allRows.length)}
+            helper="com recorrência histórica"
+            icon={Layers}
+          />
+        </Reveal>
+        <Reveal delay={60}>
+          <StatCard
+            label="Prioridade máxima"
+            value={String(maxCount)}
+            helper="tópicos mais urgentes"
+            icon={AlertTriangle}
+          />
+        </Reveal>
+        <Reveal delay={120}>
+          <StatCard
+            label="Prioridade alta"
+            value={String(highCount)}
+            helper="para o próximo ciclo"
+            icon={ListChecks}
+          />
+        </Reveal>
+        <Reveal delay={180}>
+          <StatCard
+            label="Sem respostas"
+            value={String(withoutAnswers)}
+            helper="responda para personalizar"
+            icon={Search}
+          />
+        </Reveal>
       </section>
 
+      <Reveal delay={80}>
       <section className="mt-6 rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
         <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-end">
           <div className="grid flex-1 gap-3 sm:grid-cols-3">
@@ -224,6 +234,7 @@ export function RadarClient({
           </div>
         )}
       </section>
+      </Reveal>
 
       {visibleRows.length > 0 ? (
         <p className="mt-3 text-xs leading-5 text-slate-500">

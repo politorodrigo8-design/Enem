@@ -10,7 +10,7 @@ const approvedRow = {
   statement: "Enunciado aprovado com dados suficientes para o importador.",
   area: "Matematica",
   subject: "Matematica",
-  topic: "Razao e proporcao",
+  topic: "Razao, proporcao e porcentagem",
   difficulty: "Media",
   year: 2025,
   source: "ENEM 2025",

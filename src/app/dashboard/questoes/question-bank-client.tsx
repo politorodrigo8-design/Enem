@@ -281,6 +281,7 @@ export function QuestionBankClient({
               </div>
             </CardHeader>
             <CardContent>
+              <div key={question.id} className="animate-rise">
               <p className="text-lg leading-8 text-slate-900">{question.statement}</p>
               {associatedMedia.length ? (
                 <div className="mt-6 space-y-4">
@@ -371,6 +372,7 @@ export function QuestionBankClient({
                       </button>
                     );
                   })}
+              </div>
               </div>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

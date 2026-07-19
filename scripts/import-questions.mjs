@@ -23,7 +23,24 @@ const priorityCategories = [
   "Prioridade media",
   "Complementar",
 ];
+const taxonomy = JSON.parse(
+  fs.readFileSync(
+    new URL("../src/lib/questions/taxonomy.json", import.meta.url),
+    "utf8"
+  )
+);
 let supabase;
+
+export function isValidTaxonomyEntry(area, subject, topic) {
+  const subjects = taxonomy.areas[area];
+  if (!subjects) return { ok: false, reason: `Area fora da taxonomia: "${area}".` };
+  const topics = subjects[subject];
+  if (!topics) return { ok: false, reason: `Disciplina fora da taxonomia para ${area}: "${subject}".` };
+  if (!topics.some((entry) => entry.topic === topic)) {
+    return { ok: false, reason: `Topico fora da taxonomia para ${subject}: "${topic}".` };
+  }
+  return { ok: true };
+}
 
 if (isCliEntrypoint()) {
   const exitCode = await runCli(process.argv.slice(2), process.cwd());
@@ -212,6 +229,7 @@ export function getQuestionSchema() {
     option_d: z.string().trim().min(1),
     option_e: z.string().trim().min(1),
     correct_option: z.enum(["A", "B", "C", "D", "E"]),
+    language: z.enum(["en", "es"]).nullable().optional(),
     exam_edition: optionalNullableText,
     exam_day: optionalNullableText,
     discipline: optionalNullableText,
@@ -251,6 +269,10 @@ export function getQuestionSchema() {
     recurrence_category: z.enum(priorityCategories).default("Complementar"),
   })
   .superRefine((value, ctx) => {
+    const taxonomyCheck = isValidTaxonomyEntry(value.area, value.subject, value.topic);
+    if (!taxonomyCheck.ok) {
+      ctx.addIssue({ code: "custom", message: taxonomyCheck.reason });
+    }
     const kindCount = [value.is_official, value.is_authorial, value.is_inspired].filter(Boolean).length;
     if (kindCount === 0) {
       ctx.addIssue({
@@ -388,6 +410,7 @@ export async function importQuestions(questions) {
           is_inspired: question.is_inspired,
           explanation: question.explanation,
           correct_option: question.correct_option,
+          language: question.language || null,
           exam_edition: question.exam_edition || null,
           exam_day: question.exam_day || null,
           discipline: question.discipline || question.subject,

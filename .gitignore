@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-*/
 /out/
 
 # production
@@ -41,3 +42,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Provas oficiais do INEP (baixar via download.inep.gov.br, nao versionar 65MB de PDF)
+provas-oficiais/

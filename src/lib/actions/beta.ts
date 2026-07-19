@@ -5,6 +5,7 @@ import type { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { accessRequiredMessage, getAccessContext } from "@/lib/access";
+import { recalculateDiagnosisPriorities } from "@/lib/db/diagnosis";
 import type { ActionResult } from "@/lib/actions/auth";
 import {
   betaApplicationSchema,
@@ -130,8 +131,14 @@ export async function saveOnboardingAction(
     },
   });
 
+  await recalculateDiagnosisPriorities(
+    supabase,
+    user.id,
+    parsed.data.perceived_difficulties,
+  );
+
   revalidatePath("/dashboard", "layout");
-  return { ok: true, message: "Onboarding concluido. Vamos para o diagnostico inicial." };
+  return { ok: true, message: "Tudo pronto! Seu diagnóstico inicial foi gerado." };
 }
 
 export async function updateProfileSettingsAction(

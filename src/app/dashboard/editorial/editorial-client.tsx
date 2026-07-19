@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Reveal } from "@/components/ui/reveal";
 import {
   updateEditorialQuestionAction,
   type EditorialQuestionInput,
@@ -87,6 +88,7 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
 
   return (
     <div className="grid gap-6 xl:grid-cols-[360px_1fr]">
+      <Reveal delay={0}>
       <aside className="space-y-4">
         <Card>
           <CardContent className="space-y-4">
@@ -135,8 +137,10 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
           })}
         </div>
       </aside>
+      </Reveal>
 
       {draft && selectedQuestion ? (
+        <Reveal delay={80}>
         <Card>
           <CardHeader>
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
@@ -224,6 +228,7 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
             </div>
           </CardContent>
         </Card>
+        </Reveal>
       ) : null}
     </div>
   );

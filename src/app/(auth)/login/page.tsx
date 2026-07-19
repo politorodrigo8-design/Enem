@@ -112,7 +112,7 @@ function LoginPageContent() {
     <main className="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_1fr]">
       <section className="relative hidden overflow-hidden bg-slate-950 text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
         <Logo className="text-white" />
-        <div className="max-w-lg">
+        <div className="animate-rise max-w-lg">
           <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight">
             Estudar certo é{" "}
             <span className="highlight text-slate-950">saber o que priorizar</span>.
@@ -122,7 +122,10 @@ function LoginPageContent() {
             com você — tudo salvo na sua conta, até o dia da prova.
           </p>
         </div>
-        <figure className="max-w-lg border-l-2 border-blue-500 pl-5">
+        <figure
+          className="animate-rise max-w-lg border-l-2 border-blue-500 pl-5"
+          style={{ "--rise-delay": "140ms" } as React.CSSProperties}
+        >
           <blockquote className="text-base leading-7 text-slate-300">
             &ldquo;A diferença entre estudar muito e estudar certo aparece na
             nota.&rdquo;
@@ -148,7 +151,10 @@ function LoginPageContent() {
           </Link>
         </div>
 
-        <div className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12">
+        <div
+          className="animate-rise mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12"
+          style={{ "--rise-delay": "80ms" } as React.CSSProperties}
+        >
           <h2 className="text-3xl font-bold tracking-tight text-slate-950">
             {copy.title}
           </h2>

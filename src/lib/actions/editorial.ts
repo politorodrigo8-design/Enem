@@ -227,7 +227,7 @@ export async function updateEditorialQuestionAction(
   }
 
   revalidatePath("/dashboard/editorial");
-  revalidatePath("/dashboard/questoes");
+  revalidatePath("/dashboard/praticar");
   return { ok: true, message: "Questao salva com sucesso." };
 }
 

@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 export default function PaymentPendingPage() {
   return (
     <main className="bg-slate-50 py-16">
-      <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
+      <div className="animate-rise mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
         <Card>
           <CardContent className="p-8 sm:p-10">
             <Clock className="h-10 w-10 text-amber-600" aria-hidden="true" />

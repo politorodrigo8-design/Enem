@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
+import { Reveal } from "@/components/ui/reveal";
 import { creditPackages } from "@/data/performance";
 import { getMockCheckoutState } from "@/lib/services/billing";
 
@@ -26,6 +27,7 @@ export default function CreditsPage() {
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <Reveal delay={0}>
         <Card>
           <CardContent>
             <div className="flex items-center justify-between gap-3">
@@ -44,7 +46,9 @@ export default function CreditsPage() {
             </Notice>
           </CardContent>
         </Card>
+        </Reveal>
 
+        <Reveal delay={60}>
         <Card className="h-fit">
           <CardHeader>
             <CardTitle>Exemplos de consumo</CardTitle>
@@ -68,8 +72,10 @@ export default function CreditsPage() {
             </ul>
           </CardContent>
         </Card>
+        </Reveal>
       </div>
 
+      <Reveal delay={140}>
       <section className="mt-8">
         <div className="mb-4 flex items-center justify-between gap-4">
           <h2 className="text-lg font-bold tracking-tight text-slate-950">
@@ -103,6 +109,7 @@ export default function CreditsPage() {
           ))}
         </div>
       </section>
+      </Reveal>
     </div>
   );
 }

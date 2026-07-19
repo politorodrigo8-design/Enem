@@ -65,7 +65,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge tone="blue">{question.area}</Badge>
-              <Badge tone="violet">{question.topic}</Badge>
+              <Badge tone="blue">{question.topic}</Badge>
               <Badge tone="slate">{question.difficulty}</Badge>
             </div>
           </div>
