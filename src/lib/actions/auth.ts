@@ -66,7 +66,7 @@ function logAuthError(context: string, error: unknown) {
     cause && typeof cause === "object" ? (cause as Record<string, unknown>) : {};
   const publicKey = getSupabasePublicKey();
 
-  console.error(`[NexoENEM auth] ${context}`, {
+  console.error(`[Pontua Enem auth] ${context}`, {
     supabaseUrl: getSupabaseUrl(),
     publicKeyLength: publicKey.length,
     publicKeyHasWhitespace: /\s/.test(publicKey),

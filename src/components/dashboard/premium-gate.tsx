@@ -40,7 +40,7 @@ export function PremiumGate({
           <div>
             <p className="font-semibold text-blue-950">Acesso necessário</p>
             <p className="mt-1">
-              {feature} faz parte do NexoENEM Completo. Finalize a compra para
+              {feature} faz parte do Pontua Enem Completo. Finalize a compra para
               liberar o acesso.
             </p>
           </div>

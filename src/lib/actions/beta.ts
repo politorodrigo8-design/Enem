@@ -80,7 +80,7 @@ async function getAuthenticatedContext(): Promise<AuthenticatedContext> {
     return {
       error: {
         ok: false,
-        message: access.expired ? "Seu acesso ao NexoENEM expirou." : accessRequiredMessage(),
+        message: access.expired ? "Seu acesso ao Pontua Enem expirou." : accessRequiredMessage(),
       },
     };
   }

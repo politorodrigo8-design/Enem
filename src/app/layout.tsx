@@ -23,15 +23,15 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: "NexoENEM | Preparação estratégica para o ENEM",
-    template: "%s | NexoENEM",
+    default: "Pontua Enem | Preparação estratégica para o ENEM",
+    template: "%s | Pontua Enem",
   },
   description:
     "Descubra o que estudar para aumentar sua nota no ENEM: diagnóstico, Radar de prioridades, banco de questões e plano semanal de estudos.",
-  applicationName: "NexoENEM",
+  applicationName: "Pontua Enem",
   keywords: ["ENEM", "estudos", "simulado", "desempenho", "plano de estudos"],
   openGraph: {
-    title: "NexoENEM",
+    title: "Pontua Enem",
     description:
       "Descubra o que estudar para aumentar sua nota no ENEM com diagnóstico, prioridades e plano semanal.",
     type: "website",

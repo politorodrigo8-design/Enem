@@ -44,7 +44,7 @@ async function getUserContext(): Promise<UserContext> {
   const access = getAccessContext((profile as Profile | null) ?? null);
   if (!access.hasPlatformAccess) {
     return {
-      error: access.expired ? "Seu acesso ao NexoENEM expirou." : accessRequiredMessage(),
+      error: access.expired ? "Seu acesso ao Pontua Enem expirou." : accessRequiredMessage(),
     };
   }
 
@@ -644,7 +644,7 @@ async function refreshTopicPerformance(userId: string, topicId: string) {
 
   // Não gravar zeros por cima do desempenho real se a leitura falhar.
   if (answersError) {
-    console.error("[NexoENEM] refreshTopicPerformance", answersError.message);
+    console.error("[Pontua Enem] refreshTopicPerformance", answersError.message);
     return;
   }
 

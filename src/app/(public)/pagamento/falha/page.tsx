@@ -21,7 +21,7 @@ export default function PaymentFailurePage() {
               <Link href="/checkout" className={buttonClasses({ variant: "primary", size: "lg" })}>
                 Tentar novamente
               </Link>
-              <Link href="mailto:suporte@nexoenem.com" className={buttonClasses({ variant: "outline", size: "lg" })}>
+              <Link href="mailto:suporte@pontuaenem.com.br" className={buttonClasses({ variant: "outline", size: "lg" })}>
                 Suporte
               </Link>
             </div>

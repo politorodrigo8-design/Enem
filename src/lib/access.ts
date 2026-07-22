@@ -54,5 +54,5 @@ export function accessLevelLabel(level: AccessLevel) {
 }
 
 export function accessRequiredMessage() {
-  return "Seu acesso ao NexoENEM Completo ainda nao foi adquirido. Finalize a compra para entrar na plataforma.";
+  return "Seu acesso ao Pontua Enem Completo ainda nao foi adquirido. Finalize a compra para entrar na plataforma.";
 }

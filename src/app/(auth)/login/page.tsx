@@ -111,7 +111,7 @@ function LoginPageContent() {
   return (
     <main className="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_1fr]">
       <section className="relative hidden overflow-hidden bg-slate-950 text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <Logo className="text-white" />
+        <Logo variant="dark" />
         <div className="animate-rise max-w-lg">
           <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight">
             Estudar certo é{" "}
@@ -131,7 +131,7 @@ function LoginPageContent() {
             nota.&rdquo;
           </blockquote>
           <figcaption className="mt-3 text-sm font-semibold text-slate-500">
-            Método NexoENEM
+            Método Pontua Enem
           </figcaption>
         </figure>
       </section>
@@ -163,7 +163,7 @@ function LoginPageContent() {
           {setupMissing ? (
             <Notice tone="warning" className="mt-6">
               O login está temporariamente indisponível. Tente novamente em
-              alguns minutos ou fale com suporte@nexoenem.com.
+              alguns minutos ou fale com suporte@pontuaenem.com.br.
             </Notice>
           ) : null}
 

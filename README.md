@@ -1,4 +1,4 @@
-# NexoENEM
+# Pontua Enem
 
 MVP web de preparacao estrategica para o ENEM, criado com Next.js App Router,
 TypeScript, Tailwind CSS e Supabase para autenticacao, RLS e persistencia.
@@ -32,7 +32,7 @@ npm run build
 
 O produto comercial preparado e:
 
-- `NexoENEM Completo`
+- `Pontua Enem Completo`
 - `R$ 99,90`
 - pagamento unico
 - sem mensalidade
@@ -115,4 +115,4 @@ supabase/scripts/revoke_paid_access.sql
 
 ## Transparencia editorial
 
-Questoes oficiais antigas nao foram importadas nesta etapa. Dados demonstrativos devem permanecer identificados como demonstrativos. O Radar e o treino de alta prioridade usam regras reproduziveis, mas nao sao TRI real, IA ou previsao exata do que caira no ENEM. O NexoENEM nao possui vinculo com MEC ou Inep.
+Questoes oficiais antigas nao foram importadas nesta etapa. Dados demonstrativos devem permanecer identificados como demonstrativos. O Radar e o treino de alta prioridade usam regras reproduziveis, mas nao sao TRI real, IA ou previsao exata do que caira no ENEM. O Pontua Enem nao possui vinculo com MEC ou Inep.

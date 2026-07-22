@@ -35,7 +35,7 @@ function logQueryError(queryName: string, error: QueryError | null) {
     return;
   }
 
-  console.error(`[NexoENEM db] ${queryName}`, {
+  console.error(`[Pontua Enem db] ${queryName}`, {
     code: error.code,
     message: error.message,
     details: error.details,
@@ -133,7 +133,7 @@ export async function getDashboardIdentity() {
     fullName:
       profile?.full_name?.trim() ||
       metadataFullName.trim() ||
-      "Estudante NexoENEM",
+      "Estudante Pontua Enem",
     email: profile?.email || user.email || "",
     accessLevel: access.level,
     betaTester: access.betaTester,

@@ -90,7 +90,7 @@ export function BetaApplicationForm() {
             className="mt-1 h-4 w-4 accent-blue-700"
           />
           <span className="text-sm font-semibold leading-6 text-slate-700">
-            Autorizo contato sobre a beta do NexoENEM pelos dados informados.
+            Autorizo contato sobre a beta do Pontua Enem pelos dados informados.
           </span>
         </label>
 

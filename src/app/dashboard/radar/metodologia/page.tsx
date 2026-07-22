@@ -12,7 +12,7 @@ const rules = [
   "Recorrência histórica não significa previsão exata.",
   "Prioridades são estimativas educacionais.",
   "Desempenho pessoal influencia a recomendação.",
-  "O NexoENEM não possui vínculo oficial com MEC ou Inep.",
+  "O Pontua Enem não possui vínculo oficial com MEC ou Inep.",
   "Questões e dados de exemplo aparecem sempre identificados.",
   "Nenhuma nota específica é garantida.",
   "Questões prioritárias podem não ter conteúdo semelhante na prova seguinte.",

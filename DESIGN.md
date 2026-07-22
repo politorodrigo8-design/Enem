@@ -1,4 +1,4 @@
-# NexoENEM — Direção de design
+# Pontua Enem — Direção de design
 
 Estética nomeada: **"caderno de prova"** — editorial, papel claro, tinta escura, um único azul-caneta como accent. Nada de gradientes, nada de glassmorphism, nada de roxo decorativo. Cada escolha abaixo é uma decisão; mudanças exigem atualizar este arquivo.
 

@@ -1,18 +1,28 @@
 import Link from "next/link";
-import { Target } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
+import logoLightBg from "../../../public/pontuaenem-logo-for-light-bg.png";
+import logoDarkBg from "../../../public/pontuaenem-logo-for-dark-bg.png";
 
-export function Logo({ className }: { className?: string }) {
+export function Logo({
+  className,
+  variant = "light",
+}: {
+  className?: string;
+  variant?: "light" | "dark";
+}) {
   return (
     <Link
       href="/"
-      className={cn("inline-flex items-center gap-2 font-bold text-slate-950", className)}
-      aria-label="NexoENEM - página inicial"
+      className={cn("inline-flex items-center", className)}
+      aria-label="Pontua Enem - página inicial"
     >
-      <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-700 text-white shadow-sm shadow-blue-900/20">
-        <Target className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <span className="text-lg">NexoENEM</span>
+      <Image
+        src={variant === "dark" ? logoDarkBg : logoLightBg}
+        alt="Pontua Enem"
+        priority
+        className="h-8 w-auto"
+      />
     </Link>
   );
 }

@@ -19,8 +19,8 @@ export function renderTransactionalEmail(
   key: TransactionalEmailKey,
   input: TemplateInput = {},
 ) {
-  const supportEmail = input.supportEmail ?? "suporte@nexoenem.com";
-  const productName = input.productName ?? "NexoENEM Completo";
+  const supportEmail = input.supportEmail ?? "suporte@pontuaenem.com.br";
+  const productName = input.productName ?? "Pontua Enem Completo";
 
   const templates: Record<TransactionalEmailKey, { subject: string; body: string }> = {
     purchase_confirmation: {

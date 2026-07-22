@@ -10,7 +10,7 @@ const footerLinks = [
   { label: "Termos de uso", href: "/termos" },
   { label: "Política de privacidade", href: "/privacidade" },
   { label: "Reembolso", href: "/reembolso" },
-  { label: "Contato", href: "mailto:suporte@nexoenem.com" },
+  { label: "Contato", href: "mailto:suporte@pontuaenem.com.br" },
 ];
 
 export default async function PublicLayout({
@@ -25,7 +25,7 @@ export default async function PublicLayout({
       <footer className="border-t border-white/10 bg-slate-950 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1fr_2fr] lg:px-8">
           <div>
-            <Logo className="text-white" />
+            <Logo variant="dark" />
             <p className="mt-4 max-w-md text-sm leading-6 text-slate-300">
               Preparação estratégica para estudantes que querem saber o que
               estudar, em que ordem, até a prova do ENEM.
@@ -49,7 +49,7 @@ export default async function PublicLayout({
             <div>
               <p className="text-sm font-semibold text-white">Aviso</p>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                A NexoENEM não possui vínculo oficial com o Inep, com o MEC ou
+                A Pontua Enem não possui vínculo oficial com o Inep, com o MEC ou
                 com organizadores do ENEM. As prioridades indicadas são
                 estimativas educacionais, não previsão da prova.
               </p>

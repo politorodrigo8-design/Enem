@@ -189,7 +189,7 @@ function buildFaqs(product: { access_valid_until: string }) {
   {
     question: "A plataforma garante uma nota específica?",
     answer:
-      "Não. A NexoENEM organiza suas prioridades e acompanha sua evolução — quem faz a nota é você. Desconfie de quem promete nota garantida.",
+      "Não. A Pontua Enem organiza suas prioridades e acompanha sua evolução — quem faz a nota é você. Desconfie de quem promete nota garantida.",
   },
   {
     question: "As questões são oficiais do ENEM?",
@@ -249,9 +249,9 @@ function buildFaqs(product: { access_valid_until: string }) {
       "Sim. As telas principais são responsivas para celular, tablet, notebook e desktop.",
   },
   {
-    question: "A NexoENEM substitui um cursinho?",
+    question: "A Pontua Enem substitui um cursinho?",
     answer:
-      "Não necessariamente. A NexoENEM organiza prioridade, treino, desempenho, simulados e redação; ela pode complementar uma rotina de estudo ou cursinho.",
+      "Não necessariamente. A Pontua Enem organiza prioridade, treino, desempenho, simulados e redação; ela pode complementar uma rotina de estudo ou cursinho.",
   },
   {
     question: "Como compro o acesso?",
@@ -288,7 +288,7 @@ export default async function HomePage() {
               className="animate-rise mt-6 max-w-lg text-lg leading-8 text-slate-600"
               style={{ "--rise-delay": "140ms" } as React.CSSProperties}
             >
-              A NexoENEM analisa seu desempenho, cruza erros, recorrência dos
+              A Pontua Enem analisa seu desempenho, cruza erros, recorrência dos
               conteúdos e prioridade, e transforma isso em uma rota semanal com
               banco de questões, simulados e correção de redação.
             </p>
@@ -343,7 +343,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
           <Reveal>
             <p className="text-lg font-semibold leading-8 text-slate-950">
-              A NexoENEM cruza seu desempenho, a recorrência dos assuntos e a
+              A Pontua Enem cruza seu desempenho, a recorrência dos assuntos e a
               prioridade de estudo para mostrar o que estudar primeiro.
             </p>
           </Reveal>
@@ -678,7 +678,7 @@ export default async function HomePage() {
             <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-700">
               política de reembolso
             </Link>
-            . A NexoENEM não possui vínculo com o MEC ou com o Inep e não
+            . A Pontua Enem não possui vínculo com o MEC ou com o Inep e não
             promete nota, aprovação ou previsão exata da prova.
           </p>
         </div>

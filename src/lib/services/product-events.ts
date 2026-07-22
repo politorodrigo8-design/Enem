@@ -91,13 +91,13 @@ export async function recordProductEvent({
     });
 
     if (error) {
-      console.warn("[NexoENEM events] failed to record product event", {
+      console.warn("[Pontua Enem events] failed to record product event", {
         eventName,
         code: error.code,
       });
     }
   } catch (error) {
-    console.warn("[NexoENEM events] event ignored", {
+    console.warn("[Pontua Enem events] event ignored", {
       eventName,
       message: error instanceof Error ? error.message : String(error),
     });

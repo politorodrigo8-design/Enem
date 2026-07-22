@@ -5,7 +5,7 @@ import {
   MAX_ESSAY_UPLOAD_SIZE_BYTES,
 } from "@/lib/schemas/essay";
 
-export const PRODUCT_NAME = "NexoENEM Completo";
+export const PRODUCT_NAME = "Pontua Enem Completo";
 export const ENEM_YEAR = "2026";
 export const ESSAY_ACCEPTED_FILE_LABEL = "PNG, JPG, JPEG ou PDF";
 export const ESSAY_CREDIT_COST_LABEL = `${ESSAY_CREDIT_COST} créditos`;

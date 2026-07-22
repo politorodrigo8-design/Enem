@@ -27,7 +27,7 @@ export default async function AccessRequiredPage() {
               Falta um passo: concluir a compra.
             </h1>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              O NexoENEM Completo custa {formatCurrency(price)} em pagamento
+              O Pontua Enem Completo custa {formatCurrency(price)} em pagamento
               único, sem mensalidade e sem renovação automática.
             </p>
 
@@ -45,7 +45,7 @@ export default async function AccessRequiredPage() {
                 Ir para checkout
                 <ArrowRight className="h-5 w-5" aria-hidden="true" />
               </Link>
-              <Link href="mailto:suporte@nexoenem.com" className={buttonClasses({ variant: "outline", size: "lg" })}>
+              <Link href="mailto:suporte@pontuaenem.com.br" className={buttonClasses({ variant: "outline", size: "lg" })}>
                 <Headphones className="h-5 w-5" aria-hidden="true" />
                 Suporte
               </Link>

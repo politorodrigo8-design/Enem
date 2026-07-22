@@ -41,7 +41,7 @@ const { error } = await supabase.from("profiles").upsert(
   {
     id: user.id,
     email: user.email || args.email,
-    full_name: "Auditoria local NexoENEM",
+    full_name: "Auditoria local Pontua Enem",
     access_level: role,
     beta_tester: role === "beta",
     access_expires_at: expiresAt,
@@ -109,7 +109,7 @@ async function findOrCreateUser(email, createIfMissing) {
     email,
     password,
     email_confirm: true,
-    user_metadata: { full_name: "Auditoria local NexoENEM" },
+    user_metadata: { full_name: "Auditoria local Pontua Enem" },
   });
 
   if (error) throw new Error(error.message);

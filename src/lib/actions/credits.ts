@@ -102,7 +102,7 @@ export async function submitEssayCorrectionAction(
     return {
       ok: false,
       message: context.access.expired
-        ? "Seu acesso ao NexoENEM expirou."
+        ? "Seu acesso ao Pontua Enem expirou."
         : accessRequiredMessage(),
     };
   }
@@ -265,7 +265,7 @@ export async function submitOnlineEssayCorrectionAction(
     return {
       ok: false,
       message: context.access.expired
-        ? "Seu acesso ao NexoENEM expirou."
+        ? "Seu acesso ao Pontua Enem expirou."
         : accessRequiredMessage(),
     };
   }

@@ -37,14 +37,14 @@ export default function BetaPage() {
             className="animate-rise mt-5 text-4xl font-display font-semibold tracking-tight leading-tight text-slate-950 md:text-5xl"
             style={{ "--rise-delay": "70ms" } as React.CSSProperties}
           >
-            Beta interna do NexoENEM
+            Beta interna do Pontua Enem
           </h1>
           <p
             className="animate-rise mt-5 text-lg leading-8 text-slate-600"
             style={{ "--rise-delay": "140ms" } as React.CSSProperties}
           >
             Acesso por convite para revisores e convidados. O produto
-            completo continua sendo o NexoENEM Completo, em pagamento único.
+            completo continua sendo o Pontua Enem Completo, em pagamento único.
           </p>
 
           <div
