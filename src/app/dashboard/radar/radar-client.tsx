@@ -141,8 +141,7 @@ export function RadarClient({
                   Comece por estes assuntos
                 </div>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
-                  Esta lista mistura recorrencia historica, importancia do tema,
-                  dificuldade e seus erros. Ela serve para decidir o proximo treino.
+                  Os tres assuntos mais urgentes para o proximo treino.
                 </p>
               </div>
               <Link
@@ -297,12 +296,6 @@ export function RadarClient({
         </section>
       </Reveal>
 
-      {visibleRows.length > 0 ? (
-        <p className="mt-3 text-xs leading-5 text-slate-500">
-          Topicos sem respostas entram com uma estimativa inicial. Ao responder
-          questoes, o Radar passa a pesar sua taxa de erro.
-        </p>
-      ) : null}
     </>
   );
 }
@@ -316,18 +309,18 @@ function buildPriorityReason(
   const recurrence = Number(topic.historical_recurrence);
 
   if (!answered) {
-    return `Tem recorrencia de ${recurrence}% e ainda nao tem respostas suas, entao vale testar primeiro.`;
+    return `Recorrencia ${recurrence}% e sem respostas suas.`;
   }
 
   if (accuracy < 55) {
-    return `Voce errou bastante neste assunto e ele aparece com recorrencia de ${recurrence}%.`;
+    return `Baixo acerto e recorrencia ${recurrence}%.`;
   }
 
   if (recurrence >= 70) {
-    return `Mesmo com desempenho razoavel, e um tema recorrente o bastante para manter no ciclo.`;
+    return `Tema recorrente para manter no ciclo.`;
   }
 
-  return `Entra como reforco para consolidar desempenho e fechar lacunas menores.`;
+  return `Reforco para fechar lacunas menores.`;
 }
 
 function Select({

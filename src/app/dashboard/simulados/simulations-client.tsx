@@ -336,11 +336,21 @@ export function SimulationsClient({
     );
   }
 
+  const recommendedSimulations = simulations.filter(
+    (simulation) =>
+      simulation.simulation_questions.length >= 10 || Boolean(simulation.is_generated),
+  );
+  const quickDrills = simulations.filter(
+    (simulation) =>
+      simulation.simulation_questions.length < 10 && !Boolean(simulation.is_generated),
+  );
+
   return (
     <div className="space-y-6">
       <SimulationBuilder locked={!access.hasPlatformAccess} pending={pending} />
+      {recommendedSimulations.length ? (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-      {simulations.map((simulation, index) => {
+      {recommendedSimulations.map((simulation, index) => {
         const lastAttempt = simulation.user_simulations?.[0];
         const locked = !access.hasPlatformAccess;
         return (
@@ -404,6 +414,58 @@ export function SimulationsClient({
         );
       })}
       </div>
+      ) : null}
+      {quickDrills.length ? (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+              Treinos rapidos
+            </h2>
+            <Badge tone="slate">validacao curta</Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {quickDrills.map((simulation, index) => {
+              const lastAttempt = simulation.user_simulations?.[0];
+              const locked = !access.hasPlatformAccess;
+              return (
+                <Reveal key={simulation.id} delay={(index % 3) * 40} className="h-full">
+                  <Card className="h-full border-dashed">
+                    <CardContent>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                          <Target className="h-5 w-5" aria-hidden="true" />
+                        </div>
+                        <Badge tone="slate">{simulation.simulation_questions.length} questoes</Badge>
+                      </div>
+                      <h3 className="mt-4 text-base font-bold tracking-tight text-slate-950">
+                        {simulation.title}
+                      </h3>
+                      <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                        Use como aquecimento ou teste de fluxo. Para simulado serio,
+                        gere 45 ou 90 questoes acima.
+                      </p>
+                      <Button
+                        full
+                        variant="outline"
+                        className="mt-5"
+                        disabled={simulation.status === "Em breve" || pending || locked}
+                        onClick={() => start(simulation)}
+                      >
+                        {lastAttempt ? (
+                          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        {lastAttempt ? "Refazer treino" : "Iniciar treino"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Reveal>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -413,6 +475,24 @@ const BUILDER_AREAS = [
   { value: "Ciencias da Natureza", label: "Ciências da Natureza" },
   { value: "Ciencias Humanas", label: "Ciências Humanas" },
   { value: "Linguagens", label: "Linguagens" },
+] as const;
+
+const SIMULATION_PRESETS = [
+  {
+    title: "Simulado ENEM - Dia 1",
+    areas: ["Linguagens", "Ciencias Humanas"],
+    questionCount: 45,
+  },
+  {
+    title: "Simulado ENEM - Dia 2",
+    areas: ["Matematica", "Ciencias da Natureza"],
+    questionCount: 45,
+  },
+  {
+    title: "Simulado completo - 90 questoes",
+    areas: ["Linguagens", "Ciencias Humanas", "Matematica", "Ciencias da Natureza"],
+    questionCount: 90,
+  },
 ] as const;
 
 function SimulationBuilder({ locked, pending }: { locked: boolean; pending: boolean }) {
@@ -446,6 +526,21 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
     });
   }
 
+  function buildPreset(preset: (typeof SIMULATION_PRESETS)[number]) {
+    startBuilding(async () => {
+      const result = await generateSimulationAction({
+        title: preset.title,
+        areas: [...preset.areas],
+        questionCount: preset.questionCount,
+        difficulty: null,
+        prioritizeWeaknesses: true,
+        foreignLanguage,
+      });
+      toast[result.ok ? "success" : "error"](result.message);
+      if (result.ok) router.refresh();
+    });
+  }
+
   const includesLinguagens = areas.includes("Linguagens");
   const selectClasses =
     "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-700";
@@ -466,6 +561,21 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
           </div>
         </div>
         <div className="mt-4 flex flex-wrap items-center gap-2">
+          {SIMULATION_PRESETS.map((preset) => (
+            <Button
+              key={preset.title}
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => buildPreset(preset)}
+              disabled={locked || building || pending}
+            >
+              <Target className="h-4 w-4" aria-hidden="true" />
+              {preset.questionCount} questoes
+            </Button>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           {BUILDER_AREAS.map((area) => {
             const selected = areas.includes(area.value);
             return (

@@ -8,9 +8,12 @@ import {
   CheckCircle2,
   Filter,
   ImageIcon,
+  ListChecks,
   Search,
+  Target,
   XCircle,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -34,6 +37,7 @@ type Props = {
 };
 
 const pageSize = 1;
+const sessionSizes = ["10", "15", "20", "30", "Todas"] as const;
 
 export function QuestionBankClient({
   questions,
@@ -48,6 +52,7 @@ export function QuestionBankClient({
   const [year, setYear] = useState("Todos");
   const [status, setStatus] = useState("Todas");
   const [search, setSearch] = useState("");
+  const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>("15");
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<{
@@ -88,17 +93,31 @@ export function QuestionBankClient({
   );
   const [pending, startTransition] = useTransition();
 
+  const questionsByArea = useMemo(
+    () =>
+      area === "Todas"
+        ? questions
+        : questions.filter((question) => question.subjects.area === area),
+    [area, questions],
+  );
+  const questionsByDiscipline = useMemo(
+    () =>
+      discipline === "Todas"
+        ? questionsByArea
+        : questionsByArea.filter((question) => question.subjects.name === discipline),
+    [discipline, questionsByArea],
+  );
   const areas = useMemo(
-    () => ["Todas", ...Array.from(new Set(questions.map((q) => q.subjects.area)))],
+    () => uniqueOptions("Todas", questions.map((q) => q.subjects.area)),
     [questions],
   );
   const disciplines = useMemo(
-    () => ["Todas", ...Array.from(new Set(questions.map((q) => q.subjects.name)))],
-    [questions],
+    () => uniqueOptions("Todas", questionsByArea.map((q) => q.subjects.name)),
+    [questionsByArea],
   );
   const topics = useMemo(
-    () => ["Todos", ...Array.from(new Set(questions.map((q) => q.topics.name)))],
-    [questions],
+    () => uniqueOptions("Todos", questionsByDiscipline.map((q) => q.topics.name)),
+    [questionsByDiscipline],
   );
   const years = useMemo(
     () => ["Todos", ...Array.from(new Set(questions.map((q) => String(q.year))))],
@@ -130,9 +149,13 @@ export function QuestionBankClient({
     });
   }, [answerState, area, difficulty, discipline, questions, reviewState, search, status, topic, year]);
 
-  const currentIndex = Math.min(index, Math.max(filtered.length - 1, 0));
-  const question = filtered[currentIndex];
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const sessionQuestions = useMemo(() => {
+    if (sessionSize === "Todas") return filtered;
+    return filtered.slice(0, Number(sessionSize));
+  }, [filtered, sessionSize]);
+  const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
+  const question = sessionQuestions[currentIndex];
+  const totalPages = Math.max(1, Math.ceil(sessionQuestions.length / pageSize));
   const persistedResult = question ? answerState[question.id] : undefined;
   const currentResult =
     result?.questionId === question?.id
@@ -217,19 +240,37 @@ export function QuestionBankClient({
 
   return (
     <>
+      {answerSource === "high_priority" ? (
+        <PriorityExplanation questions={questions} />
+      ) : null}
+
       <Card className="mb-6">
         <CardContent>
-          <div className="mb-4 flex items-center gap-2 text-sm font-semibold text-slate-950">
-            <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
-            Filtros
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+              <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              Filtros
+            </div>
+            <p className="text-xs font-medium text-slate-500">
+              {sessionQuestions.length} na sessao - {filtered.length} no filtro
+            </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Select label="Área" value={area} options={areas} onChange={(value) => { setArea(value); move(0); }} />
-            <Select label="Disciplina" value={discipline} options={disciplines} onChange={(value) => { setDiscipline(value); move(0); }} />
+            <Select label="Área" value={area} options={areas} onChange={(value) => { setArea(value); setDiscipline("Todas"); setTopic("Todos"); move(0); }} />
+            <Select label="Disciplina" value={discipline} options={disciplines} onChange={(value) => { setDiscipline(value); setTopic("Todos"); move(0); }} />
             <Select label="Tópico" value={topic} options={topics} onChange={(value) => { setTopic(value); move(0); }} />
             <Select label="Dificuldade" value={difficulty} options={["Todas", "Baixa", "Média", "Alta"]} onChange={(value) => { setDifficulty(value); move(0); }} />
             <Select label="Ano" value={year} options={years} onChange={(value) => { setYear(value); move(0); }} />
             <Select label="Status" value={status} options={["Todas", "Respondida", "Não respondida", "Favoritas"]} onChange={(value) => { setStatus(value); move(0); }} />
+            <Select
+              label="Tamanho da sessao"
+              value={sessionSize}
+              options={[...sessionSizes]}
+              onChange={(value) => {
+                setSessionSize(value as (typeof sessionSizes)[number]);
+                move(0);
+              }}
+            />
             <label className="block md:col-span-2">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Busca
@@ -269,7 +310,7 @@ export function QuestionBankClient({
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <CardTitle>
-                    Questão {currentIndex + 1} de {filtered.length}
+                    Questão {currentIndex + 1} de {sessionQuestions.length}
                   </CardTitle>
                   <p className="mt-2 text-sm text-slate-500">{question.source}</p>
                 </div>
@@ -387,8 +428,8 @@ export function QuestionBankClient({
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => move(Math.min(filtered.length - 1, currentIndex + 1))}
-                    disabled={currentIndex === filtered.length - 1}
+                    onClick={() => move(Math.min(sessionQuestions.length - 1, currentIndex + 1))}
+                    disabled={currentIndex === sessionQuestions.length - 1}
                   >
                     Próxima
                     <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -453,7 +494,7 @@ export function QuestionBankClient({
                   />
                   <Detail
                     label="Resultados"
-                    value={`${filtered.length} questões (página ${currentIndex + 1} de ${totalPages})`}
+                    value={`${sessionQuestions.length} na sessao (${filtered.length} no filtro, pagina ${currentIndex + 1} de ${totalPages})`}
                   />
                 </dl>
                 <Button
@@ -484,6 +525,102 @@ export function QuestionBankClient({
       )}
     </>
   );
+}
+
+function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
+  const verified = questions.filter(
+    (question) =>
+      question.reviewed &&
+      question.review_status === "approved" &&
+      question.source_verified &&
+      question.answer_verified,
+  ).length;
+  const withReason = questions.filter((question) => question.priority_reason).length;
+  const fallback = questions.filter((question) => question.is_demo).length;
+  const topTopics = uniqueOptions(
+    "",
+    questions.map((question) => question.topics.name).filter(Boolean),
+  )
+    .filter(Boolean)
+    .slice(0, 3);
+
+  return (
+    <section className="mb-6 rounded-lg border border-blue-100 bg-blue-50/70 p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+        <div>
+          <h2 className="flex items-center gap-2 text-sm font-bold text-blue-950">
+            <Target className="h-4 w-4 text-blue-700" aria-hidden="true" />
+            Por que essas {questions.length} questoes sao prioritarias?
+          </h2>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+            Elas combinam recorrencia historica do assunto, prioridade editorial
+            e sinais do seu desempenho. Quando ainda falta dado pessoal, o app usa
+            questoes demonstrativas ou revisadas como ponto de partida.
+          </p>
+        </div>
+        {topTopics.length ? (
+          <div className="flex flex-wrap gap-2">
+            {topTopics.map((topic) => (
+              <Badge key={topic} tone="blue">
+                {topic}
+              </Badge>
+            ))}
+          </div>
+        ) : null}
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <PriorityMetric
+          icon={ListChecks}
+          label="Validadas"
+          value={verified}
+          helper="fonte, gabarito e revisao aprovados"
+        />
+        <PriorityMetric
+          icon={Target}
+          label="Com motivo"
+          value={withReason}
+          helper="prioridade editorial registrada"
+        />
+        <PriorityMetric
+          icon={Search}
+          label="Fallback"
+          value={fallback}
+          helper="usadas quando o banco revisado ainda e curto"
+        />
+      </div>
+    </section>
+  );
+}
+
+function PriorityMetric({
+  icon: Icon,
+  label,
+  value,
+  helper,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: number;
+  helper: string;
+}) {
+  return (
+    <div className="rounded-lg bg-white p-3 ring-1 ring-inset ring-blue-100">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          {label}
+        </p>
+        <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
+      </div>
+      <p className="tnum mt-2 text-2xl font-bold tracking-tight text-slate-950">
+        {value}
+      </p>
+      <p className="mt-0.5 text-xs leading-5 text-slate-500">{helper}</p>
+    </div>
+  );
+}
+
+function uniqueOptions(first: string, values: string[]) {
+  return [first, ...Array.from(new Set(values.filter(Boolean)))];
 }
 
 function Select({

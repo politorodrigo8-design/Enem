@@ -43,6 +43,34 @@ const essayStatusTones: Record<EssaySubmission["status"], "blue" | "green" | "re
   upload_failed: "red",
 };
 
+const creditTools = [
+  {
+    title: "Correção de redação",
+    description: "Envio e acompanhamento da correção completa.",
+    cost: ESSAY_CREDIT_COST_LABEL,
+    status: "Disponível",
+    href: "/dashboard/correcao-redacao",
+  },
+  {
+    title: "Explicar questão",
+    description: "Tirar dúvida rápida sobre enunciado, alternativa ou resolução.",
+    cost: "1 crédito",
+    status: "API em integração",
+  },
+  {
+    title: "Análise de desempenho",
+    description: "Resumo dos erros recentes com próximos assuntos para atacar.",
+    cost: "2 créditos",
+    status: "API em integração",
+  },
+  {
+    title: "Plano inteligente",
+    description: "Ajuste automático do plano semanal com base no Radar e nos erros.",
+    cost: "2 créditos",
+    status: "API em integração",
+  },
+];
+
 export default async function CreditsPage() {
   const data = await getCreditsData();
   const used = Math.max(0, data.account.monthly_allowance - data.account.balance);
@@ -131,6 +159,52 @@ export default async function CreditsPage() {
           </Card>
         </Reveal>
       </div>
+
+      <Reveal delay={100}>
+        <section className="mt-8">
+          <div className="mb-4 flex items-center justify-between gap-4">
+            <h2 className="text-lg font-bold tracking-tight text-slate-950">
+              Usos dos créditos
+            </h2>
+            <Badge tone="blue">IA operacional</Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {creditTools.map((tool) => (
+              <Card key={tool.title} className="h-full">
+                <CardContent className="flex h-full flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                      <Coins className="h-4.5 w-4.5" aria-hidden="true" />
+                    </div>
+                    <Badge tone={tool.href ? "green" : "slate"}>{tool.status}</Badge>
+                  </div>
+                  <h3 className="mt-4 text-base font-bold tracking-tight text-slate-950">
+                    {tool.title}
+                  </h3>
+                  <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
+                    {tool.description}
+                  </p>
+                  <p className="tnum mt-4 text-sm font-bold text-slate-950">{tool.cost}</p>
+                  {tool.href ? (
+                    <Link
+                      href={tool.href}
+                      className={buttonClasses({ variant: "outline", className: "mt-4" })}
+                    >
+                      Abrir
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <Button className="mt-4" variant="outline" disabled>
+                      <Lock className="h-4 w-4" aria-hidden="true" />
+                      Em breve
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      </Reveal>
 
       <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_0.9fr]">
         <Reveal delay={120}>

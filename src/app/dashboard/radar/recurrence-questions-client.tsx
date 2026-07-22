@@ -6,7 +6,6 @@ import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Notice } from "@/components/ui/notice";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord } from "@/lib/db/types";
 
@@ -103,10 +102,6 @@ export function RecurrenceQuestionsClient({
           <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Link>
       </div>
-
-      <Notice tone="warning" className="mb-6">
-        O Radar organiza prioridades de estudo. Ele nao tenta adivinhar a prova.
-      </Notice>
 
       <div className="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">

@@ -15,7 +15,6 @@ import {
   Target,
   UserRound,
   X,
-  FilePenLine,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/ui/logo";
@@ -38,7 +37,6 @@ const navigation = [
   {
     group: "Conta",
     items: [
-      { label: "Editorial", href: "/dashboard/editorial", icon: FilePenLine, adminOnly: true },
       { label: "Correções", href: "/dashboard/redacoes", icon: FileCheck2, adminOnly: true },
       { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
     ],
