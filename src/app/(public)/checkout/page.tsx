@@ -2,7 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Reveal } from "@/components/ui/reveal";
+import { Logo } from "@/components/ui/logo";
 import { getAccessContext } from "@/lib/access";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 import { createClient } from "@/lib/supabase/server";
@@ -50,13 +50,27 @@ export default async function CheckoutPage() {
     <main className="bg-paper">
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-8 sm:px-6 sm:py-12 lg:grid-cols-[minmax(0,1fr)_420px] lg:px-8">
-          <div className="self-center">
-            <h1
-              className="animate-rise max-w-3xl font-display text-4xl font-semibold leading-tight text-slate-950 sm:text-5xl"
-              style={{ "--rise-delay": "70ms" } as React.CSSProperties}
-            >
-              {product.product_name}
-            </h1>
+          <div
+            className="animate-rise self-center"
+            style={{ "--rise-delay": "70ms" } as React.CSSProperties}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>O que está incluído</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                  {included.map((item) => (
+                    <div key={item} className="flex gap-3">
+                      <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
+                      <span className="text-sm font-semibold leading-6 text-slate-700">
+                        {item}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <aside
@@ -66,7 +80,8 @@ export default async function CheckoutPage() {
             <Card className="sticky top-24 overflow-hidden">
               <CardContent className="p-0">
                 <div className="bg-slate-950 p-6 text-white">
-                  <p className="text-sm font-semibold text-blue-200">{product.product_name}</p>
+                  <Logo variant="dark" className="[&_img]:h-7" />
+                  <p className="mt-5 text-sm font-semibold text-blue-200">{product.product_name}</p>
                   <div className="mt-3 flex items-end gap-2">
                     <p className="tnum text-5xl font-bold leading-none">{formatCurrency(price)}</p>
                     <p className="pb-1 text-sm font-semibold text-slate-300">à vista</p>
@@ -103,28 +118,6 @@ export default async function CheckoutPage() {
             </Card>
           </aside>
         </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4 py-8 sm:px-6 sm:py-10 lg:px-8">
-        <Reveal>
-          <Card>
-            <CardHeader>
-              <CardTitle>O que está incluído</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid gap-x-8 gap-y-3 sm:grid-cols-2 lg:grid-cols-3">
-                {included.map((item) => (
-                  <div key={item} className="flex gap-3">
-                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600" aria-hidden="true" />
-                    <span className="text-sm font-semibold leading-6 text-slate-700">
-                      {item}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </Reveal>
       </section>
     </main>
   );
