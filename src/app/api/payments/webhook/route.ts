@@ -6,6 +6,13 @@ import {
 } from "@/lib/services/mercado-pago";
 import type { Order, Product } from "@/lib/services/billing";
 import type { Database } from "@/lib/supabase/types";
+import {
+  getMercadoPagoWebhookDisposition,
+  getSafeErrorMessage,
+  shouldIgnoreMercadoPagoProcessingError,
+  summarizeSupabaseError,
+  summarizeSupabaseResponse,
+} from "@/lib/services/payment-webhook.mjs";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
@@ -60,7 +67,7 @@ export async function POST(request: NextRequest) {
   }
 
   const admin = createAdminClient();
-  const { data: paymentEvent, error: eventError } = await admin
+  const eventInsertResult = await admin
     .from("payment_events")
     .insert({
       provider: "mercado_pago",
@@ -70,6 +77,7 @@ export async function POST(request: NextRequest) {
     } as never)
     .select("*")
     .single();
+  const { data: paymentEvent, error: eventError } = eventInsertResult;
 
   let savedPaymentEvent: PaymentEvent;
   if (eventError) {
@@ -77,18 +85,32 @@ export async function POST(request: NextRequest) {
       // Evento já registrado. Se um processamento anterior falhou (processed = false),
       // reprocessa em vez de descartar como duplicado — senão o reenvio do Mercado
       // Pago nunca conclui a concessão de acesso de quem pagou.
-      const { data: existing } = await admin
+      const existingResult = await admin
         .from("payment_events")
         .select("*")
         .eq("provider", "mercado_pago")
         .eq("provider_event_id", providerEventId)
         .maybeSingle();
+      const { data: existing, error: existingError } = existingResult;
 
+      if (existingError) {
+        logSupabaseFailure("payment_events.select_duplicate", existingResult, {
+          providerEventId,
+          eventType,
+          dataId,
+        });
+        return NextResponse.json({ ok: true, duplicate: true });
+      }
       if (!existing || (existing as PaymentEvent).processed) {
         return NextResponse.json({ ok: true, duplicate: true });
       }
       savedPaymentEvent = existing as PaymentEvent;
     } else {
+      logSupabaseFailure("payment_events.insert", eventInsertResult, {
+        providerEventId,
+        eventType,
+        dataId,
+      });
       return NextResponse.json({ ok: false, message: "event insert error" }, { status: 500 });
     }
   } else {
@@ -96,12 +118,23 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    if (!dataId || !eventType.includes("payment")) {
-      await markProcessed(admin, savedPaymentEvent.id, null, "Evento ignorado: nao e pagamento.");
-      return NextResponse.json({ ok: true, ignored: true });
+    const disposition = getMercadoPagoWebhookDisposition({ eventType, dataId });
+    if (disposition.action === "ignore") {
+      await markProcessed(admin, savedPaymentEvent.id, {
+        processed: true,
+        note: disposition.note,
+        context: {
+          providerEventId,
+          eventType,
+          dataId,
+          reason: disposition.reason,
+        },
+      });
+      return NextResponse.json({ ok: true, ignored: true, reason: disposition.reason });
     }
 
-    const payment = await fetchMercadoPagoPayment(dataId);
+    const paymentId = String(dataId);
+    const payment = await fetchMercadoPagoPayment(paymentId);
     const orderId = payment.external_reference ?? payment.metadata?.order_id ?? null;
     if (!orderId) {
       throw new Error("Pagamento sem external_reference/order_id.");
@@ -178,12 +211,38 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    await markProcessed(admin, savedPaymentEvent.id);
+    await markProcessed(admin, savedPaymentEvent.id, {
+      processed: true,
+      context: { providerEventId, eventType, dataId },
+    });
     return NextResponse.json({ ok: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    await markProcessed(admin, savedPaymentEvent.id, message);
-    return NextResponse.json({ ok: false, message: "processing error" }, { status: 500 });
+    const message = getSafeErrorMessage(error);
+    const ignored = shouldIgnoreMercadoPagoProcessingError(error);
+
+    console.error("[payments:webhook] payment processing failed", {
+      providerEventId,
+      eventType,
+      dataId,
+      paymentEventId: savedPaymentEvent.id,
+      ignored,
+      message,
+    });
+
+    await markProcessed(admin, savedPaymentEvent.id, {
+      processed: ignored,
+      processingError: ignored
+        ? `Pagamento nao encontrado no Mercado Pago; evento ignorado. ${message}`
+        : message,
+      context: { providerEventId, eventType, dataId },
+    });
+
+    return NextResponse.json({
+      ok: true,
+      queued: !ignored,
+      ignored,
+      message: ignored ? "payment ignored" : "payment registered for review",
+    });
   }
 }
 
@@ -208,15 +267,52 @@ function getPayloadDataId(payload: Record<string, unknown> | null) {
 async function markProcessed(
   admin: ReturnType<typeof createAdminClient>,
   eventId: string,
-  processingError?: string | null,
-  note?: string,
+  {
+    processed,
+    processingError,
+    note,
+    context,
+  }: {
+    processed: boolean;
+    processingError?: string | null;
+    note?: string | null;
+    context?: Record<string, unknown>;
+  },
 ) {
-  await admin
+  const result = await admin
     .from("payment_events")
     .update({
-      processed: !processingError,
+      processed,
       processing_error: processingError ?? note ?? null,
-      processed_at: new Date().toISOString(),
+      processed_at: processed ? new Date().toISOString() : null,
     } as never)
     .eq("id", eventId);
+
+  if (result.error) {
+    logSupabaseFailure("payment_events.update_processing_state", result, {
+      eventId,
+      processed,
+      ...context,
+    });
+  }
+}
+
+function logSupabaseFailure(
+  operation: string,
+  result: {
+    error: unknown;
+    status?: number;
+    statusText?: string;
+    response?: unknown;
+  },
+  context: Record<string, unknown>,
+) {
+  console.error("[payments:webhook] Supabase request failed", {
+    operation,
+    context,
+    error: summarizeSupabaseError(result.error),
+    status: result.status ?? null,
+    statusText: result.statusText ?? null,
+    response: summarizeSupabaseResponse(result),
+  });
 }

@@ -97,7 +97,13 @@ export async function fetchMercadoPagoPayment(paymentId: string) {
   });
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(payload?.message ?? "Nao foi possivel consultar o pagamento.");
+    throw new MercadoPagoApiError(
+      payload?.message ?? "Nao foi possivel consultar o pagamento.",
+      {
+        status: response.status,
+        statusText: response.statusText,
+      },
+    );
   }
 
   return payload as MercadoPagoPayment;
@@ -159,13 +165,34 @@ function safeEqual(left: string, right: string) {
 function getMercadoPagoAccessToken() {
   const problem = getMercadoPagoConfigurationProblem();
   if (problem === "missing_access_token") {
-    throw new Error("MERCADO_PAGO_ACCESS_TOKEN nao configurado.");
+    throw new MercadoPagoConfigurationError("MERCADO_PAGO_ACCESS_TOKEN nao configurado.");
   }
   if (problem === "public_key_matches_access_token") {
-    throw new Error("MERCADO_PAGO_ACCESS_TOKEN nao pode ser igual a NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY.");
+    throw new MercadoPagoConfigurationError(
+      "MERCADO_PAGO_ACCESS_TOKEN nao pode ser igual a NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY.",
+    );
   }
 
   return process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? "";
+}
+
+export class MercadoPagoConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "MercadoPagoConfigurationError";
+  }
+}
+
+export class MercadoPagoApiError extends Error {
+  status: number;
+  statusText: string;
+
+  constructor(message: string, { status, statusText }: { status: number; statusText: string }) {
+    super(message);
+    this.name = "MercadoPagoApiError";
+    this.status = status;
+    this.statusText = statusText;
+  }
 }
 
 export type MercadoPagoPayment = {

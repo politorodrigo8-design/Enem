@@ -6,6 +6,10 @@ import {
   isPaymentSiteUrlSafe,
   isTrustedCheckoutOrigin,
 } from "../src/lib/services/payment-security.mjs";
+import {
+  getMercadoPagoWebhookDisposition,
+  shouldIgnoreMercadoPagoProcessingError,
+} from "../src/lib/services/payment-webhook.mjs";
 
 test("checkout Mercado Pago exige produto ativo, liberado e provedor correto", () => {
   assert.equal(
@@ -83,4 +87,31 @@ test("access token nao pode ser exposto como public key", () => {
     getMercadoPagoCredentialProblem({ accessToken: "secret", publicKey: "public" }),
     null,
   );
+});
+
+test("webhook ignora simulacao do Mercado Pago com payment id ficticio", () => {
+  assert.deepEqual(
+    getMercadoPagoWebhookDisposition({ eventType: "payment", dataId: "123456" }),
+    {
+      action: "ignore",
+      reason: "test_payment_id",
+      note: "Evento de teste do Mercado Pago ignorado.",
+    },
+  );
+});
+
+test("webhook ignora eventos que nao sao de pagamento", () => {
+  assert.deepEqual(
+    getMercadoPagoWebhookDisposition({ eventType: "merchant_order", dataId: "123456789" }),
+    {
+      action: "ignore",
+      reason: "not_payment",
+      note: "Evento ignorado: nao e pagamento.",
+    },
+  );
+});
+
+test("webhook trata 404 do Mercado Pago como pagamento inexistente ignoravel", () => {
+  assert.equal(shouldIgnoreMercadoPagoProcessingError({ status: 404 }), true);
+  assert.equal(shouldIgnoreMercadoPagoProcessingError({ status: 500 }), false);
 });
