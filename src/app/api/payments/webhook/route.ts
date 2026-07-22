@@ -7,8 +7,10 @@ import {
 import type { Order, Product } from "@/lib/services/billing";
 import type { Database } from "@/lib/supabase/types";
 import {
+  buildIgnoredPaymentProcessingError,
   getMercadoPagoWebhookDisposition,
   getSafeErrorMessage,
+  summarizeMercadoPagoError,
   shouldIgnoreMercadoPagoProcessingError,
   summarizeSupabaseError,
   summarizeSupabaseResponse,
@@ -218,7 +220,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     const message = getSafeErrorMessage(error);
-    const ignored = shouldIgnoreMercadoPagoProcessingError(error);
+    const ignored = shouldIgnoreMercadoPagoProcessingError(error, { paymentId: dataId });
 
     console.error("[payments:webhook] payment processing failed", {
       providerEventId,
@@ -226,13 +228,13 @@ export async function POST(request: NextRequest) {
       dataId,
       paymentEventId: savedPaymentEvent.id,
       ignored,
-      message,
+      error: summarizeMercadoPagoError(error),
     });
 
     await markProcessed(admin, savedPaymentEvent.id, {
       processed: ignored,
       processingError: ignored
-        ? `Pagamento nao encontrado no Mercado Pago; evento ignorado. ${message}`
+        ? buildIgnoredPaymentProcessingError(error)
         : message,
       context: { providerEventId, eventType, dataId },
     });
@@ -279,16 +281,39 @@ async function markProcessed(
     context?: Record<string, unknown>;
   },
 ) {
-  const result = await admin
-    .from("payment_events")
-    .update({
-      processed,
-      processing_error: processingError ?? note ?? null,
-      processed_at: processed ? new Date().toISOString() : null,
-    } as never)
-    .eq("id", eventId);
+  let result:
+    | {
+        error: unknown;
+        status?: number;
+        statusText?: string;
+        response?: unknown;
+      }
+    | null = null;
 
-  if (result.error) {
+  try {
+    result = await admin
+      .from("payment_events")
+      .update({
+        processed,
+        processing_error: processingError ?? note ?? null,
+        processed_at: processed ? new Date().toISOString() : null,
+      } as never)
+      .eq("id", eventId);
+  } catch (error) {
+    console.error("[payments:webhook] Supabase request threw", {
+      operation: "payment_events.update_processing_state",
+      context: {
+        eventId,
+        processed,
+        ...context,
+      },
+      error: summarizeSupabaseError(error),
+      message: getSafeErrorMessage(error),
+    });
+    return;
+  }
+
+  if (result?.error) {
     logSupabaseFailure("payment_events.update_processing_state", result, {
       eventId,
       processed,

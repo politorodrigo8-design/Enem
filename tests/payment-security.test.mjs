@@ -7,6 +7,7 @@ import {
   isTrustedCheckoutOrigin,
 } from "../src/lib/services/payment-security.mjs";
 import {
+  buildIgnoredPaymentProcessingError,
   getMercadoPagoWebhookDisposition,
   shouldIgnoreMercadoPagoProcessingError,
 } from "../src/lib/services/payment-webhook.mjs";
@@ -114,4 +115,20 @@ test("webhook ignora eventos que nao sao de pagamento", () => {
 test("webhook trata 404 do Mercado Pago como pagamento inexistente ignoravel", () => {
   assert.equal(shouldIgnoreMercadoPagoProcessingError({ status: 404 }), true);
   assert.equal(shouldIgnoreMercadoPagoProcessingError({ status: 500 }), false);
+});
+
+test("webhook trata 404 do GET /v1/payments/123456 como simulacao ignoravel", () => {
+  const error = {
+    name: "MercadoPagoApiError",
+    message: "payment not found",
+    paymentId: "123456",
+    status: 404,
+    statusText: "Not Found",
+    errorCode: "not_found",
+  };
+
+  assert.equal(shouldIgnoreMercadoPagoProcessingError(error, { paymentId: "123456" }), true);
+  assert.match(buildIgnoredPaymentProcessingError(error), /status=404/);
+  assert.match(buildIgnoredPaymentProcessingError(error), /code=not_found/);
+  assert.match(buildIgnoredPaymentProcessingError(error), /payment_id=123456/);
 });

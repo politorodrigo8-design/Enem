@@ -100,8 +100,10 @@ export async function fetchMercadoPagoPayment(paymentId: string) {
     throw new MercadoPagoApiError(
       payload?.message ?? "Nao foi possivel consultar o pagamento.",
       {
+        paymentId,
         status: response.status,
         statusText: response.statusText,
+        errorCode: typeof payload?.error === "string" ? payload.error : null,
       },
     );
   }
@@ -184,14 +186,26 @@ export class MercadoPagoConfigurationError extends Error {
 }
 
 export class MercadoPagoApiError extends Error {
+  paymentId: string;
   status: number;
   statusText: string;
+  errorCode: string | null;
 
-  constructor(message: string, { status, statusText }: { status: number; statusText: string }) {
+  constructor(
+    message: string,
+    {
+      paymentId,
+      status,
+      statusText,
+      errorCode,
+    }: { paymentId: string; status: number; statusText: string; errorCode?: string | null },
+  ) {
     super(message);
     this.name = "MercadoPagoApiError";
+    this.paymentId = paymentId;
     this.status = status;
     this.statusText = statusText;
+    this.errorCode = errorCode ?? null;
   }
 }
 
