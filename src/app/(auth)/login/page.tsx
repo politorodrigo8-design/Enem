@@ -27,6 +27,12 @@ import {
 
 type Mode = "login" | "signup" | "reset";
 
+type ToastCopy = {
+  successTitle: string;
+  successDescription?: string;
+  errorTitle: string;
+};
+
 const headline: Record<Mode, { title: string; description: string }> = {
   login: {
     title: "Bem-vindo de volta",
@@ -77,7 +83,11 @@ function LoginPageContent() {
   function handleSignIn(values: SignInInput) {
     startTransition(async () => {
       const result = await signInAction(values);
-      toast[result.ok ? "success" : "error"](result.message);
+      showAuthToast(result, {
+        successTitle: "Você entrou na sua conta",
+        successDescription: "Bom te ver por aqui. Seus estudos já estão prontos.",
+        errorTitle: "Não foi possível entrar",
+      });
       if (result.ok) {
         router.push(redirectedFrom || "/dashboard");
         router.refresh();
@@ -88,7 +98,11 @@ function LoginPageContent() {
   function handleSignUp(values: SignUpInput) {
     startTransition(async () => {
       const result = await signUpAction(values);
-      toast[result.ok ? "success" : "error"](result.message);
+      showAuthToast(result, {
+        successTitle: "Conta criada com sucesso",
+        successDescription: "Tudo certo. Vamos continuar para o próximo passo.",
+        errorTitle: "Não foi possível criar a conta",
+      });
       if (result.ok) {
         router.push("/checkout");
         router.refresh();
@@ -99,7 +113,11 @@ function LoginPageContent() {
   function handleReset(values: ResetPasswordInput) {
     startTransition(async () => {
       const result = await resetPasswordAction(values);
-      toast[result.ok ? "success" : "error"](result.message);
+      showAuthToast(result, {
+        successTitle: "Confira seu e-mail",
+        successDescription: result.message,
+        errorTitle: "Não foi possível enviar o link",
+      });
       if (result.ok) {
         setMode("login");
       }
@@ -306,6 +324,22 @@ function LoginPageContent() {
       </section>
     </main>
   );
+}
+
+function showAuthToast(
+  result: { ok: boolean; message: string },
+  copy: ToastCopy,
+) {
+  if (result.ok) {
+    toast.success(copy.successTitle, {
+      description: copy.successDescription ?? result.message,
+    });
+    return;
+  }
+
+  toast.error(copy.errorTitle, {
+    description: result.message,
+  });
 }
 
 const inputClasses =

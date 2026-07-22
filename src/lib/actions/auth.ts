@@ -30,7 +30,7 @@ function supabaseMissing(): ActionResult {
   return {
     ok: false,
     message:
-      "Configure NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY para ativar autenticação real.",
+      "O login está temporariamente indisponível. Tente novamente em alguns minutos.",
   };
 }
 
@@ -38,7 +38,7 @@ function authErrorMessage(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
 
   if (message === "fetch failed") {
-    return "Não foi possível conectar ao Supabase a partir do servidor. Verifique o certificado/rede local e tente novamente.";
+    return "Não conseguimos concluir sua entrada agora. Tente novamente em alguns minutos.";
   }
 
   if (message.includes("User already registered")) {
@@ -57,7 +57,7 @@ function authErrorMessage(error: unknown) {
     return "Confirme seu e-mail antes de entrar.";
   }
 
-  return message || "Não foi possível concluir a autenticação.";
+  return "Não conseguimos concluir sua entrada agora. Revise os dados e tente novamente.";
 }
 
 function logAuthError(context: string, error: unknown) {
@@ -111,7 +111,7 @@ export async function signInAction(input: SignInInput): Promise<ActionResult> {
     }
 
     revalidatePath("/dashboard", "layout");
-    return { ok: true, message: "Login realizado com sucesso." };
+    return { ok: true, message: "Você entrou na sua conta." };
   } catch (error) {
     logAuthError("signInWithPassword threw", error);
     return { ok: false, message: authErrorMessage(error) };
@@ -157,7 +157,7 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
     return {
       ok: true,
       message:
-        "Conta criada. Se a confirmação por e-mail estiver ativa no Supabase, confirme antes de entrar.",
+        "Conta criada. Se pedirmos confirmação, confira seu e-mail antes de entrar.",
     };
   } catch (error) {
     logAuthError("signUp threw", error);
