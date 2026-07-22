@@ -1,4 +1,5 @@
 import type { AreaPerformance, CreditPackage, SubjectPerformance } from "@/types";
+import { creditPackageProducts } from "@/lib/credits/packages";
 
 export const areaPerformance: AreaPerformance[] = [
   { area: "Matemática", accuracy: 54, answered: 132 },
@@ -18,26 +19,4 @@ export const subjectPerformance: SubjectPerformance[] = [
   { subject: "Estequiometria", area: "Ciências da Natureza", accuracy: 51, status: "Crítico" },
 ];
 
-export const creditPackages: CreditPackage[] = [
-  {
-    id: "pack-20",
-    title: "Reforço pontual",
-    credits: 20,
-    price: "R$ 19,90",
-    description: "Para análises extras em semanas de revisão.",
-  },
-  {
-    id: "pack-50",
-    title: "Reta final",
-    credits: 50,
-    price: "R$ 39,90",
-    description: "Para atualizar plano e revisar pontos críticos.",
-  },
-  {
-    id: "pack-100",
-    title: "Intensivo",
-    credits: 100,
-    price: "R$ 69,90",
-    description: "Para uso avançado quando recursos inteligentes forem liberados.",
-  },
-];
+export const creditPackages: CreditPackage[] = creditPackageProducts;

@@ -17,7 +17,7 @@ import {
 } from "@/lib/services/payment-webhook.mjs";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 
 export const runtime = "nodejs";
 

@@ -1,7 +1,7 @@
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Notice } from "@/components/ui/notice";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseAdminConfigured } from "@/lib/supabase/config";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import { requirePlatformAccess } from "@/lib/db/queries";
 import type { QuestionRecord } from "@/lib/db/types";
 import { canEditEditorial } from "@/lib/editorial/rules.mjs";

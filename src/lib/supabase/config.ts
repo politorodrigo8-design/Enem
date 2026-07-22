@@ -17,11 +17,3 @@ export function getSupabaseUrl() {
 export function getSiteUrl() {
   return (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim();
 }
-
-export function getSupabaseServiceRoleKey() {
-  return (process.env.SUPABASE_SERVICE_ROLE_KEY || "").trim();
-}
-
-export function isSupabaseAdminConfigured() {
-  return Boolean(getSupabaseUrl() && getSupabaseServiceRoleKey());
-}

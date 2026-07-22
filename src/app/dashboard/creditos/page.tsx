@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { ArrowRight, Coins, FileText, History, Lock, PenLine } from "lucide-react";
+import { ArrowRight, Coins, FileText, History, PenLine } from "lucide-react";
+import { CreditPackageCheckoutButton } from "@/components/dashboard/credit-package-checkout-button";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
+import { creditPackageProducts } from "@/lib/credits/packages";
 import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
 import { getCreditsData } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
@@ -103,8 +105,7 @@ export default async function CreditsPage() {
 
       <Notice tone="info" className="mb-6">
         O saldo e o histórico vêm do banco. Envio de redação confirmado consome{" "}
-        {ESSAY_CREDIT_COST_LABEL}; créditos adicionais só poderão ser comprados
-        quando essa opção estiver habilitada.
+        {ESSAY_CREDIT_COST_LABEL}; créditos adicionais podem ser comprados nesta página.
       </Notice>
 
       <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
@@ -294,20 +295,51 @@ export default async function CreditsPage() {
             <h2 className="text-lg font-bold tracking-tight text-slate-950">
               Créditos adicionais
             </h2>
-            <Badge tone="slate">Indisponível no momento</Badge>
+            <Badge tone="green">Disponível</Badge>
           </div>
-          <Card>
-            <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm leading-6 text-slate-600">
-                A compra avulsa de créditos ainda não está habilitada. Quando
-                for liberada, os valores e condições aparecerão nesta área.
-              </p>
-              <Button disabled>
-                <Lock className="h-4 w-4" aria-hidden="true" />
-                Em breve
-              </Button>
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {creditPackageProducts.map((pack) => (
+              <Card
+                key={pack.id}
+                className={pack.highlight ? "border-blue-200 shadow-blue-900/10" : ""}
+              >
+                <CardContent className="flex h-full flex-col">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <h3 className="text-base font-bold tracking-tight text-slate-950">
+                        {pack.title}
+                      </h3>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {pack.description}
+                      </p>
+                    </div>
+                    {pack.highlight ? <Badge tone="blue">Mais escolhido</Badge> : null}
+                  </div>
+                  <div className="mt-5 rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
+                    <p className="tnum text-3xl font-bold tracking-tight text-slate-950">
+                      {pack.credits}
+                      <span className="ml-1.5 text-base font-semibold text-slate-500">
+                        créditos
+                      </span>
+                    </p>
+                    <div className="mt-3 flex items-end justify-between gap-3">
+                      <p className="tnum text-xl font-bold text-blue-800">{pack.price}</p>
+                      <p className="tnum text-xs font-semibold text-slate-500">
+                        {formatCreditUnitPrice(pack.priceCents, pack.credits)} / crédito
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5">
+                    <CreditPackageCheckoutButton productSlug={pack.productSlug} />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Pagamento processado pelo Mercado Pago. O saldo é creditado
+            automaticamente após confirmação do pagamento.
+          </p>
         </section>
       </Reveal>
     </div>
@@ -329,4 +361,11 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(value));
+}
+
+function formatCreditUnitPrice(priceCents: number, credits: number) {
+  return new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+  }).format(priceCents / credits / 100);
 }

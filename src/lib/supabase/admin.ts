@@ -4,9 +4,9 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
 import {
   getSupabaseServiceRoleKey,
-  getSupabaseUrl,
   isSupabaseAdminConfigured,
-} from "@/lib/supabase/config";
+} from "@/lib/supabase/admin-config";
+import { getSupabaseUrl } from "@/lib/supabase/config";
 
 export function createAdminClient() {
   if (!isSupabaseAdminConfigured()) {

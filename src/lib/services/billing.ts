@@ -17,6 +17,8 @@ export const DEFAULT_PRODUCT = {
   access_valid_until: "2026-11-30T23:59:59-03:00",
   active: true,
   launch_ready: true,
+  product_kind: "access",
+  credit_amount: null,
 } satisfies Partial<Product>;
 
 export function getProductCta() {
@@ -80,11 +82,12 @@ export async function getPublicProduct(): Promise<Product> {
 
 export async function getActiveProductForCheckout(
   supabase: SupabaseClient<Database>,
+  slug = DEFAULT_PRODUCT.slug,
 ): Promise<Product> {
   const { data, error } = await supabase
     .from("products")
     .select("*")
-    .eq("slug", DEFAULT_PRODUCT.slug)
+    .eq("slug", slug)
     .eq("active", true)
     .single();
 
@@ -96,6 +99,10 @@ export async function getActiveProductForCheckout(
 }
 
 function withCurrentProductBrand(product: Product): Product {
+  if (product.product_kind !== "access") {
+    return product;
+  }
+
   return {
     ...product,
     product_name: PRODUCT_NAME,
@@ -115,6 +122,8 @@ function fallbackProduct(): Product {
     active: true,
     launch_ready: true,
     checkout_provider: "mercado_pago",
+    product_kind: "access",
+    credit_amount: null,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   };

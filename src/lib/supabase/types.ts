@@ -627,6 +627,8 @@ export type Database = {
           active: boolean;
           launch_ready: boolean;
           checkout_provider: "mercado_pago" | "stripe" | "manual";
+          product_kind: "access" | "credit_package";
+          credit_amount: number | null;
           created_at: string;
           updated_at: string;
         };
@@ -642,6 +644,8 @@ export type Database = {
           active?: boolean;
           launch_ready?: boolean;
           checkout_provider?: "mercado_pago" | "stripe" | "manual";
+          product_kind?: "access" | "credit_package";
+          credit_amount?: number | null;
         };
         Update: Partial<Database["public"]["Tables"]["products"]["Insert"]>;
       };

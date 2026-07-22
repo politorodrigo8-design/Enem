@@ -4,7 +4,8 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/config";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { ActionResult } from "@/lib/actions/auth";
 import {
   canEditEditorial,

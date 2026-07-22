@@ -11,13 +11,16 @@ import {
 import { recordProductEvent } from "@/lib/services/product-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import {
   getSiteUrl,
-  isSupabaseAdminConfigured,
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
 
 export const runtime = "nodejs";
+
+const creditPackageSlugPattern = /^creditos-(20|50|100)$/;
+const pendingCreditPackageOrderMs = 24 * 60 * 60 * 1000;
 
 export async function POST(request: NextRequest) {
   if (
@@ -29,14 +32,14 @@ export async function POST(request: NextRequest) {
     })
   ) {
     return NextResponse.json(
-      { ok: false, message: "Origem do checkout nao autorizada." },
+      { ok: false, message: "Origem do checkout não autorizada." },
       { status: 403 },
     );
   }
 
   if (!isSupabaseConfigured()) {
     return NextResponse.json(
-      { ok: false, message: "Supabase nao configurado." },
+      { ok: false, message: "Supabase não configurado." },
       { status: 503 },
     );
   }
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
 
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json(
-      { ok: false, message: "Supabase administrativo nao configurado." },
+      { ok: false, message: "Supabase administrativo não configurado." },
       { status: 503 },
     );
   }
@@ -68,39 +71,76 @@ export async function POST(request: NextRequest) {
     .maybeSingle();
   const typedProfile = profile as Profile | null;
   const access = getAccessContext(typedProfile);
+  const body = await readCheckoutBody(request);
+  const productSlug = normalizeProductSlug(body.productSlug);
+  if (body.productSlug && !productSlug) {
+    return NextResponse.json(
+      { ok: false, message: "Pacote de créditos inválido." },
+      { status: 400 },
+    );
+  }
 
-  if (access.hasPlatformAccess) {
+  if (access.hasPlatformAccess && !productSlug) {
     return NextResponse.json({ ok: true, redirectTo: "/dashboard" });
   }
 
-  const product = await getActiveProductForCheckout(admin);
+  if (productSlug && !access.hasPlatformAccess) {
+    return NextResponse.json(
+      { ok: false, message: "Compre o acesso antes de adicionar créditos avulsos." },
+      { status: 403 },
+    );
+  }
+
+  const product = await getActiveProductForCheckout(admin, productSlug ?? undefined);
+  if (productSlug && product.product_kind !== "credit_package") {
+    return NextResponse.json(
+      { ok: false, message: "Produto de créditos não encontrado." },
+      { status: 404 },
+    );
+  }
+  if (!productSlug && product.product_kind !== "access") {
+    return NextResponse.json(
+      { ok: false, message: "Produto principal não encontrado." },
+      { status: 404 },
+    );
+  }
   if (!canCreateMercadoPagoCheckout(product)) {
     return NextResponse.json(
-      { ok: false, message: "Checkout real ainda nao esta liberado." },
+      { ok: false, message: "Checkout real ainda não está liberado." },
       { status: 409 },
     );
   }
 
   if (!isPaymentSiteUrlSafe(getSiteUrl(), process.env.NODE_ENV)) {
     return NextResponse.json(
-      { ok: false, message: "URL publica do app invalida para pagamentos." },
+      { ok: false, message: "URL pública do app inválida para pagamentos." },
       { status: 503 },
     );
   }
 
   const amountCents = getCurrentProductPrice(product);
+  const checkoutRoute =
+    product.product_kind === "credit_package" ? "/dashboard/creditos" : "/checkout";
+  const orderExpiresAt =
+    product.product_kind === "credit_package"
+      ? new Date(Date.now() + pendingCreditPackageOrderMs).toISOString()
+      : product.access_valid_until;
 
   await recordProductEvent({
     supabase: admin,
     userId: user.id,
     eventName: "checkout_started",
-    route: "/checkout",
-    metadata: { product_id: product.id },
+    route: checkoutRoute,
+    metadata: {
+      product_id: product.id,
+      product_kind: product.product_kind,
+      credit_amount: product.credit_amount,
+    },
   });
 
   if (!isMercadoPagoConfigured()) {
     return NextResponse.json(
-      { ok: false, message: "Mercado Pago ainda nao configurado com seguranca no servidor." },
+      { ok: false, message: "Mercado Pago ainda não configurado com segurança no servidor." },
       { status: 503 },
     );
   }
@@ -136,15 +176,19 @@ export async function POST(request: NextRequest) {
       currency: "BRL",
       status: "pending",
       provider: "mercado_pago",
-      expires_at: product.access_valid_until,
-      metadata: { source: "checkout" },
+      expires_at: orderExpiresAt,
+      metadata: {
+        source: product.product_kind === "credit_package" ? "credit_package" : "checkout",
+        product_kind: product.product_kind,
+        credit_amount: product.credit_amount,
+      },
     } as never)
     .select("*")
     .single();
 
   if (orderError || !order) {
     return NextResponse.json(
-      { ok: false, message: orderError?.message ?? "Nao foi possivel criar o pedido." },
+      { ok: false, message: orderError?.message ?? "Não foi possível criar o pedido." },
       { status: 500 },
     );
   }
@@ -154,8 +198,12 @@ export async function POST(request: NextRequest) {
     supabase: admin,
     userId: user.id,
     eventName: "order_created",
-    route: "/checkout",
-    metadata: { order_id: createdOrder.id, amount_cents: createdOrder.amount_cents },
+    route: checkoutRoute,
+    metadata: {
+      order_id: createdOrder.id,
+      amount_cents: createdOrder.amount_cents,
+      product_kind: product.product_kind,
+    },
   });
 
   let preference: Awaited<ReturnType<typeof createMercadoPagoPreference>>;
@@ -179,7 +227,7 @@ export async function POST(request: NextRequest) {
       .eq("id", createdOrder.id);
 
     return NextResponse.json(
-      { ok: false, message: "Nao foi possivel iniciar o pagamento com seguranca agora." },
+      { ok: false, message: "Não foi possível iniciar o pagamento com segurança agora." },
       { status: 502 },
     );
   }
@@ -203,8 +251,8 @@ export async function POST(request: NextRequest) {
     supabase: admin,
     userId: user.id,
     eventName: "payment_pending",
-    route: "/checkout",
-    metadata: { order_id: createdOrder.id },
+    route: checkoutRoute,
+    metadata: { order_id: createdOrder.id, product_kind: product.product_kind },
   });
 
   return NextResponse.json({
@@ -212,6 +260,21 @@ export async function POST(request: NextRequest) {
     orderId: createdOrder.id,
     redirectTo: preference.checkoutUrl,
   });
+}
+
+async function readCheckoutBody(request: NextRequest): Promise<{ productSlug?: unknown }> {
+  try {
+    const body = (await request.json()) as { productSlug?: unknown };
+    return body && typeof body === "object" ? body : {};
+  } catch {
+    return {};
+  }
+}
+
+function normalizeProductSlug(value: unknown) {
+  if (typeof value !== "string") return null;
+  const slug = value.trim().toLowerCase();
+  return creditPackageSlugPattern.test(slug) ? slug : null;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
