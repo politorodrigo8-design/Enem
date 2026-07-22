@@ -133,7 +133,7 @@ const radarDemo = [
       {
         topic: "Geometria plana",
         priority: "Prioridade baixa",
-        accuracy: "49%",
+        accuracy: "68%",
         recurrence: "Recorrente",
         reason: "Bom potencial de ganho para a próxima semana.",
       },
@@ -145,21 +145,21 @@ const radarDemo = [
       {
         topic: "Ecologia",
         priority: "Prioridade máxima",
-        accuracy: "57%",
+        accuracy: "41%",
         recurrence: "Alta recorrência",
         reason: "Conteúdo recorrente com espaço claro para consolidar acertos.",
       },
       {
         topic: "Eletricidade",
         priority: "Prioridade alta",
-        accuracy: "48%",
+        accuracy: "52%",
         recurrence: "Recorrente",
         reason: "Erros recentes indicam revisão antes de avançar.",
       },
       {
         topic: "Estequiometria",
         priority: "Prioridade baixa",
-        accuracy: "51%",
+        accuracy: "68%",
         recurrence: "Recorrente",
         reason: "Base importante para questões de Química com cálculo.",
       },
