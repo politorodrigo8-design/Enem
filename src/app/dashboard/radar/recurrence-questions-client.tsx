@@ -25,14 +25,21 @@ export function RecurrenceQuestionsClient({
   const [year, setYear] = useState("Todos");
   const [priority, setPriority] = useState("Todas");
 
+  const questionsByArea = useMemo(
+    () =>
+      area === "Todas"
+        ? questions
+        : questions.filter((question) => question.subjects.area === area),
+    [area, questions],
+  );
   const options = useMemo(
     () => ({
       areas: unique(["Todas", ...questions.map((q) => q.subjects.area)]),
-      topics: unique(["Todos", ...questions.map((q) => q.topics.name)]),
+      topics: unique(["Todos", ...questionsByArea.map((q) => q.topics.name)]),
       years: unique(["Todos", ...questions.map((q) => String(q.year))]),
       priorities: unique(["Todas", ...questions.map((q) => q.recurrence_category)]),
     }),
-    [questions],
+    [questions, questionsByArea],
   );
 
   const filtered = useMemo(() => {
@@ -84,13 +91,13 @@ export function RecurrenceQuestionsClient({
       <div className="mb-5 flex flex-col gap-4 border-b border-slate-200 pb-5 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-            Treino e recorrencia
+            Treino e recorrência
           </p>
           <h2 className="mt-1 text-xl font-bold tracking-tight text-slate-950">
             Questões que valem entrar no treino
           </h2>
           <p className="mt-1.5 max-w-3xl text-sm leading-6 text-slate-600">
-            Use esta parte como atalho: encontre um assunto, escolha uma area ou
+            Use esta parte como atalho: encontre um assunto, escolha uma área ou
             foque nos itens de maior prioridade.
           </p>
         </div>
@@ -103,11 +110,19 @@ export function RecurrenceQuestionsClient({
         </Link>
       </div>
 
-      <div className="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
+      <details className="rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
+        <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4 text-sm font-bold text-slate-950">
+          <span>Ver questões sugeridas</span>
+          <span className="tnum text-xs font-semibold text-slate-500">
+            {visible.length} questões
+          </span>
+        </summary>
+
+      <div className="mb-6 border-t border-slate-100">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-4 py-3">
           <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
             <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
-            Encontrar questoes
+            Encontrar questões
             <span className="tnum text-xs font-semibold text-slate-500">
               {visible.length} de {questions.length}
             </span>
@@ -135,7 +150,15 @@ export function RecurrenceQuestionsClient({
               />
             </div>
           </label>
-          <Select label="Area" value={area} options={options.areas} onChange={setArea} />
+          <Select
+            label="Área"
+            value={area}
+            options={options.areas}
+            onChange={(value) => {
+              setArea(value);
+              setTopic("Todos");
+            }}
+          />
           <Select label="Assunto" value={topic} options={options.topics} onChange={setTopic} />
           <Select label="Ano" value={year} options={options.years} onChange={setYear} />
           <Select
@@ -150,7 +173,7 @@ export function RecurrenceQuestionsClient({
       {!visible.length ? (
         <EmptyState
           icon={Search}
-          title="Nenhuma questao encontrada"
+          title="Nenhuma questão encontrada"
           description="Limpe a busca ou escolha menos filtros para voltar a ver sugestoes."
           action={
             <Button type="button" variant="outline" onClick={clearFilters}>
@@ -189,7 +212,7 @@ export function RecurrenceQuestionsClient({
                   <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden="true" />
                   <p className="text-xs leading-5 text-slate-600">
                     {question.priority_reason ||
-                      "Boa para aquecer o treino neste assunto enquanto novas questoes oficiais sao revisadas."}
+                      "Boa para aquecer o treino neste assunto enquanto novas questões oficiais são revisadas."}
                   </p>
                 </div>
 
@@ -207,11 +230,20 @@ export function RecurrenceQuestionsClient({
                     Fonte: {question.source}. Revisao: {question.review_status}.
                   </span>
                 </div>
+
+                <Link
+                  href={`/dashboard/praticar?tab=banco&question=${question.id}`}
+                  className={buttonClasses({ variant: "primary", size: "sm", className: "mt-4" })}
+                >
+                  Resolver esta questão
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </article>
             );
           })}
         </div>
       )}
+      </details>
     </div>
   );
 }

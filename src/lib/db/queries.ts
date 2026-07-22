@@ -22,6 +22,7 @@ import type {
   TopicWithSubject,
 } from "@/lib/db/types";
 import { canEditEditorial } from "@/lib/editorial/rules.mjs";
+import { isStudentReadyQuestion } from "@/lib/questions/quality";
 
 type QueryError = {
   code?: string;
@@ -179,8 +180,9 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
     throw new Error(error.message);
   }
 
-  const records = ((data ?? []) as unknown as QuestionRecord[]).map(stripAnswerKey);
-  return attachQuestionMedia(supabase, records);
+  const records = (data ?? []) as unknown as QuestionRecord[];
+  const recordsWithMedia = await attachQuestionMedia(supabase, records);
+  return recordsWithMedia.filter(isStudentReadyQuestion).map(stripAnswerKey);
 }
 
 export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
@@ -339,13 +341,19 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
 
   return simulations.map((simulation) => ({
     ...simulation,
-    simulation_questions: simulation.simulation_questions.map((item) => ({
-      ...item,
-      questions: stripAnswerKey({
-        ...item.questions,
-        question_media: mediaByQuestion.get(item.questions.id) ?? [],
-      }),
-    })),
+    simulation_questions: simulation.simulation_questions
+      .map((item) => ({
+        ...item,
+        questions: {
+          ...item.questions,
+          question_media: mediaByQuestion.get(item.questions.id) ?? [],
+        },
+      }))
+      .filter((item) => isStudentReadyQuestion(item.questions))
+      .map((item) => ({
+        ...item,
+        questions: stripAnswerKey(item.questions),
+      })),
   }));
 }
 
@@ -384,10 +392,6 @@ export async function getHighPriorityQuestionRecords() {
 
   const reviewedHighPriority = questions.filter(
     (question) =>
-      question.reviewed &&
-      question.review_status === "approved" &&
-      question.source_verified &&
-      question.answer_verified &&
       question.confidence_level &&
       question.priority_reason &&
       [
@@ -396,11 +400,7 @@ export async function getHighPriorityQuestionRecords() {
       ].includes(question.recurrence_category),
   );
 
-  const source = reviewedHighPriority.length
-    ? reviewedHighPriority
-    : questions.filter((question) => question.is_demo);
-
-  return source
+  return reviewedHighPriority
     .map((question) => {
       const topicScore = calculatePriorityScore(question.topics);
       const editorialScore = Number(question.priority_score ?? 0);

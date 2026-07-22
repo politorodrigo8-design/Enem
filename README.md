@@ -71,8 +71,11 @@ NEXT_PUBLIC_APP_URL="http://localhost:3000"
 MERCADO_PAGO_ACCESS_TOKEN=""
 NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY=""
 MERCADO_PAGO_WEBHOOK_SECRET=""
+MERCADO_PAGO_SANDBOX="false"
 SUPABASE_SERVICE_ROLE_KEY=""
 ```
+
+`MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` sao segredos de servidor. Nunca use esses valores em variaveis `NEXT_PUBLIC_*`, no cliente ou em logs. Se um token for colado em chat, issue tracker ou commit, rotacione no Mercado Pago antes de vender.
 
 O checkout real fica bloqueado enquanto `products.launch_ready=false`. Para ativar vendas, revise conteudo, gateway, termos, politica de reembolso, webhooks e testes; depois altere o produto:
 
@@ -87,8 +90,9 @@ Para testar em sandbox:
 1. Use credenciais de teste do Mercado Pago em `.env.local`.
 2. Defina `NEXT_PUBLIC_APP_URL` para a URL publica do ambiente local/tunel.
 3. Cadastre `/api/payments/webhook` como webhook.
-4. Ative `launch_ready` somente no banco de teste.
-5. Crie conta, acesse `/checkout`, pague com meios de teste e confira `orders`, `payment_events` e `profiles`.
+4. Defina `MERCADO_PAGO_SANDBOX="true"` apenas no ambiente de teste.
+5. Ative `launch_ready` somente no banco de teste.
+6. Crie conta, acesse `/checkout`, pague com meios de teste e confira `orders`, `payment_events` e `profiles`.
 
 O retorno `/pagamento/sucesso` nao libera acesso. A liberacao ocorre apenas apos webhook assinado, consulta server-side ao Mercado Pago, validacao de valor, produto e usuario, e processamento idempotente.
 

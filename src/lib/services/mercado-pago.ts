@@ -1,11 +1,19 @@
 import crypto from "node:crypto";
 import { getSiteUrl } from "@/lib/supabase/config";
 import type { Order, Product } from "@/lib/services/billing";
+import { getMercadoPagoCredentialProblem } from "@/lib/services/payment-security.mjs";
 
 const API_BASE = "https://api.mercadopago.com";
 
 export function isMercadoPagoConfigured() {
-  return Boolean(process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim());
+  return !getMercadoPagoConfigurationProblem();
+}
+
+export function getMercadoPagoConfigurationProblem() {
+  return getMercadoPagoCredentialProblem({
+    accessToken: process.env.MERCADO_PAGO_ACCESS_TOKEN,
+    publicKey: process.env.NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY,
+  });
 }
 
 export async function createMercadoPagoPreference({
@@ -17,10 +25,7 @@ export async function createMercadoPagoPreference({
   order: Order;
   userEmail: string;
 }) {
-  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-  if (!accessToken) {
-    throw new Error("MERCADO_PAGO_ACCESS_TOKEN nao configurado.");
-  }
+  const accessToken = getMercadoPagoAccessToken();
 
   const siteUrl = getSiteUrl();
   const response = await fetch(`${API_BASE}/checkout/preferences`, {
@@ -57,6 +62,7 @@ export async function createMercadoPagoPreference({
       notification_url: `${siteUrl}/api/payments/webhook`,
       auto_return: "approved",
     }),
+    cache: "no-store",
   });
 
   const payload = await response.json();
@@ -70,6 +76,9 @@ export async function createMercadoPagoPreference({
   const checkoutUrl = useSandbox
     ? String(payload.sandbox_init_point || payload.init_point || "")
     : String(payload.init_point || "");
+  if (!checkoutUrl.startsWith("https://")) {
+    throw new Error("Mercado Pago retornou URL de checkout invalida.");
+  }
 
   return {
     providerOrderId: String(payload.id),
@@ -78,15 +87,13 @@ export async function createMercadoPagoPreference({
 }
 
 export async function fetchMercadoPagoPayment(paymentId: string) {
-  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim();
-  if (!accessToken) {
-    throw new Error("MERCADO_PAGO_ACCESS_TOKEN nao configurado.");
-  }
+  const accessToken = getMercadoPagoAccessToken();
 
   const response = await fetch(`${API_BASE}/v1/payments/${paymentId}`, {
     headers: {
       Authorization: `Bearer ${accessToken}`,
     },
+    cache: "no-store",
   });
   const payload = await response.json();
   if (!response.ok) {
@@ -137,12 +144,28 @@ export function verifyMercadoPagoWebhookSignature({
 }
 
 function safeEqual(left: string, right: string) {
-  const leftBuffer = Buffer.from(left);
-  const rightBuffer = Buffer.from(right);
+  if (!/^[a-f0-9]{64}$/i.test(left) || !/^[a-f0-9]{64}$/i.test(right)) {
+    return false;
+  }
+
+  const leftBuffer = Buffer.from(left, "hex");
+  const rightBuffer = Buffer.from(right, "hex");
   return (
     leftBuffer.length === rightBuffer.length &&
     crypto.timingSafeEqual(leftBuffer, rightBuffer)
   );
+}
+
+function getMercadoPagoAccessToken() {
+  const problem = getMercadoPagoConfigurationProblem();
+  if (problem === "missing_access_token") {
+    throw new Error("MERCADO_PAGO_ACCESS_TOKEN nao configurado.");
+  }
+  if (problem === "public_key_matches_access_token") {
+    throw new Error("MERCADO_PAGO_ACCESS_TOKEN nao pode ser igual a NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY.");
+  }
+
+  return process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? "";
 }
 
 export type MercadoPagoPayment = {

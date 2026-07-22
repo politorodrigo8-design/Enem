@@ -101,7 +101,7 @@ export function RadarClient({
           <StatCard
             label="Topicos mapeados"
             value={String(allRows.length)}
-            helper="com recorrencia historica"
+            helper="com recorrência histórica"
             icon={Layers}
           />
         </Reveal>
@@ -117,7 +117,7 @@ export function RadarClient({
           <StatCard
             label="Prioridade alta"
             value={String(highCount)}
-            helper="bons para o proximo ciclo"
+            helper="bons para o próximo ciclo"
             icon={ListChecks}
           />
         </Reveal>
@@ -141,14 +141,14 @@ export function RadarClient({
                   Comece por estes assuntos
                 </div>
                 <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
-                  Os tres assuntos mais urgentes para o proximo treino.
+                  Os três assuntos mais urgentes para o próximo treino.
                 </p>
               </div>
               <Link
                 href="/dashboard/praticar?tab=banco"
                 className={buttonClasses({ variant: "primary", size: "sm" })}
               >
-                Treinar questoes
+                Treinar questões
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Link>
             </div>
@@ -175,10 +175,16 @@ export function RadarClient({
       ) : null}
 
       <Reveal delay={80}>
-        <section className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
+        <details className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 border-b border-slate-100 p-4 text-sm font-bold text-slate-950">
+            <span>Ver todos os tópicos e filtros</span>
+            <span className="tnum text-xs font-semibold text-slate-500">
+              {visibleRows.length} tópicos
+            </span>
+          </summary>
           <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-end">
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
-              <Select label="Area" value={area} options={areas} onChange={setArea} />
+              <Select label="Área" value={area} options={areas} onChange={setArea} />
               <Select
                 label="Prioridade"
                 value={priority}
@@ -212,7 +218,7 @@ export function RadarClient({
                   value={search}
                   onChange={(event) => setSearch(event.target.value)}
                   className="w-full bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
-                  placeholder="Buscar topico ou disciplina"
+                  placeholder="Buscar tópico ou disciplina"
                 />
               </div>
             </label>
@@ -222,7 +228,7 @@ export function RadarClient({
             <div className="p-4">
               <EmptyState
                 icon={Search}
-                title="Nenhum topico encontrado"
+                title="Nenhum tópico encontrado"
                 description="Ajuste os filtros ou limpe a busca para visualizar as prioridades."
                 action={
                   <Button type="button" variant="outline" onClick={clearFilters}>
@@ -236,7 +242,7 @@ export function RadarClient({
               <table className="w-full min-w-[860px] text-sm">
                 <thead>
                   <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-2.5 font-semibold">Topico</th>
+                    <th className="px-4 py-2.5 font-semibold">Tópico</th>
                     <th className="px-4 py-2.5 text-right font-semibold">Recorrencia</th>
                     <th className="px-4 py-2.5 font-semibold">Seu desempenho</th>
                     <th className="px-4 py-2.5 font-semibold">Por que aparece</th>
@@ -293,7 +299,7 @@ export function RadarClient({
               </table>
             </div>
           )}
-        </section>
+        </details>
       </Reveal>
 
     </>
@@ -313,14 +319,14 @@ function buildPriorityReason(
   }
 
   if (accuracy < 55) {
-    return `Baixo acerto e recorrencia ${recurrence}%.`;
+    return `Baixo acerto e recorrência ${recurrence}%.`;
   }
 
   if (recurrence >= 70) {
     return `Tema recorrente para manter no ciclo.`;
   }
 
-  return `Reforco para fechar lacunas menores.`;
+  return `Reforço para fechar lacunas menores.`;
 }
 
 function Select({

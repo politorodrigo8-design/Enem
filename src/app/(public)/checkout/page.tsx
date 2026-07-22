@@ -144,7 +144,10 @@ export default async function CheckoutPage() {
               </div>
 
               <div className="mt-6">
-                <CheckoutButton />
+                <CheckoutButton
+                  disabled={!product.launch_ready}
+                  disabledMessage="O checkout real ainda nao esta liberado para este produto."
+                />
               </div>
 
               <div className="mt-5 grid gap-2">

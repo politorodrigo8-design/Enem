@@ -16,6 +16,7 @@ import {
   buildQuestionAnswerRecord,
   nextReviewToggle,
 } from "@/lib/questions/rules.mjs";
+import { isStudentReadyQuestion } from "@/lib/questions/quality";
 
 type UserContext =
   | { error: string }
@@ -119,12 +120,21 @@ export async function submitQuestionAnswerAction(input: {
 
   const { data: question, error: questionError } = await supabase
     .from("questions")
-    .select("id, topic_id, correct_option, explanation, topics (*)")
+    .select(
+      "id, topic_id, correct_option, explanation, reviewed, review_status, source_verified, answer_verified, media_required, statement, topics (*), question_options (option_key, option_text)",
+    )
     .eq("id", input.questionId)
     .single();
 
   if (questionError || !question) {
     return { ok: false, message: questionError?.message ?? "Questão não encontrada." };
+  }
+
+  if (!isStudentReadyQuestion(question)) {
+    return {
+      ok: false,
+      message: "Esta questão ainda está em revisão editorial e não pode ser respondida.",
+    };
   }
 
   const { row, result } = buildQuestionAnswerRecord({
@@ -259,17 +269,33 @@ export async function startSimulationAction(simulationId: string): Promise<{
   }
 
   const isDiagnostic = simulation.title.toLowerCase().includes("diagn");
-  const { count } = await supabase
+  const { data: simulationQuestionRows, error: simulationQuestionError } = await supabase
     .from("simulation_questions")
-    .select("*", { count: "exact", head: true })
+    .select(
+      "questions (correct_option, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text))",
+    )
     .eq("simulation_id", simulationId);
+  if (simulationQuestionError) {
+    return { ok: false, message: simulationQuestionError.message };
+  }
+  const totalQuestions =
+    simulationQuestionRows?.filter((row) => {
+      const question = Array.isArray(row.questions) ? row.questions[0] : row.questions;
+      return question && isStudentReadyQuestion(question);
+    }).length ?? 0;
+  if (totalQuestions < 10) {
+    return {
+      ok: false,
+      message: "Este simulado tem menos de 10 questões aprovadas e não pode iniciar.",
+    };
+  }
 
   const { data, error } = await supabase
     .from("user_simulations")
     .insert({
       user_id: user.id,
       simulation_id: simulationId,
-      total_questions: count ?? 0,
+      total_questions: totalQuestions,
       status: "Em andamento",
     })
     .select("id")
@@ -299,12 +325,21 @@ export async function saveSimulationAnswerAction(input: {
   const { supabase } = context;
   const { data: question, error: questionError } = await supabase
     .from("questions")
-    .select("correct_option")
+    .select(
+      "correct_option, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text)",
+    )
     .eq("id", input.questionId)
     .single();
 
   if (questionError || !question) {
     return { ok: false, message: questionError?.message ?? "Questão não encontrada." };
+  }
+
+  if (!isStudentReadyQuestion(question)) {
+    return {
+      ok: false,
+      message: "Esta questão ainda está em revisão editorial e não pode ser salva no simulado.",
+    };
   }
 
   const { error } = await supabase.from("user_simulation_answers").upsert(
@@ -425,14 +460,16 @@ export async function generateSimulationAction(
     return { ok: false, message: "Escolha pelo menos uma área da prova." };
   }
   const questionCount = Math.floor(criteria.questionCount);
-  if (!Number.isFinite(questionCount) || questionCount < 5 || questionCount > 90) {
-    return { ok: false, message: "O simulado precisa ter entre 5 e 90 questões." };
+  if (!Number.isFinite(questionCount) || questionCount < 10 || questionCount > 90) {
+    return { ok: false, message: "O simulado precisa ter entre 10 e 90 questões." };
   }
   const foreignLanguage = criteria.foreignLanguage === "es" ? "es" : "en";
 
   let query = supabase
     .from("questions")
-    .select("id, topic_id, difficulty, language, subjects!inner(area), topics(name)")
+    .select(
+      "id, topic_id, difficulty, language, reviewed, review_status, source_verified, answer_verified, media_required, statement, correct_option, subjects!inner(area), topics(name), question_options(option_key, option_text)",
+    )
     .in("subjects.area", areas)
     .or(`language.is.null,language.eq.${foreignLanguage}`);
   if (criteria.difficulty) {
@@ -441,9 +478,10 @@ export async function generateSimulationAction(
   if (criteria.topics?.length) {
     query = query.in("topics.name", criteria.topics);
   }
-  const { data: candidates, error: candidatesError } = await query.limit(2000);
+  const { data: rawCandidates, error: candidatesError } = await query.limit(2000);
   if (candidatesError) return { ok: false, message: candidatesError.message };
-  if (!candidates || candidates.length < questionCount) {
+  const candidates = (rawCandidates ?? []).filter(isStudentReadyQuestion);
+  if (candidates.length < questionCount) {
     return {
       ok: false,
       message: `O banco tem ${candidates?.length ?? 0} questões para esses filtros; reduza a quantidade ou amplie os critérios.`,

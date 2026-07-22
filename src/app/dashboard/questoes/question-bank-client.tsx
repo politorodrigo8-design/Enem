@@ -34,6 +34,7 @@ type Props = {
   questions: QuestionRecord[];
   access: AccessContext;
   answerSource?: "question_bank" | "high_priority";
+  initialQuestionId?: string;
 };
 
 const pageSize = 1;
@@ -43,6 +44,7 @@ export function QuestionBankClient({
   questions,
   access,
   answerSource = "question_bank",
+  initialQuestionId,
 }: Props) {
   const router = useRouter();
   const [area, setArea] = useState("Todas");
@@ -92,13 +94,22 @@ export function QuestionBankClient({
     ),
   );
   const [pending, startTransition] = useTransition();
+  const orderedQuestions = useMemo(() => {
+    if (!initialQuestionId) return questions;
+    const selectedQuestion = questions.find((question) => question.id === initialQuestionId);
+    if (!selectedQuestion) return questions;
+    return [
+      selectedQuestion,
+      ...questions.filter((question) => question.id !== initialQuestionId),
+    ];
+  }, [initialQuestionId, questions]);
 
   const questionsByArea = useMemo(
     () =>
       area === "Todas"
-        ? questions
-        : questions.filter((question) => question.subjects.area === area),
-    [area, questions],
+        ? orderedQuestions
+        : orderedQuestions.filter((question) => question.subjects.area === area),
+    [area, orderedQuestions],
   );
   const questionsByDiscipline = useMemo(
     () =>
@@ -108,8 +119,8 @@ export function QuestionBankClient({
     [discipline, questionsByArea],
   );
   const areas = useMemo(
-    () => uniqueOptions("Todas", questions.map((q) => q.subjects.area)),
-    [questions],
+    () => uniqueOptions("Todas", orderedQuestions.map((q) => q.subjects.area)),
+    [orderedQuestions],
   );
   const disciplines = useMemo(
     () => uniqueOptions("Todas", questionsByArea.map((q) => q.subjects.name)),
@@ -120,12 +131,12 @@ export function QuestionBankClient({
     [questionsByDiscipline],
   );
   const years = useMemo(
-    () => ["Todos", ...Array.from(new Set(questions.map((q) => String(q.year))))],
-    [questions],
+    () => ["Todos", ...Array.from(new Set(orderedQuestions.map((q) => String(q.year))))],
+    [orderedQuestions],
   );
 
   const filtered = useMemo(() => {
-    return questions.filter((question) => {
+    return orderedQuestions.filter((question) => {
       const answered = Boolean(answerState[question.id]);
       const reviewed = Boolean(reviewState[question.id]);
       const matchesStatus =
@@ -147,7 +158,7 @@ export function QuestionBankClient({
         matchesSearch
       );
     });
-  }, [answerState, area, difficulty, discipline, questions, reviewState, search, status, topic, year]);
+  }, [answerState, area, difficulty, discipline, orderedQuestions, reviewState, search, status, topic, year]);
 
   const sessionQuestions = useMemo(() => {
     if (sessionSize === "Todas") return filtered;
@@ -252,7 +263,7 @@ export function QuestionBankClient({
               Filtros
             </div>
             <p className="text-xs font-medium text-slate-500">
-              {sessionQuestions.length} na sessao - {filtered.length} no filtro
+              {sessionQuestions.length} na sessão - {filtered.length} no filtro
             </p>
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -263,7 +274,7 @@ export function QuestionBankClient({
             <Select label="Ano" value={year} options={years} onChange={(value) => { setYear(value); move(0); }} />
             <Select label="Status" value={status} options={["Todas", "Respondida", "Não respondida", "Favoritas"]} onChange={(value) => { setStatus(value); move(0); }} />
             <Select
-              label="Tamanho da sessao"
+              label="Tamanho da sessão"
               value={sessionSize}
               options={[...sessionSizes]}
               onChange={(value) => {
@@ -494,7 +505,7 @@ export function QuestionBankClient({
                   />
                   <Detail
                     label="Resultados"
-                    value={`${sessionQuestions.length} na sessao (${filtered.length} no filtro, pagina ${currentIndex + 1} de ${totalPages})`}
+                    value={`${sessionQuestions.length} na sessão (${filtered.length} no filtro, página ${currentIndex + 1} de ${totalPages})`}
                   />
                 </dl>
                 <Button
@@ -536,7 +547,6 @@ function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
       question.answer_verified,
   ).length;
   const withReason = questions.filter((question) => question.priority_reason).length;
-  const fallback = questions.filter((question) => question.is_demo).length;
   const topTopics = uniqueOptions(
     "",
     questions.map((question) => question.topics.name).filter(Boolean),
@@ -550,12 +560,12 @@ function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
         <div>
           <h2 className="flex items-center gap-2 text-sm font-bold text-blue-950">
             <Target className="h-4 w-4 text-blue-700" aria-hidden="true" />
-            Por que essas {questions.length} questoes sao prioritarias?
+            Por que essas {questions.length} questões são prioritárias?
           </h2>
           <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-            Elas combinam recorrencia historica do assunto, prioridade editorial
+            Elas combinam recorrência histórica do assunto, prioridade editorial
             e sinais do seu desempenho. Quando ainda falta dado pessoal, o app usa
-            questoes demonstrativas ou revisadas como ponto de partida.
+            questões demonstrativas ou revisadas como ponto de partida.
           </p>
         </div>
         {topTopics.length ? (
@@ -573,7 +583,7 @@ function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
           icon={ListChecks}
           label="Validadas"
           value={verified}
-          helper="fonte, gabarito e revisao aprovados"
+          helper="fonte, gabarito e revisão aprovados"
         />
         <PriorityMetric
           icon={Target}
@@ -583,9 +593,9 @@ function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
         />
         <PriorityMetric
           icon={Search}
-          label="Fallback"
-          value={fallback}
-          helper="usadas quando o banco revisado ainda e curto"
+          label="Assuntos"
+          value={topTopics.length}
+          helper="tópicos cobertos nesta fila"
         />
       </div>
     </section>

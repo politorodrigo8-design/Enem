@@ -11,9 +11,9 @@ import { PracticeTabs, type PracticeTab } from "./practice-tabs";
 export default async function PracticePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; question?: string }>;
 }) {
-  const [{ tab }, questions, highPriorityQuestions, reviewQuestions, profile] =
+  const [{ tab, question }, questions, highPriorityQuestions, reviewQuestions, profile] =
     await Promise.all([
       searchParams,
       getQuestionRecords(),
@@ -29,7 +29,7 @@ export default async function PracticePage({
     <div>
       <DashboardPageHeader
         title="Praticar"
-        description="Questões prioritárias, banco completo e revisão de erros — tudo em um lugar."
+        description="Questões prioritárias, banco revisado e revisão de erros em um só lugar."
       />
       <PracticeTabs
         initialTab={initialTab}
@@ -37,6 +37,7 @@ export default async function PracticePage({
         highPriorityQuestions={highPriorityQuestions}
         reviewQuestions={reviewQuestions}
         access={access}
+        initialQuestionId={question}
       />
     </div>
   );

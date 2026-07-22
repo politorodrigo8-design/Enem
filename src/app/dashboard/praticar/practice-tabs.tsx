@@ -13,7 +13,7 @@ export type PracticeTab = "prioritarias" | "banco" | "revisao";
 
 const tabs: Array<{ id: PracticeTab; label: string }> = [
   { id: "prioritarias", label: "Prioritárias" },
-  { id: "banco", label: "Banco completo" },
+  { id: "banco", label: "Banco revisado" },
   { id: "revisao", label: "Revisão de erros" },
 ];
 
@@ -23,12 +23,14 @@ export function PracticeTabs({
   highPriorityQuestions,
   reviewQuestions,
   access,
+  initialQuestionId,
 }: {
   initialTab: PracticeTab;
   questions: QuestionRecord[];
   highPriorityQuestions: QuestionRecord[];
   reviewQuestions: QuestionRecord[];
   access: AccessContext;
+  initialQuestionId?: string;
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialTab);
 
@@ -100,11 +102,14 @@ export function PracticeTabs({
       {tab === "banco" ? (
         <div key="banco" className="animate-rise">
           <Notice tone="info" className="mb-6">
-            Cada questão deve manter fonte, revisão e status editorial
-            identificados. O banco pode combinar itens oficiais antigos e
-            questões autorais, sempre sem promessa de previsão da prova.
+            Este banco mostra apenas questões aprovadas, com fonte e gabarito
+            verificados. Itens pendentes ficam fora do treino até a revisão.
           </Notice>
-          <QuestionBankClient questions={questions} access={access} />
+          <QuestionBankClient
+            questions={questions}
+            access={access}
+            initialQuestionId={initialQuestionId}
+          />
         </div>
       ) : null}
 

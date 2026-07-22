@@ -35,7 +35,7 @@ export default async function RadarPage({
     <div>
       <DashboardPageHeader
         title="Radar ENEM"
-        description="Prioridades de estudo calculadas por recorrencia, desempenho e diagnostico."
+        description="Prioridades de estudo calculadas por recorrência, desempenho e diagnóstico."
         action={
           <Link
             href="/dashboard/radar/metodologia"
