@@ -253,7 +253,7 @@ export default async function DashboardPage() {
         </div>
       ) : null}
 
-      <section className="mt-6">
+      <section id="plano-semana" className="mt-6">
         <Reveal delay={80}>
           <StudyPlanSection plan={plan} access={access} />
         </Reveal>

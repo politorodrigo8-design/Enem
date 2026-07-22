@@ -50,24 +50,35 @@ const creditTools = [
     cost: ESSAY_CREDIT_COST_LABEL,
     status: "Disponível",
     href: "/dashboard/correcao-redacao",
+    cta: "Enviar redação",
+    available: true,
   },
   {
     title: "Explicar questão",
     description: "Tirar dúvida rápida sobre enunciado, alternativa ou resolução.",
     cost: "1 crédito",
     status: "API em integração",
+    href: "/dashboard/praticar?tab=banco",
+    cta: "Ver no treino",
+    available: false,
   },
   {
     title: "Análise de desempenho",
     description: "Resumo dos erros recentes com próximos assuntos para atacar.",
     cost: "2 créditos",
     status: "API em integração",
+    href: "/dashboard/radar?tab=desempenho",
+    cta: "Ver desempenho",
+    available: false,
   },
   {
     title: "Plano inteligente",
     description: "Ajuste automático do plano semanal com base no Radar e nos erros.",
     cost: "2 créditos",
     status: "API em integração",
+    href: "/dashboard#plano-semana",
+    cta: "Ver no plano",
+    available: false,
   },
 ];
 
@@ -176,7 +187,7 @@ export default async function CreditsPage() {
                     <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                       <Coins className="h-4.5 w-4.5" aria-hidden="true" />
                     </div>
-                    <Badge tone={tool.href ? "green" : "slate"}>{tool.status}</Badge>
+                    <Badge tone={tool.available ? "green" : "slate"}>{tool.status}</Badge>
                   </div>
                   <h3 className="mt-4 text-base font-bold tracking-tight text-slate-950">
                     {tool.title}
@@ -185,20 +196,13 @@ export default async function CreditsPage() {
                     {tool.description}
                   </p>
                   <p className="tnum mt-4 text-sm font-bold text-slate-950">{tool.cost}</p>
-                  {tool.href ? (
-                    <Link
-                      href={tool.href}
-                      className={buttonClasses({ variant: "outline", className: "mt-4" })}
-                    >
-                      Abrir
-                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                    </Link>
-                  ) : (
-                    <Button className="mt-4" variant="outline" disabled>
-                      <Lock className="h-4 w-4" aria-hidden="true" />
-                      Em breve
-                    </Button>
-                  )}
+                  <Link
+                    href={tool.href}
+                    className={buttonClasses({ variant: "outline", className: "mt-4" })}
+                  >
+                    {tool.cta}
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </Link>
                 </CardContent>
               </Card>
             ))}

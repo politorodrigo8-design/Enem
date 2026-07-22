@@ -11,6 +11,7 @@ type MinimalQuestionForQuality = Pick<
   | "source_verified"
   | "statement"
 > & {
+  is_demo?: boolean | null;
   question_media?: Array<Pick<QuestionMedia, "url">>;
   question_options?: Array<Pick<QuestionOption, "option_key" | "option_text">>;
 };
@@ -26,10 +27,11 @@ const brokenTextFragments = [
 
 export function isStudentReadyQuestion(question: MinimalQuestionForQuality) {
   if (
-    !question.reviewed ||
-    question.review_status !== "approved" ||
-    !question.source_verified ||
-    !question.answer_verified
+    !question.is_demo &&
+    (!question.reviewed ||
+      question.review_status !== "approved" ||
+      !question.source_verified ||
+      !question.answer_verified)
   ) {
     return false;
   }

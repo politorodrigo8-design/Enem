@@ -24,6 +24,7 @@ export function PracticeTabs({
   reviewQuestions,
   access,
   initialQuestionId,
+  initialTopic,
 }: {
   initialTab: PracticeTab;
   questions: QuestionRecord[];
@@ -31,6 +32,7 @@ export function PracticeTabs({
   reviewQuestions: QuestionRecord[];
   access: AccessContext;
   initialQuestionId?: string;
+  initialTopic?: string;
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialTab);
 
@@ -109,6 +111,7 @@ export function PracticeTabs({
             questions={questions}
             access={access}
             initialQuestionId={initialQuestionId}
+            initialTopic={initialTopic}
           />
         </div>
       ) : null}

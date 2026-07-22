@@ -132,7 +132,7 @@ const radarDemo = [
       },
       {
         topic: "Geometria plana",
-        priority: "Prioridade alta",
+        priority: "Prioridade baixa",
         accuracy: "49%",
         recurrence: "Recorrente",
         reason: "Bom potencial de ganho para a próxima semana.",
@@ -158,7 +158,7 @@ const radarDemo = [
       },
       {
         topic: "Estequiometria",
-        priority: "Prioridade alta",
+        priority: "Prioridade baixa",
         accuracy: "51%",
         recurrence: "Recorrente",
         reason: "Base importante para questões de Química com cálculo.",
@@ -186,78 +186,34 @@ function buildFaqs(product: { access_valid_until: string }) {
   const accessUntil = formatAccessDate(product.access_valid_until);
 
   return [
-  {
-    question: "A plataforma garante uma nota específica?",
-    answer:
-      "Não. A Pontua Enem organiza suas prioridades e acompanha sua evolução — quem faz a nota é você. Desconfie de quem promete nota garantida.",
-  },
-  {
-    question: "As questões são oficiais do ENEM?",
-    answer:
-      "O banco pode combinar questões antigas do ENEM, sempre identificadas pela fonte, com questões autorais ou demonstrativas quando usadas. Antes da abertura comercial, o conteúdo passa por revisão editorial e jurídica.",
-  },
-  {
-    question: "O pagamento é mensal?",
-    answer:
-      "Não. O acesso é comprado uma única vez, sem mensalidade e sem renovação automática.",
-  },
-  {
-    question: "Por quanto tempo tenho acesso?",
-    answer: `Da compra até ${accessUntil}, conforme a data configurada para o produto, com atualizações incluídas nesse período.`,
-  },
-  {
-    question: "Como funciona a análise de desempenho?",
-    answer:
-      "A plataforma cruza seus acertos e erros com a recorrência histórica de cada assunto para indicar onde estudar rende mais pontos.",
-  },
-  {
-    question: "O Radar ENEM prevê o que vai cair?",
-    answer:
-      "Não. O Radar mostra os assuntos que historicamente mais aparecem na prova e como você está em cada um. É priorização, não adivinhação.",
-  },
-  {
-    question: "Como funciona a correção de redação?",
-    answer:
-      "Você envia a redação digitada, por foto ou PDF, acompanha o status pela plataforma e acessa a correção quando ela for disponibilizada.",
-  },
-  {
-    question: "Posso enviar a redação por foto ou PDF?",
-    answer: `Sim. A página de redação aceita ${ESSAY_ACCEPTED_FILE_LABEL}, dentro dos limites atuais de envio da plataforma.`,
-  },
-  {
-    question: "A correção de redação é instantânea?",
-    answer:
-      "Não. A redação fica com status de acompanhamento na plataforma até a correção ser disponibilizada.",
-  },
-  {
-    question: "Como funcionam os créditos?",
-    answer:
-      "O acesso principal é adquirido uma vez. Algumas funcionalidades, como o envio de redações para correção, usam créditos internos; o saldo e o histórico ficam disponíveis na conta.",
-  },
-  {
-    question: "A correção de redação está incluída no acesso?",
-    answer: `A funcionalidade está disponível dentro da plataforma, mas cada submissão confirmada consome ${ESSAY_CREDIT_COST_LABEL}.`,
-  },
-  {
-    question: "Posso comprar mais créditos?",
-    answer:
-      "Créditos adicionais poderão ser adquiridos quando essa opção estiver habilitada. Enquanto isso, a plataforma mostra saldo e histórico sem liberar compra avulsa.",
-  },
-  {
-    question: "A plataforma funciona pelo celular?",
-    answer:
-      "Sim. As telas principais são responsivas para celular, tablet, notebook e desktop.",
-  },
-  {
-    question: "A Pontua Enem substitui um cursinho?",
-    answer:
-      "Não necessariamente. A Pontua Enem organiza prioridade, treino, desempenho, simulados e redação; ela pode complementar uma rotina de estudo ou cursinho.",
-  },
-  {
-    question: "Como compro o acesso?",
-    answer:
-      "Crie ou entre na sua conta e siga para a página de checkout. Depois da confirmação do pagamento, o acesso ao dashboard é liberado na própria conta.",
-  },
+    {
+      question: "A plataforma garante uma nota específica?",
+      answer:
+        "Não. A Pontua Enem organiza prioridades, treino e acompanhamento de evolução. Quem faz a nota é você, e nenhuma plataforma honesta promete resultado garantido.",
+    },
+    {
+      question: "As questões são oficiais do ENEM?",
+      answer:
+        "O banco pode reunir questões antigas do ENEM, sempre com fonte identificada, e questões autorais ou demonstrativas quando usadas. O conteúdo passa por revisão editorial e jurídica antes da abertura comercial.",
+    },
+    {
+      question: "Como funcionam o acesso e o pagamento?",
+      answer: `O acesso principal não é mensal: é comprado uma vez no checkout, após criar ou entrar na conta. Depois da confirmação do pagamento, o dashboard é liberado até ${accessUntil}, sem renovação automática.`,
+    },
+    {
+      question: "Como funcionam o Radar ENEM e a análise de desempenho?",
+      answer:
+        "O Radar não prevê a prova. Ele cruza recorrência histórica dos assuntos com seus acertos e erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
+    },
+    {
+      question: "Como funcionam a correção de redação e os créditos?",
+      answer: `Você pode digitar a redação ou anexar ${ESSAY_ACCEPTED_FILE_LABEL}. A correção não é instantânea: fica em acompanhamento até ser disponibilizada. Cada submissão confirmada usa ${ESSAY_CREDIT_COST_LABEL}; créditos adicionais poderão ser comprados quando essa opção estiver habilitada.`,
+    },
+    {
+      question: "A Pontua Enem funciona no celular e substitui um cursinho?",
+      answer:
+        "Sim, as telas principais são responsivas para celular, tablet, notebook e desktop. Ela não substitui necessariamente um cursinho; pode complementar a rotina com prioridade, treino, desempenho, simulados e redação.",
+    },
   ];
 }
 
@@ -692,7 +648,7 @@ export default async function HomePage() {
               Perguntas frequentes
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
-              Transparência antes de promessa.
+              Transparência antes de promessa
             </h2>
           </Reveal>
           <Reveal delay={100} className="mt-12 divide-y divide-slate-100 border-y border-slate-100">

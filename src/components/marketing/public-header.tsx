@@ -9,7 +9,7 @@ import { Logo } from "@/components/ui/logo";
 const links = [
   { label: "Como funciona", href: "/#como-funciona" },
   { label: "Radar ENEM", href: "/#radar" },
-  { label: "Preços", href: "/#precos" },
+  { label: "Preço", href: "/#precos" },
 ];
 
 type PublicHeaderProps = {

@@ -391,16 +391,13 @@ export async function getHighPriorityQuestionRecords() {
   const questions = await getQuestionRecords();
 
   const reviewedHighPriority = questions.filter(
-    (question) =>
-      question.confidence_level &&
-      question.priority_reason &&
-      [
-        "Potencial muito alto de recorrencia do conteudo",
-        "Alta prioridade",
-      ].includes(question.recurrence_category),
+    (question) => hasHighPrioritySignal(question),
   );
+  const source = reviewedHighPriority.length
+    ? reviewedHighPriority
+    : questions.filter((question) => question.is_demo);
 
-  return reviewedHighPriority
+  return (source.length ? source : questions)
     .map((question) => {
       const topicScore = calculatePriorityScore(question.topics);
       const editorialScore = Number(question.priority_score ?? 0);
@@ -411,6 +408,21 @@ export async function getHighPriorityQuestionRecords() {
     })
     .sort((a, b) => b.score - a.score)
     .map((item) => item.question);
+}
+
+function hasHighPrioritySignal(question: QuestionRecord) {
+  const recurrenceCategory = question.recurrence_category;
+  const recurrenceIsHigh = [
+    "Potencial muito alto de recorrencia do conteudo",
+    "Alta prioridade",
+  ].includes(recurrenceCategory);
+  const editorialScoreIsHigh = Number(question.priority_score ?? 0) >= 70;
+  const topicRecurrenceIsHigh = Number(question.topics.historical_recurrence ?? 0) >= 75;
+
+  return (
+    Boolean(question.priority_reason || question.is_demo) &&
+    (recurrenceIsHigh || editorialScoreIsHigh || topicRecurrenceIsHigh)
+  );
 }
 
 export async function getRadarMethodologyVersions() {

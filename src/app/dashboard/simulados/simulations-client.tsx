@@ -337,7 +337,12 @@ export function SimulationsClient({
   }
 
   const recommendedSimulations = simulations.filter(
-    (simulation) => simulation.simulation_questions.length >= 10,
+    (simulation) =>
+      simulation.simulation_questions.length >= 10 || Boolean(simulation.is_generated),
+  );
+  const quickDrills = simulations.filter(
+    (simulation) =>
+      simulation.simulation_questions.length < 10 && !Boolean(simulation.is_generated),
   );
 
   return (
@@ -410,6 +415,59 @@ export function SimulationsClient({
       })}
       </div>
       ) : null}
+      {quickDrills.length ? (
+        <section>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+              Treinos rápidos
+            </h2>
+            <Badge tone="slate">validação curta</Badge>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {quickDrills.map((simulation, index) => {
+              const lastAttempt = simulation.user_simulations?.[0];
+              const locked = !access.hasPlatformAccess;
+              return (
+                <Reveal key={simulation.id} delay={(index % 3) * 40} className="h-full">
+                  <Card className="h-full border-dashed">
+                    <CardContent>
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-600">
+                          <Target className="h-5 w-5" aria-hidden="true" />
+                        </div>
+                        <Badge tone="slate">
+                          {simulation.simulation_questions.length} questões
+                        </Badge>
+                      </div>
+                      <h3 className="mt-4 text-base font-bold tracking-tight text-slate-950">
+                        {simulation.title}
+                      </h3>
+                      <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                        Use como aquecimento, revisão rápida ou teste de fluxo antes de
+                        montar uma sessão maior.
+                      </p>
+                      <Button
+                        full
+                        variant="outline"
+                        className="mt-5"
+                        disabled={simulation.status === "Em breve" || pending || locked}
+                        onClick={() => start(simulation)}
+                      >
+                        {lastAttempt ? (
+                          <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                        ) : (
+                          <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                        )}
+                        {lastAttempt ? "Refazer treino" : "Iniciar treino"}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </Reveal>
+              );
+            })}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }
@@ -423,29 +481,34 @@ const BUILDER_AREAS = [
 
 const SIMULATION_PRESETS = [
   {
-    label: "Dia 1",
-    title: "Simulado ENEM - Dia 1",
-    areas: ["Linguagens", "Ciencias Humanas"],
-    questionCount: 45,
-  },
-  {
-    label: "Dia 2",
-    title: "Simulado ENEM - Dia 2",
-    areas: ["Matematica", "Ciencias da Natureza"],
-    questionCount: 45,
-  },
-  {
-    label: "Completo",
-    title: "Simulado completo - 90 questões",
+    label: "Rápido",
+    title: "Treino rápido misto",
     areas: ["Linguagens", "Ciencias Humanas", "Matematica", "Ciencias da Natureza"],
-    questionCount: 90,
+    questionCount: 5,
+  },
+  {
+    label: "Leitura e Humanas",
+    title: "Treino compacto - Linguagens e Humanas",
+    areas: ["Linguagens", "Ciencias Humanas"],
+    questionCount: 6,
+  },
+  {
+    label: "Matemática e Natureza",
+    title: "Treino compacto - Matemática e Natureza",
+    areas: ["Matematica", "Ciencias da Natureza"],
+    questionCount: 6,
   },
 ] as const;
 
 function SimulationBuilder({ locked, pending }: { locked: boolean; pending: boolean }) {
   const router = useRouter();
-  const [areas, setAreas] = useState<string[]>(["Matematica"]);
-  const [questionCount, setQuestionCount] = useState(20);
+  const [areas, setAreas] = useState<string[]>([
+    "Linguagens",
+    "Ciencias Humanas",
+    "Matematica",
+    "Ciencias da Natureza",
+  ]);
+  const [questionCount, setQuestionCount] = useState(10);
   const [difficulty, setDifficulty] = useState<"" | "Baixa" | "Média" | "Alta">("");
   const [prioritizeWeaknesses, setPrioritizeWeaknesses] = useState(true);
   const [foreignLanguage, setForeignLanguage] = useState<"en" | "es">("en");
@@ -554,7 +617,7 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
               value={questionCount}
               onChange={(event) => setQuestionCount(Number(event.target.value))}
             >
-              {[10, 20, 30, 45, 90].map((count) => (
+              {[5, 10, 15, 20, 30].map((count) => (
                 <option key={count} value={count}>
                   {count} questões (~{count * 3} min)
                 </option>

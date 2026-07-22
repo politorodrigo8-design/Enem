@@ -3,11 +3,14 @@
 import {
   CalendarDays,
   CheckCircle2,
+  Coins,
   GripVertical,
   RefreshCw,
+  Sparkles,
 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -70,6 +73,7 @@ export function StudyPlanSection({
           O plano é gerado por regras: tópicos prioritários, horas disponíveis,
           dias disponíveis e metas de questões.
         </Notice>
+        <SmartPlanCreditAction />
       </div>
     );
   }
@@ -104,6 +108,7 @@ export function StudyPlanSection({
       </CardHeader>
       <CardContent>
         <Progress value={progress} label="Plano concluído" tone="green" />
+        <SmartPlanCreditAction />
         {reorganize ? (
           <p className="mt-3 text-xs leading-5 text-slate-500">
             Em breve será possível arrastar as atividades para reorganizar a
@@ -170,5 +175,31 @@ export function StudyPlanSection({
         </ul>
       </CardContent>
     </Card>
+  );
+}
+
+function SmartPlanCreditAction() {
+  return (
+    <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="flex items-center gap-2 text-sm font-bold text-blue-950">
+              <Sparkles className="h-4 w-4 text-blue-700" aria-hidden="true" />
+              Plano inteligente
+            </p>
+            <Badge tone="blue">2 créditos</Badge>
+            <Badge tone="slate">API em integração</Badge>
+          </div>
+          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-700">
+            Ajuste automático da semana usando Radar, erros recentes e rotina informada.
+          </p>
+        </div>
+        <Button type="button" variant="outline" size="sm" disabled>
+          <Coins className="h-4 w-4" aria-hidden="true" />
+          Otimizar plano
+        </Button>
+      </div>
+    </div>
   );
 }

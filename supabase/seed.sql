@@ -66,6 +66,35 @@ insert into public.question_options (question_id, option_key, option_text) value
   ('00000000-0000-0000-0000-000000000312','A','1 mol de A'), ('00000000-0000-0000-0000-000000000312','B','2 mol de A'), ('00000000-0000-0000-0000-000000000312','C','3 mol de A'), ('00000000-0000-0000-0000-000000000312','D','6 mol de A'), ('00000000-0000-0000-0000-000000000312','E','9 mol de A')
 on conflict (question_id, option_key) do update set option_text = excluded.option_text;
 
+update public.questions q
+set
+  reviewed = true,
+  review_status = 'approved',
+  source_verified = true,
+  answer_verified = true,
+  media_verified = true,
+  confidence_level = coalesce(q.confidence_level, 'media'),
+  priority_reason = coalesce(
+    q.priority_reason,
+    'Questao demonstrativa revisada para validar o fluxo de treino do MVP.'
+  ),
+  priority_score = greatest(q.priority_score, least(100, t.historical_recurrence)),
+  estimated_priority = case
+    when t.historical_recurrence >= 85 then 'Potencial muito alto de recorrencia do conteudo'
+    when t.historical_recurrence >= 75 then 'Alta prioridade'
+    when t.historical_recurrence >= 65 then 'Prioridade media'
+    else 'Complementar'
+  end,
+  recurrence_category = case
+    when t.historical_recurrence >= 85 then 'Potencial muito alto de recorrencia do conteudo'
+    when t.historical_recurrence >= 75 then 'Alta prioridade'
+    when t.historical_recurrence >= 65 then 'Prioridade media'
+    else 'Complementar'
+  end
+from public.topics t
+where q.topic_id = t.id
+  and q.is_demo = true;
+
 insert into public.simulations (id, title, description, duration_minutes, difficulty, status) values
   ('00000000-0000-0000-0000-000000000401', 'Diagnóstico inicial', 'Mapeia gargalos por área e sugere a primeira rota de estudos.', 100, 'Média', 'Disponível'),
   ('00000000-0000-0000-0000-000000000402', 'Matemática essencial', 'Foca nos conteúdos quantitativos com maior potencial de evolução.', 70, 'Alta', 'Disponível'),

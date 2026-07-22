@@ -11,9 +11,9 @@ import { PracticeTabs, type PracticeTab } from "./practice-tabs";
 export default async function PracticePage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; question?: string }>;
+  searchParams: Promise<{ tab?: string; question?: string; topic?: string }>;
 }) {
-  const [{ tab, question }, questions, highPriorityQuestions, reviewQuestions, profile] =
+  const [{ tab, question, topic }, questions, highPriorityQuestions, reviewQuestions, profile] =
     await Promise.all([
       searchParams,
       getQuestionRecords(),
@@ -38,6 +38,7 @@ export default async function PracticePage({
         reviewQuestions={reviewQuestions}
         access={access}
         initialQuestionId={question}
+        initialTopic={topic}
       />
     </div>
   );

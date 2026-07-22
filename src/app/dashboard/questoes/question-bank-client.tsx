@@ -6,10 +6,12 @@ import {
   BookmarkCheck,
   BookmarkPlus,
   CheckCircle2,
+  Coins,
   Filter,
   ImageIcon,
   ListChecks,
   Search,
+  Sparkles,
   Target,
   XCircle,
 } from "lucide-react";
@@ -35,6 +37,7 @@ type Props = {
   access: AccessContext;
   answerSource?: "question_bank" | "high_priority";
   initialQuestionId?: string;
+  initialTopic?: string;
 };
 
 const pageSize = 1;
@@ -45,11 +48,20 @@ export function QuestionBankClient({
   access,
   answerSource = "question_bank",
   initialQuestionId,
+  initialTopic,
 }: Props) {
   const router = useRouter();
+  const initialTopicName =
+    !initialQuestionId && initialTopic
+      ? questions.find(
+          (question) =>
+            question.topics.id === initialTopic ||
+            question.topics.name === initialTopic,
+        )?.topics.name ?? "Todos"
+      : "Todos";
   const [area, setArea] = useState("Todas");
   const [discipline, setDiscipline] = useState("Todas");
-  const [topic, setTopic] = useState("Todos");
+  const [topic, setTopic] = useState(initialTopicName);
   const [difficulty, setDifficulty] = useState("Todas");
   const [year, setYear] = useState("Todos");
   const [status, setStatus] = useState("Todas");
@@ -93,6 +105,7 @@ export function QuestionBankClient({
       ]),
     ),
   );
+  const [filtersOpen, setFiltersOpen] = useState(answerSource === "question_bank");
   const [pending, startTransition] = useTransition();
   const orderedQuestions = useMemo(() => {
     if (!initialQuestionId) return questions;
@@ -255,17 +268,21 @@ export function QuestionBankClient({
         <PriorityExplanation questions={questions} />
       ) : null}
 
-      <Card className="mb-6">
-        <CardContent>
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-              <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
-              Filtros
-            </div>
-            <p className="text-xs font-medium text-slate-500">
-              {sessionQuestions.length} na sessão - {filtered.length} no filtro
-            </p>
-          </div>
+      <details
+        className="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5"
+        open={filtersOpen}
+        onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
+      >
+        <summary className="flex cursor-pointer list-none flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+          <span className="flex items-center gap-2 text-sm font-semibold text-slate-950">
+            <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
+            Filtros e sessão
+          </span>
+          <span className="text-xs font-medium text-slate-500">
+            {sessionQuestions.length} na sessão - {filtered.length} no filtro
+          </span>
+        </summary>
+        <div className="border-t border-slate-100 p-4">
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             <Select label="Área" value={area} options={areas} onChange={(value) => { setArea(value); setDiscipline("Todas"); setTopic("Todos"); move(0); }} />
             <Select label="Disciplina" value={discipline} options={disciplines} onChange={(value) => { setDiscipline(value); setTopic("Todos"); move(0); }} />
@@ -300,8 +317,8 @@ export function QuestionBankClient({
               </div>
             </label>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </details>
 
       {!question ? (
         <EmptyState
@@ -329,6 +346,9 @@ export function QuestionBankClient({
                   <Badge tone="blue">{question.subjects.area}</Badge>
                   <Badge tone="blue">{question.topics.name}</Badge>
                   <Badge tone="slate">{question.difficulty}</Badge>
+                  <Badge tone={priorityBadgeTone(question)}>
+                    {priorityDisplay(question)}
+                  </Badge>
                 </div>
               </div>
             </CardHeader>
@@ -481,7 +501,8 @@ export function QuestionBankClient({
                     </p>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-700">
-                    {currentResult.explanation}
+                    {currentResult.explanation ||
+                      "A explicação completa aparece depois de uma nova tentativa nesta sessão."}
                   </p>
                 </div>
               ) : null}
@@ -508,6 +529,8 @@ export function QuestionBankClient({
                     value={`${sessionQuestions.length} na sessão (${filtered.length} no filtro, página ${currentIndex + 1} de ${totalPages})`}
                   />
                 </dl>
+                <PriorityDetails question={question} />
+                <AiCreditAction />
                 <Button
                   variant="outline"
                   full
@@ -539,13 +562,6 @@ export function QuestionBankClient({
 }
 
 function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
-  const verified = questions.filter(
-    (question) =>
-      question.reviewed &&
-      question.review_status === "approved" &&
-      question.source_verified &&
-      question.answer_verified,
-  ).length;
   const withReason = questions.filter((question) => question.priority_reason).length;
   const topTopics = uniqueOptions(
     "",
@@ -581,9 +597,9 @@ function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
       <div className="mt-4 grid gap-3 sm:grid-cols-3">
         <PriorityMetric
           icon={ListChecks}
-          label="Validadas"
-          value={verified}
-          helper="fonte, gabarito e revisão aprovados"
+          label="Prontas"
+          value={questions.length}
+          helper="aptas para treino nesta fila"
         />
         <PriorityMetric
           icon={Target}
@@ -629,8 +645,93 @@ function PriorityMetric({
   );
 }
 
+function PriorityDetails({ question }: { question: QuestionRecord }) {
+  const reason = question.priority_reason?.trim();
+
+  return (
+    <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+            Prioridade
+          </p>
+          <p className="mt-1 text-sm font-bold text-slate-950">
+            {priorityDisplay(question)}
+          </p>
+        </div>
+        <span className="tnum rounded-md bg-white px-2 py-1 text-xs font-bold text-blue-800 ring-1 ring-inset ring-blue-100">
+          {Math.round(Number(question.priority_score ?? 0))}
+        </span>
+      </div>
+      <p className="mt-2 text-xs leading-5 text-slate-600">
+        {reason ||
+          "Priorização baseada na recorrência do assunto e no peso estratégico do tema."}
+      </p>
+      {question.content_recurrence ? (
+        <p className="mt-2 text-xs font-semibold text-blue-800">
+          {question.content_recurrence}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function AiCreditAction() {
+  return (
+    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="flex items-center gap-1.5 text-sm font-bold text-slate-950">
+            <Sparkles className="h-4 w-4 text-blue-700" aria-hidden="true" />
+            Explicar questão
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-600">
+            Dúvida sobre enunciado, alternativa ou resolução.
+          </p>
+        </div>
+        <span className="tnum inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-200">
+          <Coins className="h-3.5 w-3.5" aria-hidden="true" />1
+        </span>
+      </div>
+      <Button className="mt-3" variant="outline" size="sm" full disabled>
+        API em integração
+      </Button>
+    </div>
+  );
+}
+
 function uniqueOptions(first: string, values: string[]) {
   return [first, ...Array.from(new Set(values.filter(Boolean)))];
+}
+
+function priorityDisplay(question: QuestionRecord) {
+  if (
+    question.recurrence_category ===
+    "Potencial muito alto de recorrencia do conteudo"
+  ) {
+    return "Prioridade máxima";
+  }
+
+  if (question.recurrence_category === "Alta prioridade") {
+    return "Prioridade alta";
+  }
+
+  if (question.recurrence_category === "Prioridade media") {
+    return "Prioridade média";
+  }
+
+  if (Number(question.priority_score ?? 0) >= 70) {
+    return "Prioridade alta";
+  }
+
+  return "Prioridade complementar";
+}
+
+function priorityBadgeTone(question: QuestionRecord): "blue" | "amber" | "slate" {
+  const label = priorityDisplay(question);
+  if (label.includes("máxima")) return "amber";
+  if (label.includes("alta")) return "blue";
+  return "slate";
 }
 
 function Select({

@@ -121,7 +121,7 @@ export async function submitQuestionAnswerAction(input: {
   const { data: question, error: questionError } = await supabase
     .from("questions")
     .select(
-      "id, topic_id, correct_option, explanation, reviewed, review_status, source_verified, answer_verified, media_required, statement, topics (*), question_options (option_key, option_text)",
+      "id, topic_id, correct_option, explanation, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, topics (*), question_options (option_key, option_text), question_media (url)",
     )
     .eq("id", input.questionId)
     .single();
@@ -272,7 +272,7 @@ export async function startSimulationAction(simulationId: string): Promise<{
   const { data: simulationQuestionRows, error: simulationQuestionError } = await supabase
     .from("simulation_questions")
     .select(
-      "questions (correct_option, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text))",
+      "questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
     )
     .eq("simulation_id", simulationId);
   if (simulationQuestionError) {
@@ -283,10 +283,10 @@ export async function startSimulationAction(simulationId: string): Promise<{
       const question = Array.isArray(row.questions) ? row.questions[0] : row.questions;
       return question && isStudentReadyQuestion(question);
     }).length ?? 0;
-  if (totalQuestions < 10) {
+  if (totalQuestions === 0) {
     return {
       ok: false,
-      message: "Este simulado tem menos de 10 questões aprovadas e não pode iniciar.",
+      message: "Este simulado ainda não tem questões aprovadas para iniciar.",
     };
   }
 
@@ -326,7 +326,7 @@ export async function saveSimulationAnswerAction(input: {
   const { data: question, error: questionError } = await supabase
     .from("questions")
     .select(
-      "correct_option, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text)",
+      "correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url)",
     )
     .eq("id", input.questionId)
     .single();
@@ -436,6 +436,15 @@ const SIMULATION_AREAS = [
   "Linguagens",
 ] as const;
 
+type SimulationArea = (typeof SIMULATION_AREAS)[number];
+
+const SIMULATION_AREA_ALIASES: Record<SimulationArea, string[]> = {
+  Matematica: ["Matematica", "Matemática"],
+  "Ciencias da Natureza": ["Ciencias da Natureza", "Ciências da Natureza"],
+  "Ciencias Humanas": ["Ciencias Humanas", "Ciências Humanas"],
+  Linguagens: ["Linguagens"],
+};
+
 export type GenerateSimulationCriteria = {
   title?: string;
   areas: string[];
@@ -453,24 +462,31 @@ export async function generateSimulationAction(
   if ("error" in context) return { ok: false, message: context.error };
   const { supabase, user } = context;
 
-  const areas = (criteria.areas ?? []).filter((area) =>
-    (SIMULATION_AREAS as readonly string[]).includes(area),
+  const areas = Array.from(
+    new Set(
+      (criteria.areas ?? [])
+        .map(normalizeSimulationArea)
+        .filter((area): area is SimulationArea => Boolean(area)),
+    ),
   );
   if (!areas.length) {
     return { ok: false, message: "Escolha pelo menos uma área da prova." };
   }
   const questionCount = Math.floor(criteria.questionCount);
-  if (!Number.isFinite(questionCount) || questionCount < 10 || questionCount > 90) {
-    return { ok: false, message: "O simulado precisa ter entre 10 e 90 questões." };
+  if (!Number.isFinite(questionCount) || questionCount < 5 || questionCount > 90) {
+    return { ok: false, message: "O simulado precisa ter entre 5 e 90 questões." };
   }
   const foreignLanguage = criteria.foreignLanguage === "es" ? "es" : "en";
+  const queryAreas = Array.from(
+    new Set(areas.flatMap((area) => SIMULATION_AREA_ALIASES[area])),
+  );
 
   let query = supabase
     .from("questions")
     .select(
-      "id, topic_id, difficulty, language, reviewed, review_status, source_verified, answer_verified, media_required, statement, correct_option, subjects!inner(area), topics(name), question_options(option_key, option_text)",
+      "id, topic_id, difficulty, language, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, correct_option, subjects!inner(area), topics(name), question_options(option_key, option_text), question_media(url)",
     )
-    .in("subjects.area", areas)
+    .in("subjects.area", queryAreas)
     .or(`language.is.null,language.eq.${foreignLanguage}`);
   if (criteria.difficulty) {
     query = query.eq("difficulty", criteria.difficulty);
@@ -712,6 +728,15 @@ async function refreshTopicPerformance(userId: string, topicId: string) {
       priority_score: priorityScore,
     },
     { onConflict: "user_id,topic_id" },
+  );
+}
+
+function normalizeSimulationArea(value: string): SimulationArea | null {
+  const normalized = value.trim();
+  return (
+    SIMULATION_AREAS.find((area) =>
+      SIMULATION_AREA_ALIASES[area].includes(normalized),
+    ) ?? null
   );
 }
 

@@ -1,8 +1,17 @@
 import Link from "next/link";
-import { ArrowRight, ListChecks, Target, Timer, TrendingUp } from "lucide-react";
+import {
+  ArrowRight,
+  Coins,
+  ListChecks,
+  Sparkles,
+  Target,
+  Timer,
+  TrendingUp,
+} from "lucide-react";
 import { AreaBars } from "@/components/charts/area-bars";
 import { StatCard } from "@/components/dashboard/stat-card";
-import { buttonClasses } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal } from "@/components/ui/reveal";
@@ -80,6 +89,30 @@ export function PerformanceView({
           />
         </Reveal>
       </section>
+
+      <Reveal delay={200}>
+        <section className="mt-6 rounded-lg border border-blue-100 bg-blue-50/70 p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="flex items-center gap-2 text-sm font-bold text-blue-950">
+                  <Sparkles className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                  Análise de desempenho
+                </p>
+                <Badge tone="blue">2 créditos</Badge>
+                <Badge tone="slate">API em integração</Badge>
+              </div>
+              <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+                Leitura dos erros recentes, padrões por assunto e próximos focos de treino.
+              </p>
+            </div>
+            <Button type="button" variant="outline" size="sm" disabled>
+              <Coins className="h-4 w-4" aria-hidden="true" />
+              Gerar análise
+            </Button>
+          </div>
+        </section>
+      </Reveal>
 
       {!answers.length ? (
         <div className="mt-6">
