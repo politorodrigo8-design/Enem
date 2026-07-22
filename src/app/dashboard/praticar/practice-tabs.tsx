@@ -12,8 +12,8 @@ import { cn } from "@/lib/utils";
 export type PracticeTab = "prioritarias" | "banco" | "revisao";
 
 const tabs: Array<{ id: PracticeTab; label: string }> = [
+  { id: "banco", label: "Banco de questões" },
   { id: "prioritarias", label: "Prioritárias" },
-  { id: "banco", label: "Banco revisado" },
   { id: "revisao", label: "Revisão de erros" },
 ];
 

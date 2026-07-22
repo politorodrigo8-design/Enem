@@ -8,6 +8,12 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
 import { recalculateDiagnosisPriorities } from "@/lib/db/diagnosis";
 import { calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
+import {
+  getFallbackQuestionWithAnswer,
+  isFallbackQuestionId,
+  isFallbackSimulationId,
+  scoreFallbackSimulation,
+} from "@/lib/db/fallback-content";
 import type { ActionResult } from "@/lib/actions/auth";
 import type { AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
@@ -117,6 +123,46 @@ export async function submitQuestionAnswerAction(input: {
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase, user } = context;
+
+  if (isFallbackQuestionId(input.questionId)) {
+    const question = getFallbackQuestionWithAnswer(input.questionId);
+    if (!question) {
+      return { ok: false, message: "Questão não encontrada no acervo local." };
+    }
+
+    const { result } = buildQuestionAnswerRecord({
+      userId: user.id,
+      question,
+      selectedOption: input.selectedOption,
+      responseTimeSeconds: input.responseTimeSeconds,
+    });
+
+    await recordProductEvent({
+      supabase,
+      userId: user.id,
+      eventName:
+        input.source === "high_priority"
+          ? "high_priority_question_completed"
+          : "question_answered",
+      route:
+        input.source === "high_priority"
+          ? "/dashboard/praticar?tab=prioritarias"
+          : "/dashboard/praticar?tab=banco",
+      metadata: {
+        question_id: question.id,
+        is_correct: result.isCorrect,
+        source: "fallback_official_import",
+      },
+    });
+
+    return {
+      ok: true,
+      message: result.isCorrect ? "Resposta correta." : "Resposta registrada para revisão.",
+      isCorrect: result.isCorrect,
+      explanation: result.explanation,
+      correctOption: question.correct_option,
+    };
+  }
 
   const { data: question, error: questionError } = await supabase
     .from("questions")
@@ -258,6 +304,14 @@ export async function startSimulationAction(simulationId: string): Promise<{
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase, user } = context;
+  if (isFallbackSimulationId(simulationId)) {
+    return {
+      ok: true,
+      message: "Simulado iniciado.",
+      userSimulationId: `fallback-attempt-${simulationId}`,
+    };
+  }
+
   const { data: simulation, error: simulationError } = await supabase
     .from("simulations")
     .select("id, title, status")
@@ -323,6 +377,13 @@ export async function saveSimulationAnswerAction(input: {
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase } = context;
+  if (
+    input.userSimulationId.startsWith("fallback-attempt-") ||
+    isFallbackQuestionId(input.questionId)
+  ) {
+    return { ok: true, message: "Resposta salva nesta sessão." };
+  }
+
   const { data: question, error: questionError } = await supabase
     .from("questions")
     .select(
@@ -426,6 +487,45 @@ export async function finishSimulationAction(
     correct,
     total: totalQuestions,
     percentage,
+  };
+}
+
+export async function finishFallbackSimulationAction(input: {
+  simulationId: string;
+  answers: Record<string, string>;
+}): Promise<
+  ActionResult & {
+    results?: Array<{ questionId: string; isCorrect: boolean }>;
+    correct?: number;
+    total?: number;
+    percentage?: number;
+  }
+> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const result = scoreFallbackSimulation(input.simulationId, input.answers);
+  if (!result) {
+    return { ok: false, message: "Simulado não encontrado no acervo local." };
+  }
+
+  await recordProductEvent({
+    supabase: context.supabase,
+    userId: context.user.id,
+    eventName: "simulation_completed",
+    route: "/dashboard/simulados",
+    metadata: {
+      simulation_id: input.simulationId,
+      total_questions: result.total,
+      correct_answers: result.correct,
+      source: "fallback_official_import",
+    },
+  });
+
+  return {
+    ok: true,
+    message: "Simulado finalizado.",
+    ...result,
   };
 }
 

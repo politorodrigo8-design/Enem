@@ -13,6 +13,7 @@ import {
   TrendingUp,
   XCircle,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
@@ -27,6 +28,7 @@ import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
 import {
+  finishFallbackSimulationAction,
   finishSimulationAction,
   generateSimulationAction,
   saveSimulationAnswerAction,
@@ -49,6 +51,7 @@ export function SimulationsClient({
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [seconds, setSeconds] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [fallbackAttempt, setFallbackAttempt] = useState(false);
   // O gabarito não vem mais no payload; a correção por questão vem da action.
   const [finishData, setFinishData] = useState<{
     correct: number;
@@ -69,6 +72,19 @@ export function SimulationsClient({
   const current = examQuestions[questionIndex];
 
   function start(simulation: SimulationWithQuestions) {
+    if (isFallbackSimulation(simulation)) {
+      toast.success("Simulado iniciado.");
+      setActive(simulation);
+      setUserSimulationId("");
+      setQuestionIndex(0);
+      setAnswers({});
+      setSeconds(0);
+      setFinished(false);
+      setFinishData(null);
+      setFallbackAttempt(true);
+      return;
+    }
+
     startTransition(async () => {
       const result = await startSimulationAction(simulation.id);
       toast[result.ok ? "success" : "error"](result.message);
@@ -80,13 +96,14 @@ export function SimulationsClient({
         setSeconds(0);
         setFinished(false);
         setFinishData(null);
+        setFallbackAttempt(false);
       }
     });
   }
 
   function selectAnswer(question: QuestionRecord, option: string) {
     setAnswers((currentAnswers) => ({ ...currentAnswers, [question.id]: option }));
-    if (!userSimulationId) return;
+    if (!userSimulationId || fallbackAttempt) return;
 
     startTransition(async () => {
       const result = await saveSimulationAnswerAction({
@@ -101,7 +118,13 @@ export function SimulationsClient({
 
   function finish() {
     startTransition(async () => {
-      const result = await finishSimulationAction(userSimulationId);
+      const result =
+        fallbackAttempt && active
+          ? await finishFallbackSimulationAction({
+              simulationId: active.id,
+              answers,
+            })
+          : await finishSimulationAction(userSimulationId);
       toast[result.ok ? "success" : "error"](result.message);
       if (result.ok) {
         const correctness: Record<string, boolean> = {};
@@ -135,7 +158,14 @@ export function SimulationsClient({
           <h2 className="text-base font-semibold text-slate-950">
             Resultado: {active.title}
           </h2>
-          <Button variant="outline" size="sm" onClick={() => setActive(null)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              setActive(null);
+              setFallbackAttempt(false);
+            }}
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Voltar aos simulados
           </Button>
@@ -234,7 +264,13 @@ export function SimulationsClient({
     return (
       <div>
         <div className="mb-6 flex items-center justify-between gap-4">
-          <Button variant="outline" onClick={() => setActive(null)}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setActive(null);
+              setFallbackAttempt(false);
+            }}
+          >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Sair
           </Button>
@@ -260,6 +296,7 @@ export function SimulationsClient({
             <p className="mt-6 text-lg leading-8 text-slate-900">
               {current.statement}
             </p>
+            <QuestionMedia question={current} />
             <div className="mt-6 grid gap-3">
               {current.question_options
                 .slice()
@@ -344,10 +381,19 @@ export function SimulationsClient({
     (simulation) =>
       simulation.simulation_questions.length < 10 && !Boolean(simulation.is_generated),
   );
+  const localCatalog =
+    simulations.length > 0 && simulations.every((simulation) => isFallbackSimulation(simulation));
 
   return (
     <div className="space-y-6">
-      <SimulationBuilder locked={!access.hasPlatformAccess} pending={pending} />
+      {localCatalog ? (
+        <Notice tone="info">
+          Simulados oficiais prontos carregados do acervo local revisado. O gerador
+          personalizado usa o banco remoto quando ele tiver questões importadas.
+        </Notice>
+      ) : (
+        <SimulationBuilder locked={!access.hasPlatformAccess} pending={pending} />
+      )}
       {recommendedSimulations.length ? (
       <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       {recommendedSimulations.map((simulation, index) => {
@@ -470,6 +516,10 @@ export function SimulationsClient({
       ) : null}
     </div>
   );
+}
+
+function isFallbackSimulation(simulation: Pick<SimulationWithQuestions, "id">) {
+  return simulation.id.startsWith("fallback-simulation-");
 }
 
 const BUILDER_AREAS = [
@@ -720,4 +770,81 @@ function getAreaMetrics(
     answered: metric.answered,
     accuracy: metric.answered ? Math.round((metric.correct / metric.answered) * 100) : 0,
   }));
+}
+
+function QuestionMedia({ question }: { question: QuestionRecord }) {
+  const associatedMedia = question.question_media ?? [];
+  const legacyMedia = getLegacyQuestionMedia(question);
+
+  if (associatedMedia.length) {
+    return (
+      <div className="mt-6 space-y-4">
+        {associatedMedia
+          .slice()
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map((media) => (
+            <figure
+              key={media.id}
+              className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+            >
+              <Image
+                src={media.url}
+                alt={media.alt_text || "Mídia da questão"}
+                width={media.width ?? 1000}
+                height={media.height ?? 600}
+                unoptimized
+                className="max-h-[520px] w-full object-contain"
+              />
+              {media.caption || media.source_pdf || media.source_page ? (
+                <figcaption className="border-t border-slate-200 px-4 py-3 text-xs leading-5 text-slate-600">
+                  {media.caption || media.media_type}
+                  {media.source_pdf || media.source_page ? (
+                    <span>
+                      {" "}
+                      Fonte: {media.source_pdf || "PDF original"}
+                      {media.source_page ? `, página ${media.source_page}` : ""}.
+                    </span>
+                  ) : null}
+                </figcaption>
+              ) : null}
+            </figure>
+          ))}
+      </div>
+    );
+  }
+
+  if (!legacyMedia) return null;
+
+  return (
+    <figure className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
+      <Image
+        src={legacyMedia.url}
+        alt={legacyMedia.alt}
+        width={legacyMedia.width}
+        height={legacyMedia.height}
+        className="h-auto w-full object-contain"
+        unoptimized
+      />
+    </figure>
+  );
+}
+
+function getLegacyQuestionMedia(question: QuestionRecord) {
+  if (!question.media_url) return null;
+  const metadata = question.media_metadata;
+  const width =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? Number(metadata.width) || 900
+      : 900;
+  const height =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? Number(metadata.height) || 500
+      : 500;
+
+  return {
+    url: question.media_url,
+    alt: question.media_alt || "Mídia da questão",
+    width,
+    height,
+  };
 }

@@ -23,6 +23,7 @@ export function RecurrenceQuestionsClient({
   const [area, setArea] = useState("Todas");
   const [topic, setTopic] = useState("Todos");
   const [year, setYear] = useState("Todos");
+  const [board, setBoard] = useState("Todas");
   const [priority, setPriority] = useState("Todas");
 
   const questionsByArea = useMemo(
@@ -36,7 +37,12 @@ export function RecurrenceQuestionsClient({
     () => ({
       areas: unique(["Todas", ...questions.map((q) => q.subjects.area)]),
       topics: unique(["Todos", ...questionsByArea.map((q) => q.topics.name)]),
-      years: unique(["Todos", ...questions.map((q) => String(q.year))]),
+      years: unique(["Todos", ...questions.map((q) => String(q.year))]).sort((a, b) => {
+        if (a === "Todos") return -1;
+        if (b === "Todos") return 1;
+        return Number(b) - Number(a);
+      }),
+      boards: unique(["Todas", ...questions.map((q) => questionBoard(q))]),
       priorities: unique(["Todas", ...questions.map((q) => q.recurrence_category)]),
     }),
     [questions, questionsByArea],
@@ -53,6 +59,10 @@ export function RecurrenceQuestionsClient({
         question.topics.name,
         question.subtopic,
         question.priority_reason,
+        question.source,
+        question.exam_name,
+        question.exam_color,
+        question.official_source,
       ]
         .filter(Boolean)
         .join(" ")
@@ -63,10 +73,11 @@ export function RecurrenceQuestionsClient({
         (area === "Todas" || question.subjects.area === area) &&
         (topic === "Todos" || question.topics.name === topic) &&
         (year === "Todos" || String(question.year) === year) &&
+        (board === "Todas" || questionBoard(question) === board) &&
         (priority === "Todas" || question.recurrence_category === priority)
       );
     });
-  }, [area, priority, questions, search, topic, year]);
+  }, [area, board, priority, questions, search, topic, year]);
 
   const visible = access.hasPlatformAccess ? filtered : [];
   const reviewedHighPriority = visible.filter(
@@ -83,6 +94,7 @@ export function RecurrenceQuestionsClient({
     setArea("Todas");
     setTopic("Todos");
     setYear("Todos");
+    setBoard("Todas");
     setPriority("Todas");
   }
 
@@ -135,7 +147,7 @@ export function RecurrenceQuestionsClient({
             Limpar
           </button>
         </div>
-        <div className="grid gap-3 p-4 lg:grid-cols-[1.4fr_0.8fr_0.9fr_0.7fr_0.9fr]">
+        <div className="grid gap-3 p-4 lg:grid-cols-[1.4fr_0.8fr_0.9fr_0.7fr_0.9fr_0.9fr]">
           <label className="block">
             <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Busca
@@ -161,6 +173,12 @@ export function RecurrenceQuestionsClient({
           />
           <Select label="Assunto" value={topic} options={options.topics} onChange={setTopic} />
           <Select label="Ano" value={year} options={options.years} onChange={setYear} />
+          <Select
+            label="Banca/fonte"
+            value={board}
+            options={options.boards}
+            onChange={setBoard}
+          />
           <Select
             label="Foco"
             value={priority}
@@ -196,7 +214,7 @@ export function RecurrenceQuestionsClient({
                       {question.topics.name}
                     </h3>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      {question.subjects.area} • {question.subjects.name} • {question.year}
+                      {question.subjects.area} • {question.subjects.name} • {question.year} • {questionBoard(question)}
                     </p>
                   </div>
                   <Badge tone={question.is_demo ? "amber" : isReviewedHigh ? "green" : "slate"}>
@@ -227,7 +245,7 @@ export function RecurrenceQuestionsClient({
                 <div className="mt-4 flex gap-2.5 text-xs leading-5 text-slate-500">
                   <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
                   <span>
-                    Fonte: {question.source}. Revisao: {question.review_status}.
+                    {questionOrigin(question)} · Fonte: {question.source}. Revisão: {question.review_status}.
                   </span>
                 </div>
 
@@ -279,4 +297,20 @@ function Select({
 
 function unique(values: string[]) {
   return Array.from(new Set(values.filter(Boolean)));
+}
+
+function questionOrigin(question: QuestionRecord) {
+  if (question.is_official) return "Oficial";
+  if (question.is_authorial) return "Autoral";
+  if (question.is_inspired) return "Inspirada";
+  if (question.is_demo) return "Demonstrativa";
+  return "Revisada";
+}
+
+function questionBoard(question: QuestionRecord) {
+  if (question.is_official) {
+    const examName = question.exam_name?.trim() || "ENEM";
+    return examName.toLowerCase().includes("enem") ? "ENEM/Inep" : examName;
+  }
+  return question.source.toLowerCase().includes("enem") ? "ENEM/Inep" : "Pontua Enem";
 }

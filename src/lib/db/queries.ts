@@ -7,6 +7,11 @@ import {
   formatDateTime,
   getWeekStart,
 } from "@/lib/db/scoring";
+import {
+  getFallbackQuestionRecords,
+  getFallbackSimulations,
+  getFallbackTopicsWithPerformance,
+} from "@/lib/db/fallback-content";
 import type {
   ActivityRecord,
   AreaMetric,
@@ -177,12 +182,16 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
 
   if (error) {
     logQueryError("questions.with_user_answers_and_reviews", error);
-    throw new Error(error.message);
+    return getFallbackQuestionRecords();
   }
 
   const records = (data ?? []) as unknown as QuestionRecord[];
   const recordsWithMedia = await attachQuestionMedia(supabase, records);
-  return recordsWithMedia.filter(isStudentReadyQuestion).map(stripAnswerKey);
+  const readyRecords = recordsWithMedia
+    .filter(isStudentReadyQuestion)
+    .map(stripAnswerKey);
+
+  return readyRecords.length ? readyRecords : getFallbackQuestionRecords();
 }
 
 export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
@@ -195,10 +204,14 @@ export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
 
   if (error) {
     logQueryError("topics.with_subjects_and_user_performance", error);
-    throw new Error(error.message);
+    return getFallbackTopicsWithPerformance();
   }
 
-  return (data ?? []) as unknown as TopicWithSubject[];
+  const topics = (data ?? []) as unknown as TopicWithSubject[];
+  const fallbackTopics = getFallbackTopicsWithPerformance();
+  return topics.length >= 25 || topics.length >= fallbackTopics.length
+    ? topics
+    : fallbackTopics;
 }
 
 export async function getAreaMetrics(): Promise<AreaMetric[]> {
@@ -326,7 +339,7 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
 
   if (error) {
     logQueryError("simulations.with_questions_and_user_attempts", error);
-    throw new Error(error.message);
+    return getFallbackSimulations();
   }
 
   const simulations = (data ?? []) as unknown as SimulationWithQuestions[];
@@ -339,7 +352,7 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
     questionsWithMedia.map((question) => [question.id, question.question_media ?? []]),
   );
 
-  return simulations.map((simulation) => ({
+  const readySimulations = simulations.map((simulation) => ({
     ...simulation,
     simulation_questions: simulation.simulation_questions
       .map((item) => ({
@@ -355,6 +368,14 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
         questions: stripAnswerKey(item.questions),
       })),
   }));
+  const largestSimulation = Math.max(
+    0,
+    ...readySimulations.map(
+      (simulation) => simulation.simulation_questions.length,
+    ),
+  );
+
+  return largestSimulation >= 10 ? readySimulations : getFallbackSimulations();
 }
 
 export async function getCurrentStudyPlan(): Promise<StudyPlanWithItems | null> {

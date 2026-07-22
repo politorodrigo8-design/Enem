@@ -23,13 +23,13 @@ export default async function PracticePage({
     ]);
   const access = getAccessContext(profile);
   const initialTab: PracticeTab =
-    tab === "banco" || tab === "revisao" ? tab : "prioritarias";
+    tab === "prioritarias" || tab === "revisao" ? tab : "banco";
 
   return (
     <div>
       <DashboardPageHeader
         title="Praticar"
-        description="Questões prioritárias, banco revisado e revisão de erros em um só lugar."
+        description="Banco de questões, prioridades e revisão de erros em um só lugar."
       />
       <PracticeTabs
         initialTab={initialTab}

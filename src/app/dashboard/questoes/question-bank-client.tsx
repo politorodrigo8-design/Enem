@@ -64,9 +64,13 @@ export function QuestionBankClient({
   const [topic, setTopic] = useState(initialTopicName);
   const [difficulty, setDifficulty] = useState("Todas");
   const [year, setYear] = useState("Todos");
+  const [origin, setOrigin] = useState("Todas");
+  const [board, setBoard] = useState("Todas");
   const [status, setStatus] = useState("Todas");
   const [search, setSearch] = useState("");
-  const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>("15");
+  const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>(() =>
+    answerSource === "question_bank" ? "Todas" : "15",
+  );
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<{
@@ -144,7 +148,20 @@ export function QuestionBankClient({
     [questionsByDiscipline],
   );
   const years = useMemo(
-    () => ["Todos", ...Array.from(new Set(orderedQuestions.map((q) => String(q.year))))],
+    () => [
+      "Todos",
+      ...Array.from(new Set(orderedQuestions.map((q) => String(q.year)))).sort(
+        (a, b) => Number(b) - Number(a),
+      ),
+    ],
+    [orderedQuestions],
+  );
+  const origins = useMemo(
+    () => uniqueOptions("Todas", orderedQuestions.map((q) => questionOrigin(q))),
+    [orderedQuestions],
+  );
+  const boards = useMemo(
+    () => uniqueOptions("Todas", orderedQuestions.map((q) => questionBoard(q))),
     [orderedQuestions],
   );
 
@@ -158,8 +175,21 @@ export function QuestionBankClient({
         (status === "Não respondida" && !answered);
       const matchesSearch =
         !search ||
-        question.statement.toLowerCase().includes(search.toLowerCase()) ||
-        question.topics.name.toLowerCase().includes(search.toLowerCase());
+        [
+          question.statement,
+          question.topics.name,
+          question.subjects.name,
+          question.subjects.area,
+          question.source,
+          question.exam_name,
+          question.exam_color,
+          question.official_source,
+          question.question_number ? `questao ${question.question_number}` : "",
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase()
+          .includes(search.toLowerCase());
 
       return (
         (area === "Todas" || question.subjects.area === area) &&
@@ -167,11 +197,13 @@ export function QuestionBankClient({
         (topic === "Todos" || question.topics.name === topic) &&
         (difficulty === "Todas" || question.difficulty === difficulty) &&
         (year === "Todos" || String(question.year) === year) &&
+        (origin === "Todas" || questionOrigin(question) === origin) &&
+        (board === "Todas" || questionBoard(question) === board) &&
         (status === "Favoritas" ? reviewed : matchesStatus) &&
         matchesSearch
       );
     });
-  }, [answerState, area, difficulty, discipline, orderedQuestions, reviewState, search, status, topic, year]);
+  }, [answerState, area, board, difficulty, discipline, orderedQuestions, origin, reviewState, search, status, topic, year]);
 
   const sessionQuestions = useMemo(() => {
     if (sessionSize === "Todas") return filtered;
@@ -242,6 +274,8 @@ export function QuestionBankClient({
     setTopic("Todos");
     setDifficulty("Todas");
     setYear("Todos");
+    setOrigin("Todas");
+    setBoard("Todas");
     setStatus("Todas");
     setSearch("");
     move(0);
@@ -289,6 +323,8 @@ export function QuestionBankClient({
             <Select label="Tópico" value={topic} options={topics} onChange={(value) => { setTopic(value); move(0); }} />
             <Select label="Dificuldade" value={difficulty} options={["Todas", "Baixa", "Média", "Alta"]} onChange={(value) => { setDifficulty(value); move(0); }} />
             <Select label="Ano" value={year} options={years} onChange={(value) => { setYear(value); move(0); }} />
+            <Select label="Origem" value={origin} options={origins} onChange={(value) => { setOrigin(value); move(0); }} />
+            <Select label="Banca/fonte" value={board} options={boards} onChange={(value) => { setBoard(value); move(0); }} />
             <Select label="Status" value={status} options={["Todas", "Respondida", "Não respondida", "Favoritas"]} onChange={(value) => { setStatus(value); move(0); }} />
             <Select
               label="Tamanho da sessão"
@@ -312,7 +348,7 @@ export function QuestionBankClient({
                     move(0);
                   }}
                   className="w-full bg-transparent text-sm text-slate-900 outline-none"
-                  placeholder="Buscar no enunciado ou tópico"
+                  placeholder="Buscar enunciado, tópico, fonte, ano ou número"
                 />
               </div>
             </label>
@@ -340,9 +376,16 @@ export function QuestionBankClient({
                   <CardTitle>
                     Questão {currentIndex + 1} de {sessionQuestions.length}
                   </CardTitle>
-                  <p className="mt-2 text-sm text-slate-500">{question.source}</p>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {formatQuestionSource(question)}
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                  <Badge tone={question.is_official ? "green" : "amber"}>
+                    {questionOrigin(question)}
+                  </Badge>
+                  <Badge tone="slate">{questionBoard(question)}</Badge>
+                  <Badge tone="slate">{question.year}</Badge>
                   <Badge tone="blue">{question.subjects.area}</Badge>
                   <Badge tone="blue">{question.topics.name}</Badge>
                   <Badge tone="slate">{question.difficulty}</Badge>
@@ -519,7 +562,10 @@ export function QuestionBankClient({
                   <Detail label="Disciplina" value={question.subjects.name} />
                   <Detail label="Tópico" value={question.topics.name} />
                   <Detail label="Dificuldade" value={question.difficulty} />
-                  <Detail label="Origem" value={question.source} />
+                  <Detail label="Origem" value={questionOrigin(question)} />
+                  <Detail label="Banca/fonte" value={questionBoard(question)} />
+                  <Detail label="Prova" value={formatExamDetail(question)} />
+                  <Detail label="Fonte" value={question.source} />
                   <Detail
                     label="Histórico"
                     value={`${Math.max(question.user_question_answers?.length ?? 0, answerState[question.id] ? 1 : 0)} resposta(s)`}
@@ -732,6 +778,49 @@ function priorityBadgeTone(question: QuestionRecord): "blue" | "amber" | "slate"
   if (label.includes("máxima")) return "amber";
   if (label.includes("alta")) return "blue";
   return "slate";
+}
+
+function questionOrigin(question: QuestionRecord) {
+  if (question.is_official) return "Oficial";
+  if (question.is_authorial) return "Autoral";
+  if (question.is_inspired) return "Inspirada";
+  if (question.is_demo) return "Demonstrativa";
+  return "Revisada";
+}
+
+function questionBoard(question: QuestionRecord) {
+  if (question.is_official) {
+    const examName = question.exam_name?.trim() || "ENEM";
+    return examName.toLowerCase().includes("enem") ? "ENEM/Inep" : examName;
+  }
+
+  if (question.source.toLowerCase().includes("enem")) {
+    return "ENEM/Inep";
+  }
+
+  return "Pontua Enem";
+}
+
+function formatQuestionSource(question: QuestionRecord) {
+  const parts = [
+    question.source,
+    question.exam_color,
+    question.question_number ? `questão ${question.question_number}` : "",
+  ].filter(Boolean);
+
+  return parts.join(" · ");
+}
+
+function formatExamDetail(question: QuestionRecord) {
+  const parts = [
+    question.exam_name || "ENEM",
+    String(question.year),
+    question.exam_day ? `Dia ${question.exam_day}` : "",
+    question.exam_color,
+    question.question_number ? `Q${question.question_number}` : "",
+  ].filter(Boolean);
+
+  return parts.join(" · ");
 }
 
 function Select({
