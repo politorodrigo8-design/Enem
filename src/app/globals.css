@@ -50,9 +50,10 @@ textarea {
 .highlight {
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
-  padding-inline: 0.15em;
-  border-radius: 0.2em;
-  background: rgb(253 230 138 / 0.75); /* amber-200 */
+  padding-inline: 0.06em;
+  background:
+    linear-gradient(rgb(253 230 138 / 0.75), rgb(253 230 138 / 0.75))
+    0 78% / 100% 0.72em no-repeat; /* amber-200 */
 }
 
 /* ── Sistema de motion (DESIGN.md) ─────────────────────────────
