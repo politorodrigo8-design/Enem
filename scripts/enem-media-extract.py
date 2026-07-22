@@ -39,54 +39,83 @@ def question_key(question: dict) -> str:
 
 
 def proof_path(question: dict) -> Path:
+    # Prefer the record's own source_pdf: the CD1/CD7 heuristic below is wrong for
+    # cadernos like 2021 D1 (CD4), whose question numbering differs from CD1.
+    source_pdf = question.get("source_pdf")
+    if source_pdf:
+        return PROVAS_DIR / source_pdf
     booklet = "CD1" if question["exam_day"] == "1" else "CD7"
     return PROVAS_DIR / f"{question['year']}_PV_impresso_D{question['exam_day']}_{booklet}.pdf"
 
 
-def page_words_in_order(page: fitz.Page) -> list[tuple]:
-    """Words sorted by PDF content order (block/line/word), which follows the
-    column reading order used by the text extraction pipeline."""
-    return sorted(page.get_text("words"), key=lambda w: (w[5], w[6], w[7]))
-
-
-def collect_page_markers(words: list[tuple]) -> list[dict]:
+def collect_page_markers(page: fitz.Page) -> list[dict]:
+    """Marcadores 'Questao N' com posicao (x, y). Procura o numero na mesma linha do
+    'Questao' (ate 4 tokens a frente), robusto a ordem de get_text('words')."""
+    words = page.get_text("words")
     markers = []
     for index, word in enumerate(words):
         if not re.fullmatch(r"(?i)quest(?:a|ã)o", word[4]):
             continue
-        if index + 1 >= len(words) or not re.fullmatch(r"0*\d{1,3}", words[index + 1][4]):
+        number = None
+        for j in range(index + 1, min(index + 5, len(words))):
+            cand = words[j]
+            if abs(cand[1] - word[1]) > 6:
+                continue
+            if re.fullmatch(r"0*\d{1,3}", cand[4]):
+                number = int(cand[4])
+                break
+            if not re.fullmatch(r"[-–—|•\s]*", cand[4]):
+                break
+        if number is None:
             continue
-        markers.append({"number": int(words[index + 1][4]), "word_index": index})
+        markers.append({"number": number, "x": word[0], "y": word[1]})
     return markers
 
 
-def question_region(page: fitz.Page, words: list[tuple], start_index: int, end_index: int) -> fitz.Rect | None:
-    """Union of every word between the two markers, expanded with any vector
-    drawing or raster image whose center falls inside the resulting band —
-    figures are not words and would otherwise be cropped out."""
-    span = words[start_index:end_index]
-    if not span:
-        return None
-    bbox = fitz.Rect(span[0][:4])
-    for word in span[1:]:
-        bbox |= fitz.Rect(word[:4])
+def question_region(page: fitz.Page, marker: dict, all_markers: list[dict]) -> fitz.Rect | None:
+    """Regiao de UMA questao numa pagina de 2 colunas: da linha do marcador ate o proximo
+    marcador da MESMA coluna (ou fim da coluna), limitada horizontalmente a coluna quando ha
+    outra questao na coluna oposta. Graficos grandes (regua divisoria, borda) sao recortados a
+    banda antes da uniao, senao arrastariam a bbox para a pagina inteira."""
+    W, H = page.rect.width, page.rect.height
+    mid = W / 2
+    left = marker["x"] < mid
+    x0, x1 = (0, mid) if left else (mid, W)
+    y0 = marker["y"] - 2
+    below = [m["y"] for m in all_markers if (m["x"] < mid) == left and m["y"] > marker["y"] + 5]
+    y1 = min(below) if below else H
+    other_col = any((m["x"] < mid) != left and y0 <= m["y"] <= y1 for m in all_markers)
+    band = fitz.Rect(x0, y0, x1, y1)
 
-    graphic_rects = [fitz.Rect(d["rect"]) for d in page.get_drawings()]
+    content = None
+    for w in page.get_text("words"):
+        r = fitz.Rect(w[:4])
+        cx, cy = (r.x0 + r.x1) / 2, (r.y0 + r.y1) / 2
+        if band.x0 <= cx <= band.x1 and band.y0 <= cy <= band.y1:
+            content = r if content is None else content | r
+    graphics = [fitz.Rect(d["rect"]) for d in page.get_drawings()]
     for image_info in page.get_image_info():
-        graphic_rects.append(fitz.Rect(image_info["bbox"]))
-    for rect in graphic_rects:
-        center_y = (rect.y0 + rect.y1) / 2
-        center_x = (rect.x0 + rect.x1) / 2
-        if bbox.y0 - 6 <= center_y <= bbox.y1 + 6 and bbox.x0 - 30 <= center_x <= bbox.x1 + 30:
-            bbox |= rect
+        graphics.append(fitz.Rect(image_info["bbox"]))
+    for r in graphics:
+        if r.width < 4 or r.height < 4:
+            continue
+        clip = r & band
+        if clip.is_empty or clip.width < 4 or clip.height < 4:
+            continue
+        content = clip if content is None else content | clip
+    if content is None:
+        return None
+    content = content & fitz.Rect(x0 - 40, y0 - 4, x1 + 40, y1 + 4)
+    if content.is_empty:
+        return None
 
-    bbox = fitz.Rect(
-        max(bbox.x0 - 6, 0),
-        max(bbox.y0 - 6, 0),
-        min(bbox.x1 + 6, page.rect.width),
-        min(bbox.y1 + 6, page.rect.height),
-    )
-    return bbox
+    if other_col:
+        lo = 0 if left else mid - 8
+        hi = mid + 8 if left else W
+        cx0, cx1 = max(content.x0 - 6, lo), min(content.x1 + 6, hi)
+    else:
+        cx0, cx1 = max(content.x0 - 6, 0), min(content.x1 + 6, W)
+    return fitz.Rect(cx0, max(content.y0 - 6, 0), cx1, min(content.y1 + 6, H))
 
 
 def main() -> int:
@@ -111,7 +140,7 @@ def main() -> int:
     media_map: dict[str, dict] = {}
     failures: list[str] = []
     docs: dict[Path, fitz.Document] = {}
-    page_cache: dict[tuple[Path, int], tuple[list[tuple], list[dict]]] = {}
+    page_cache: dict[tuple[Path, int], list[dict]] = {}
 
     for question in targets:
         key = question_key(question)
@@ -126,9 +155,8 @@ def main() -> int:
         page = doc[page_index]
         cache_key = (pdf_path, page_index)
         if cache_key not in page_cache:
-            words = page_words_in_order(page)
-            page_cache[cache_key] = (words, collect_page_markers(words))
-        words, page_markers = page_cache[cache_key]
+            page_cache[cache_key] = collect_page_markers(page)
+        page_markers = page_cache[cache_key]
 
         candidates = [m for m in page_markers if m["number"] == int(question["question_number"])]
         if not candidates:
@@ -137,14 +165,8 @@ def main() -> int:
         # Foreign-language questions 1-5 appear twice: EN block first, ES second.
         occurrence = 1 if question.get("language") == "es" and len(candidates) > 1 else 0
         marker = candidates[min(occurrence, len(candidates) - 1)]
-        marker_position = page_markers.index(marker)
-        end_index = (
-            page_markers[marker_position + 1]["word_index"]
-            if marker_position + 1 < len(page_markers)
-            else len(words)
-        )
 
-        rect = question_region(page, words, marker["word_index"], end_index)
+        rect = question_region(page, marker, page_markers)
         if rect is None or rect.height < 40:
             failures.append(f"{key}: regiao invalida")
             continue

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  detectStructuralIssues,
   fingerprintQuestion,
   isValidMediaUrl,
   validateRows,
@@ -84,4 +85,45 @@ test("validacao de URL de midia aceita http(s) e caminho local", () => {
   assert.equal(isValidMediaUrl("https://example.com/q.png"), true);
   assert.equal(isValidMediaUrl("/enem-media/batch-001/q.png"), true);
   assert.equal(isValidMediaUrl("ftp://example.com/q.png"), false);
+});
+
+test("questao limpa nao gera nenhum problema estrutural", () => {
+  assert.deepEqual(detectStructuralIssues(approvedRow), []);
+});
+
+test("detecta rodape de caderno vazado numa alternativa", () => {
+  const issues = detectStructuralIssues({
+    ...approvedRow,
+    option_e: "Alternativa E do enunciado. CH - 1° dia | Caderno 1 - AZUL - Página 30",
+  });
+  assert.match(issues.join(" "), /rodape\/cabecalho/);
+});
+
+test("detecta enunciado truncado ou corrompido", () => {
+  const issues = detectStructuralIssues({ ...approvedRow, statement: "————————>>>>>>>>>——" });
+  assert.match(issues.join(" "), /truncado ou corrompido/);
+});
+
+test("detecta alternativa que contem o enunciado (desalinhamento estrutural)", () => {
+  const issues = detectStructuralIssues({
+    ...approvedRow,
+    option_a:
+      "o dono da loja está disposto a pagar o menor valor possível pela impressão do material, e portanto o modelo que deverá ser escolhido por ele tem como face útil para a impressão um",
+    option_b: "quadrado.",
+    option_c: "círculo.",
+    option_d: "triângulo.",
+    option_e: "hexágono.",
+  });
+  assert.match(issues.join(" "), /desalinhamento estrutural/);
+});
+
+test("validateRows rejeita questao com corrupcao estrutural", () => {
+  const report = validateRows([
+    {
+      ...approvedRow,
+      option_e: "Alternativa contaminada. ENEN2025 CIÊNCIAS HUMANAS E SUAS TECNOLOGIAS | 1º DIA | CADERNO 1 | AZUL 30",
+    },
+  ]);
+  assert.equal(report.valid.length, 0);
+  assert.equal(report.invalid.length, 1);
 });

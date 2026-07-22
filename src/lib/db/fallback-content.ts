@@ -4,6 +4,8 @@ import matematicaRows from "../../../supabase/imports/enem-piloto-matematica.jso
 import linguagensRows from "../../../supabase/imports/enem-piloto-linguagens.json";
 import humanasRows from "../../../supabase/imports/enem-piloto-humanas.json";
 import naturezaRows from "../../../supabase/imports/enem-piloto-natureza.json";
+import autoraisRows from "../../../supabase/imports/enem-autorais-2026.json";
+import backfillRows from "../../../supabase/imports/enem-backfill-2026.json";
 import type {
   QuestionRecord,
   SimulationWithQuestions,
@@ -85,6 +87,8 @@ const importedRows = [
   ...(linguagensRows as FallbackImportRow[]),
   ...(humanasRows as FallbackImportRow[]),
   ...(naturezaRows as FallbackImportRow[]),
+  ...(autoraisRows as FallbackImportRow[]),
+  ...(backfillRows as FallbackImportRow[]),
 ].filter((row) => isApprovedFallbackRow(row) && isUsableFallbackRow(row));
 
 const fallbackQuestionsWithAnswers = importedRows.map((row, index) =>

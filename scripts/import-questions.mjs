@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
 import {
   canonicalizeQuestionTaxonomy,
+  hasExamFooter,
   normalizeKey,
 } from "./normalize-question-imports.mjs";
 
@@ -44,11 +45,6 @@ export function isValidTaxonomyEntry(area, subject, topic) {
     return { ok: false, reason: `Topico fora da taxonomia para ${subject}: "${topic}".` };
   }
   return { ok: true };
-}
-
-if (isCliEntrypoint()) {
-  const exitCode = await runCli(process.argv.slice(2), process.cwd());
-  process.exit(exitCode);
 }
 
 export async function runCli(argv, root = process.cwd()) {
@@ -339,6 +335,68 @@ export function getQuestionSchema() {
   });
 }
 
+const structuralContentFields = [
+  "statement",
+  "option_a",
+  "option_b",
+  "option_c",
+  "option_d",
+  "option_e",
+  "explanation",
+];
+const optionFields = ["option_a", "option_b", "option_c", "option_d", "option_e"];
+// Alternativa que termina em conector/verbo de comando (sem fechar frase) e e longa
+// demais: assinatura de enunciado empurrado para dentro da opcao pela extracao.
+const danglingStemEnding =
+  /(\b(é|e|será|deverá|deverá ser|corresponde a|corresponde à|tem como|igual a|próximo de|próxima de|obtida é|utilizada é|em|de|do|da|no|na|pelo|pela|para|por|que|um|uma|o|a|à|ao|aos|às|se)|[,:;])\s*$/iu;
+
+export function detectStructuralIssues(row) {
+  const issues = [];
+
+  for (const field of structuralContentFields) {
+    const value = row[field];
+    if (typeof value !== "string") continue;
+    if (/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(value)) {
+      issues.push(
+        `${field}: caracteres de controle ilegiveis — rode scripts/normalize-question-imports.mjs --write antes de importar.`,
+      );
+    }
+    if (hasExamFooter(value)) {
+      issues.push(
+        `${field}: rodape/cabecalho de caderno no texto — rode scripts/normalize-question-imports.mjs --write antes de importar.`,
+      );
+    }
+  }
+
+  const statement = String(row.statement ?? "").trim();
+  // Truncamento/garble real: enunciado vazio, quase vazio, sequencias de setas/traços
+  // de OCR, ou sem letras. (Comandos curtos de questoes de texto compartilhado sao validos.)
+  if (
+    statement.length < 20 ||
+    /[—–\->]{6,}|>{4,}/.test(statement) ||
+    !/\p{L}/u.test(statement)
+  ) {
+    issues.push("statement: enunciado vazio/truncado ou corrompido na extracao.");
+  }
+
+  const optionLengths = optionFields
+    .map((field) => String(row[field] ?? "").trim().length)
+    .sort((a, b) => a - b);
+  const medianLength = optionLengths[2];
+  for (const field of optionFields) {
+    const value = String(row[field] ?? "").trim();
+    if (!value) continue;
+    const oversized = value.length > 160 && value.length > 4 * Math.max(20, medianLength);
+    if (oversized && (value.includes("?") || danglingStemEnding.test(value))) {
+      issues.push(
+        `${field}: alternativa parece conter o enunciado/comando da questao (desalinhamento estrutural).`,
+      );
+    }
+  }
+
+  return issues;
+}
+
 export function validateRows(rows) {
   const valid = [];
   const invalid = [];
@@ -352,6 +410,12 @@ export function validateRows(rows) {
         index,
         errors: parsed.error.issues.map((issue) => issue.message),
       });
+      return;
+    }
+
+    const structuralIssues = detectStructuralIssues(parsed.data);
+    if (structuralIssues.length) {
+      invalid.push({ index, errors: structuralIssues });
       return;
     }
 
@@ -623,4 +687,9 @@ export function isValidMediaUrl(value) {
   } catch {
     return false;
   }
+}
+
+if (isCliEntrypoint()) {
+  const exitCode = await runCli(process.argv.slice(2), process.cwd());
+  process.exit(exitCode);
 }

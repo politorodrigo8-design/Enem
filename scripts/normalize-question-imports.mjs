@@ -269,6 +269,186 @@ export function canonicalizeQuestionTaxonomy(row) {
   return result;
 }
 
+// Campos de conteudo visivel ao aluno — unicos onde faz sentido remover rodape de prova.
+const contentTextFields = new Set([
+  "statement",
+  "option_a",
+  "option_b",
+  "option_c",
+  "option_d",
+  "option_e",
+  "explanation",
+]);
+
+// Marcadores de rodape/cabecalho dos cadernos oficiais que vazam na extracao do PDF
+// (ex.: "CH - 1º dia | Caderno 1 - AZUL - Página 28", "ENEN2025", "RASCUNHO DA REDAÇÃO").
+export const examFooterMarkers = [
+  /RASCUNHO DA REDA[ÇC][ÃA]O/i,
+  /ENEN?\s?2025/,
+  /\benemo\s?0?\d/i,
+  /[•\-–|]?\s*(CI[EÊ]NCIAS (HUMANAS|DA NATUREZA)|LINGUAGENS,? C[ÓO]DIGOS|MATEM[ÁA]TICA E SUAS)[^.]*?(TECNOLOGIAS|DIA|CADERNO)/i,
+  /\b(CH|CN|LC|MT)\s*[-–•]\s*(\d|[ºo°]|dia|DIA)/i,
+  /\b\d\s*[-–]\s*AZUL\s*[-–]\s*(P[áa]gina|\d+\s*[ªaº°o]\s*Aplica)/i,
+  /\|\s*Caderno\s*\d/i,
+  /\bCADERNO\s*\d\s*[-–|•]?\s*AZUL/i,
+  /[ºo°]\s*DIA\s*[•|]\s*CADERNO/i,
+  /[-–]\s*AZUL\s*[-–]\s*P[áa]gina/i,
+  /Exame Nacional do Ensino/i,
+  /\bANO do Ensino M[ée]dio/i,
+  /-\s*\d+[ªa]\s*Aplica[çc][ãa]o/i,
+];
+
+const footerKeywords =
+  /CADERNO|AZUL|DIA|dia|ENEN|RASCUNHO|Caderno|P[áa]gina|enemo|TECNOLOGIAS|Aplica[çc]|Ensino M[ée]dio|\b(CH|CN|LC|MT)\b|\d|[\s•·\-–|.,:;ºo°ªa]/g;
+
+function earliestFooterIndex(value) {
+  let best = -1;
+  for (const pattern of examFooterMarkers) {
+    const match = value.match(pattern);
+    if (match && (best < 0 || match.index < best)) best = match.index;
+  }
+  return best;
+}
+
+function trimFooterResidue(head) {
+  return head
+    .replace(/\s*\d{1,3}\s*[–\-]\s*(CH|CN|LC|MT)\s*[•·]?\s*\d*\s*[ºo°]?\s*$/i, "")
+    .replace(/\s*[–\-]\s*(CH|CN|LC|MT)\s*[•·]?\s*\d*\s*[ºo°]?\s*$/i, "")
+    .replace(/([.!?"”'’)])\s*\d{1,3}\s*$/, "$1")
+    .replace(/\s*\|\s*\d{1,3}\s*$/, "")
+    .replace(/[\s•\-–|]+$/, "");
+}
+
+// O resto da string a partir do marcador e so rodape (numeros de pagina, nomes de
+// caderno, siglas), ou tem conteudo real? Conta letras que sobram fora dos tokens.
+function isFooterOnly(tail) {
+  const residue = tail.replace(footerKeywords, "");
+  return residue.replace(/[^\p{L}]/gu, "").length < 25;
+}
+
+export function stripExamFooters(value, field) {
+  if (typeof value !== "string" || !contentTextFields.has(field)) {
+    return { value, changed: false };
+  }
+
+  let current = value;
+  let changed = false;
+
+  for (let pass = 0; pass < 3; pass += 1) {
+    const at = earliestFooterIndex(current);
+    if (at < 1) break;
+
+    const head = trimFooterResidue(current.slice(0, at));
+    const tail = current.slice(at);
+    if (!head) break;
+
+    if (field !== "statement" || isFooterOnly(tail)) {
+      // Alternativas/explicacao: depois do texto real so vem lixo ou conteudo vazado
+      // da pagina seguinte — corta ate o fim.
+      current = head;
+      changed = true;
+      break;
+    }
+
+    // Enunciado com cabecalho injetado no meio da frase: remove so o trecho do rodape
+    // e preserva a continuacao do texto real.
+    let cut = tail.length;
+    for (const pattern of examFooterMarkers) {
+      const match = tail.match(pattern);
+      if (match && match.index === 0) {
+        cut = Math.max(cut === tail.length ? 0 : cut, match[0].length);
+      }
+    }
+    let rest = tail;
+    let removed = 0;
+    while (removed < rest.length) {
+      const slice = rest.slice(removed);
+      const marker = examFooterMarkers
+        .map((pattern) => slice.match(pattern))
+        .filter((match) => match && match.index <= 4)
+        .sort((a, b) => b[0].length - a[0].length)[0];
+      if (!marker) break;
+      removed += marker.index + marker[0].length;
+      const trailing = rest.slice(removed).match(/^\s*[\d•·\-–|ºo°ªa.,;:]*\s*/);
+      if (trailing) removed += trailing[0].length;
+    }
+    if (removed === 0) break;
+    current = `${head} ${rest.slice(removed).trimStart()}`.trimEnd();
+    changed = true;
+  }
+
+  return { value: current, changed };
+}
+
+export function hasExamFooter(value) {
+  return typeof value === "string" && earliestFooterIndex(value) >= 1;
+}
+
+// Caracteres de controle C0 (menos \t \n \r) nunca sao conteudo legitimo — sao
+// residuo de fontes com encoding proprio no PDF. Remove e colapsa espaco duplo.
+const controlChars = /[ --]/g;
+
+export function hasControlChars(value) {
+  return typeof value === "string" && controlChars.test(value);
+}
+
+export function stripControlChars(value) {
+  if (typeof value !== "string" || !controlChars.test(value)) {
+    return { value, changed: false };
+  }
+  const cleaned = value.replace(controlChars, " ").replace(/[ \t]{2,}/g, " ").trim();
+  return { value: cleaned, changed: true };
+}
+
+// Prefixo de lixo no inicio do enunciado: rastros de seta/traço que a extracao do PDF
+// gera nas quebras de coluna, opcionalmente seguidos de um token mojibake de codigo de
+// prova (ex.: "————>>>>—— enemooz Um segmento..."). So corta quando o que sobra recomeca
+// num inicio de frase valido — senao o corpo tambem esta corrompido (deixa pro validador).
+const leadingGarbage = /^[\s"»«›‹=]*[—–‒―\->»]{2,}[\s"»«›‹=]*(?:enem\w{2,8}[\s"»«›‹=!.,]*)?/i;
+const leadingEnemToken = /^[\s"»«›‹=]*enem\w{2,8}[\s"»«›‹=!.,]*/i;
+
+export function stripLeadingGarbage(value) {
+  if (typeof value !== "string") return { value, changed: false };
+  for (const pattern of [leadingGarbage, leadingEnemToken]) {
+    const match = value.match(pattern);
+    if (!match || match[0].length === 0) continue;
+    const rest = value.slice(match[0].length);
+    // so remove se o restante recomeca de forma limpa (maiuscula/parentese/aspas)
+    if (/^[A-ZÀ-Ú(“"'0-9]/.test(rest.trimStart())) {
+      return { value: rest.trimStart(), changed: true };
+    }
+  }
+  return { value, changed: false };
+}
+
+// A extracao de opcoes inline vaza o marcador da alternativa seguinte no fim de cada
+// opcao ("...Miami. B", "...cubana. C"). Como e sistematico (o marcador vazado e SEMPRE
+// a letra da proxima), removemos so quando >=2 opcoes da questao exibem o padrao — assim
+// nao mexemos numa opcao que legitimamente termina numa letra (ex.: formula "... + D").
+const optionSequence = ["option_a", "option_b", "option_c", "option_d", "option_e"];
+const nextOptionLetter = { option_a: "B", option_b: "C", option_c: "D", option_d: "E" };
+
+export function stripOptionLetterBleed(row) {
+  const bleeding = optionSequence
+    .slice(0, 4)
+    .filter((field) => {
+      const value = row[field];
+      return typeof value === "string" && new RegExp(`\\s${nextOptionLetter[field]}\\s*$`).test(value);
+    });
+
+  if (bleeding.length < 2) return { row, changes: [] };
+
+  const result = { ...row };
+  const changes = [];
+  for (const field of bleeding) {
+    const before = row[field];
+    const after = before.replace(new RegExp(`\\s+${nextOptionLetter[field]}\\s*$`), "").trimEnd();
+    result[field] = after;
+    changes.push({ field, before, after, confidence: "option-letter-bleed", kind: "encoding" });
+  }
+  return { row: result, changes };
+}
+
 export function hasMojibake(value) {
   return typeof value === "string" && mojibakePatterns.some((pattern) => pattern.test(value));
 }
@@ -311,13 +491,46 @@ export function normalizeQuestionTextFields(row) {
       ? { value: value.normalize("NFC"), changed: value.normalize("NFC") !== value, confidence: "unicode-normalized" }
       : repairMojibake(value);
 
-    normalized[field] = repaired.value;
+    const stripped = stripExamFooters(repaired.value, field);
+    const decontrolled = contentTextFields.has(field)
+      ? stripControlChars(stripped.value)
+      : { value: stripped.value, changed: false };
+    const deleaded =
+      field === "statement"
+        ? stripLeadingGarbage(decontrolled.value)
+        : { value: decontrolled.value, changed: false };
+
+    normalized[field] = deleaded.value;
     if (repaired.changed) {
       changes.push({
         field,
         before: value,
         after: repaired.value,
         confidence: repaired.confidence,
+      });
+    }
+    if (stripped.changed) {
+      changes.push({
+        field,
+        before: repaired.value,
+        after: stripped.value,
+        confidence: "footer-stripped",
+      });
+    }
+    if (decontrolled.changed) {
+      changes.push({
+        field,
+        before: stripped.value,
+        after: decontrolled.value,
+        confidence: "control-stripped",
+      });
+    }
+    if (deleaded.changed) {
+      changes.push({
+        field,
+        before: decontrolled.value,
+        after: deleaded.value,
+        confidence: "lead-garbage-stripped",
       });
     }
   }
@@ -331,7 +544,8 @@ export function normalizeRows(rows) {
 
   rows.forEach((row, index) => {
     const textResult = normalizeQuestionTextFields(row);
-    const canonical = canonicalizeQuestionTaxonomy(textResult.row);
+    const bleedResult = stripOptionLetterBleed(textResult.row);
+    const canonical = canonicalizeQuestionTaxonomy(bleedResult.row);
     const taxonomyChanges = [];
 
     for (const field of ["area", "subject", "topic", "discipline"]) {
@@ -354,6 +568,7 @@ export function normalizeRows(rows) {
       source: canonical.source ?? null,
       changes: [
         ...textResult.changes.map((change) => ({ ...change, kind: "encoding" })),
+        ...bleedResult.changes,
         ...taxonomyChanges,
       ],
     });
