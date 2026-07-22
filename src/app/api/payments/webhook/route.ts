@@ -18,6 +18,7 @@ import {
 import { recordProductEvent } from "@/lib/services/product-events";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
+import { checkRateLimit, requestRateLimitIdentifier } from "@/lib/security/rate-limit";
 
 export const runtime = "nodejs";
 
@@ -27,6 +28,19 @@ type PaymentEvent = Database["public"]["Tables"]["payment_events"]["Row"];
 export async function POST(request: NextRequest) {
   if (!isSupabaseAdminConfigured()) {
     return NextResponse.json({ ok: false }, { status: 503 });
+  }
+
+  const rateLimit = await checkRateLimit({
+    operation: "payments.webhook",
+    identifier: requestRateLimitIdentifier(request),
+    limit: 300,
+    windowSeconds: 60,
+  });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { ok: false },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
+    );
   }
 
   const rawBody = await request.text();

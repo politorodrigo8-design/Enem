@@ -22,6 +22,13 @@ import {
   recordProductEvent,
   type ProductEventName,
 } from "@/lib/services/product-events";
+import { logServerError } from "@/lib/security/public-errors";
+import {
+  checkRateLimit,
+  emailRateLimitIdentifier,
+  rateLimitedResult,
+  userRateLimitIdentifier,
+} from "@/lib/security/rate-limit";
 
 function supabaseMissing(): ActionResult {
   return {
@@ -117,6 +124,7 @@ export async function saveOnboardingAction(
     .eq("id", user.id);
 
   if (error) {
+    logServerError("beta.saveOnboarding", error, { userId: user.id });
     return { ok: false, message: publicDbErrorMessage(error.message) };
   }
 
@@ -170,6 +178,7 @@ export async function updateProfileSettingsAction(
     .eq("id", user.id);
 
   if (error) {
+    logServerError("beta.updateProfileSettings", error, { userId: user.id });
     return { ok: false, message: publicDbErrorMessage(error.message) };
   }
 
@@ -187,6 +196,14 @@ export async function submitBetaApplicationAction(
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
   }
+
+  const rateLimit = await checkRateLimit({
+    operation: "beta.application",
+    identifier: emailRateLimitIdentifier(parsed.data.email),
+    limit: 5,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const supabase = await createClient();
   const {
@@ -208,6 +225,7 @@ export async function submitBetaApplicationAction(
   });
 
   if (error) {
+    logServerError("beta.submitBetaApplication", error);
     return { ok: false, message: publicDbErrorMessage(error.message) };
   }
 
@@ -236,6 +254,14 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
   }
 
+  const rateLimit = await checkRateLimit({
+    operation: "beta.feedback",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 10,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
+
   const { supabase, user } = context;
   const { error } = await supabase.from("beta_feedback").insert({
     user_id: user.id,
@@ -248,6 +274,7 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
   });
 
   if (error) {
+    logServerError("beta.submitFeedback", error, { userId: user.id });
     return { ok: false, message: publicDbErrorMessage(error.message) };
   }
 

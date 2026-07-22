@@ -7,6 +7,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { ActionResult } from "@/lib/actions/auth";
+import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
 import {
   canEditEditorial,
   firstEditorialValidationMessage,
@@ -68,6 +69,11 @@ type AdminWriter = {
   from: (table: string) => AdminQuery;
 };
 
+function editorialError(scope: string, error: unknown, fallback = "Nao foi possivel salvar agora.") {
+  logServerError(scope, error);
+  return { ok: false, message: publicDatabaseErrorMessage(error, fallback) };
+}
+
 async function requireAdminEditor(): Promise<{ user: { id: string } } | { error: string }> {
   if (!isSupabaseConfigured()) {
     return { error: "Supabase nao configurado." };
@@ -86,7 +92,10 @@ async function requireAdminEditor(): Promise<{ user: { id: string } } | { error:
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error) return { error: error.message };
+  if (error) {
+    logServerError("editorial.requireAdminEditor.profile", error, { userId: user.id });
+    return { error: publicDatabaseErrorMessage(error) };
+  }
   if (!canEditEditorial(profile?.access_level)) {
     return { error: "Apenas administradores podem editar questoes." };
   }
@@ -127,7 +136,7 @@ export async function updateEditorialQuestionAction(
     .select("id, url, verified")
     .eq("question_id", value.id);
 
-  if (mediaError) return { ok: false, message: mediaError.message };
+  if (mediaError) return editorialError("editorial.media.select", mediaError);
 
   const mediaRecords = Array.isArray(mediaRows) ? mediaRows : [];
   const validationMessage = firstEditorialValidationMessage(value, mediaRecords);
@@ -146,7 +155,11 @@ export async function updateEditorialQuestionAction(
     .single();
 
   if (subjectError || !subject) {
-    return { ok: false, message: subjectError?.message ?? "Nao foi possivel salvar disciplina." };
+    return editorialError(
+      "editorial.subject.upsert",
+      subjectError,
+      "Nao foi possivel salvar disciplina.",
+    );
   }
   const subjectId = String(subject.id);
 
@@ -161,7 +174,7 @@ export async function updateEditorialQuestionAction(
     .maybeSingle();
 
   if (existingTopicError) {
-    return { ok: false, message: existingTopicError.message };
+    return editorialError("editorial.topic.select", existingTopicError);
   }
 
   let topicId: string;
@@ -183,7 +196,11 @@ export async function updateEditorialQuestionAction(
       .single();
 
     if (topicError || !topic) {
-      return { ok: false, message: topicError?.message ?? "Nao foi possivel salvar topico." };
+      return editorialError(
+        "editorial.topic.insert",
+        topicError,
+        "Nao foi possivel salvar topico.",
+      );
     }
     topicId = String(topic.id);
   }
@@ -215,7 +232,7 @@ export async function updateEditorialQuestionAction(
     })
     .eq("id", value.id);
 
-  if (questionError) return { ok: false, message: questionError.message };
+  if (questionError) return editorialError("editorial.question.update", questionError);
 
   for (const option of value.options) {
     const { error } = await admin
@@ -224,7 +241,7 @@ export async function updateEditorialQuestionAction(
       .eq("question_id", value.id)
       .eq("option_key", option.option_key);
 
-    if (error) return { ok: false, message: error.message };
+    if (error) return editorialError("editorial.option.update", error);
   }
 
   revalidatePath("/dashboard/editorial");

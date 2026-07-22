@@ -18,6 +18,7 @@ import type { ActionResult } from "@/lib/actions/auth";
 import type { AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { recordProductEvent } from "@/lib/services/product-events";
+import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
 import {
   buildQuestionAnswerRecord,
   nextReviewToggle,
@@ -63,6 +64,11 @@ async function getUserContext(): Promise<UserContext> {
   };
 }
 
+function learningError(scope: string, error: unknown, fallback = "Nao foi possivel salvar agora.") {
+  logServerError(scope, error);
+  return { ok: false, message: publicDatabaseErrorMessage(error, fallback) };
+}
+
 export async function saveDiagnosisAction(
   input: DiagnosisInput,
 ): Promise<ActionResult> {
@@ -88,7 +94,7 @@ export async function saveDiagnosisAction(
     })
     .eq("id", user.id);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.getUserContext", error);
 
   await recordProductEvent({
     supabase,
@@ -173,7 +179,8 @@ export async function submitQuestionAnswerAction(input: {
     .single();
 
   if (questionError || !question) {
-    return { ok: false, message: questionError?.message ?? "Questão não encontrada." };
+    if (questionError) logServerError("learning.submitQuestionAnswer.question", questionError);
+    return { ok: false, message: "Questao nao encontrada." };
   }
 
   if (!isStudentReadyQuestion(question)) {
@@ -191,7 +198,7 @@ export async function submitQuestionAnswerAction(input: {
   });
   const { error } = await supabase.from("user_question_answers").insert(row);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.saveDiagnosis", error);
 
   await refreshTopicPerformance(user.id, question.topic_id);
   await recordProductEvent({
@@ -234,7 +241,7 @@ export async function addQuestionReviewAction(questionId: string): Promise<Actio
     { onConflict: "user_id,question_id" },
   );
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.answerFallbackQuestion", error);
   revalidatePath("/dashboard/praticar");
   return { ok: true, message: "Questão adicionada à revisão." };
 }
@@ -253,7 +260,7 @@ export async function toggleQuestionReviewAction(
     .eq("question_id", questionId)
     .maybeSingle();
 
-  if (selectError) return { ok: false, message: selectError.message };
+  if (selectError) return learningError("learning.toggleQuestionBookmark.select", selectError);
 
   const toggle = nextReviewToggle(existing, user.id, questionId);
 
@@ -264,7 +271,7 @@ export async function toggleQuestionReviewAction(
       .eq("id", toggle.id)
       .eq("user_id", user.id);
 
-    if (error) return { ok: false, message: error.message };
+    if (error) return learningError("learning.toggleQuestionBookmark.delete", error);
     revalidatePath("/dashboard/praticar");
     return { ok: true, reviewed: toggle.reviewed, message: toggle.message };
   }
@@ -275,7 +282,7 @@ export async function toggleQuestionReviewAction(
 
   const { error } = await supabase.from("user_question_reviews").insert(toggle.row);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.toggleQuestionBookmark.insert", error);
   revalidatePath("/dashboard/praticar");
   return { ok: true, reviewed: toggle.reviewed, message: toggle.message };
 }
@@ -290,7 +297,7 @@ export async function markReviewMasteredAction(questionId: string): Promise<Acti
     .eq("user_id", user.id)
     .eq("question_id", questionId);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.updateReviewToggle", error);
   revalidatePath("/dashboard/praticar");
   return { ok: true, message: "Conteúdo marcado como dominado." };
 }
@@ -319,7 +326,8 @@ export async function startSimulationAction(simulationId: string): Promise<{
     .single();
 
   if (simulationError || !simulation) {
-    return { ok: false, message: simulationError?.message ?? "Simulado não encontrado." };
+    if (simulationError) logServerError("learning.submitSimulationAnswer.simulation", simulationError);
+    return { ok: false, message: "Simulado nao encontrado." };
   }
 
   const isDiagnostic = simulation.title.toLowerCase().includes("diagn");
@@ -330,7 +338,7 @@ export async function startSimulationAction(simulationId: string): Promise<{
     )
     .eq("simulation_id", simulationId);
   if (simulationQuestionError) {
-    return { ok: false, message: simulationQuestionError.message };
+    return learningError("learning.submitSimulationAnswer.question", simulationQuestionError);
   }
   const totalQuestions =
     simulationQuestionRows?.filter((row) => {
@@ -355,7 +363,7 @@ export async function startSimulationAction(simulationId: string): Promise<{
     .select("id")
     .single();
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.submitSimulationAnswer.answer", error);
   await recordProductEvent({
     supabase,
     userId: user.id,
@@ -393,7 +401,8 @@ export async function saveSimulationAnswerAction(input: {
     .single();
 
   if (questionError || !question) {
-    return { ok: false, message: questionError?.message ?? "Questão não encontrada." };
+    if (questionError) logServerError("learning.submitSimulationAnswer.questionRow", questionError);
+    return { ok: false, message: "Questao nao encontrada." };
   }
 
   if (!isStudentReadyQuestion(question)) {
@@ -414,7 +423,7 @@ export async function saveSimulationAnswerAction(input: {
     { onConflict: "user_simulation_id,question_id" },
   );
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.submitQuestionAnswer", error);
   return { ok: true, message: "Resposta salva." };
 }
 
@@ -437,7 +446,7 @@ export async function finishSimulationAction(
     .select("question_id, is_correct")
     .eq("user_simulation_id", userSimulationId);
 
-  if (answersError) return { ok: false, message: answersError.message };
+  if (answersError) return learningError("learning.finishSimulation.answers", answersError);
 
   const { data: simulation, error: simulationError } = await supabase
     .from("user_simulations")
@@ -447,7 +456,8 @@ export async function finishSimulationAction(
     .single();
 
   if (simulationError || !simulation) {
-    return { ok: false, message: simulationError?.message ?? "Simulado não encontrado." };
+    if (simulationError) logServerError("learning.finishSimulation.simulation", simulationError);
+    return { ok: false, message: "Simulado nao encontrado." };
   }
 
   const answered = answers?.length ?? 0;
@@ -471,7 +481,7 @@ export async function finishSimulationAction(
     .eq("id", userSimulationId)
     .eq("user_id", user.id);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.finishSimulation.update", error);
   await recordProductEvent({
     supabase,
     userId: user.id,
@@ -595,7 +605,7 @@ export async function generateSimulationAction(
     query = query.in("topics.name", criteria.topics);
   }
   const { data: rawCandidates, error: candidatesError } = await query.limit(2000);
-  if (candidatesError) return { ok: false, message: candidatesError.message };
+  if (candidatesError) return learningError("learning.generateSimulation.candidates", candidatesError);
   const candidates = (rawCandidates ?? []).filter(isStudentReadyQuestion);
   if (candidates.length < questionCount) {
     return {
@@ -673,7 +683,8 @@ export async function generateSimulationAction(
     .select("id")
     .single();
   if (simulationError || !simulation) {
-    return { ok: false, message: simulationError?.message ?? "Falha ao criar o simulado." };
+    if (simulationError) logServerError("learning.generateSimulation.create", simulationError);
+    return { ok: false, message: "Falha ao criar o simulado." };
   }
 
   const { error: questionsError } = await supabase.from("simulation_questions").insert(
@@ -685,7 +696,7 @@ export async function generateSimulationAction(
   );
   if (questionsError) {
     await supabase.from("simulations").delete().eq("id", simulation.id);
-    return { ok: false, message: questionsError.message };
+    return learningError("learning.generateSimulation.questions", questionsError);
   }
 
   revalidatePath("/dashboard/simulados");
@@ -736,7 +747,8 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     .single();
 
   if (planError || !plan) {
-    return { ok: false, message: planError?.message ?? "Não foi possível criar plano." };
+    if (planError) logServerError("learning.generateStudyPlan.create", planError);
+    return { ok: false, message: "Nao foi possivel criar plano." };
   }
 
   const availableDays = parseAvailableDays(profile?.available_days);
@@ -753,7 +765,7 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
 
   if (items.length) {
     const { error } = await supabase.from("study_plan_items").insert(items);
-    if (error) return { ok: false, message: error.message };
+    if (error) return learningError("learning.generateStudyPlan.items", error);
   }
 
   revalidatePath("/dashboard");
@@ -776,7 +788,7 @@ export async function completeStudyPlanItemAction(itemId: string): Promise<Actio
     .update({ completed: true, completed_at: new Date().toISOString() })
     .eq("id", itemId);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) return learningError("learning.generateStudyPlan.plan", error);
   await recordProductEvent({
     supabase,
     userId: user.id,

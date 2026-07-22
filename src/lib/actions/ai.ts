@@ -12,7 +12,6 @@ import {
 } from "@/lib/ai/credits";
 import { getWeekStart } from "@/lib/db/scoring";
 import type {
-  CreditAccount,
   CreditLedgerEntry,
   Profile,
   QuestionMedia,
@@ -27,6 +26,12 @@ import {
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
 import { generateGroqText, GroqConfigurationError } from "@/lib/services/groq";
 import { recordProductEvent } from "@/lib/services/product-events";
+import { logServerError } from "@/lib/security/public-errors";
+import {
+  checkRateLimit,
+  rateLimitedResult,
+  userRateLimitIdentifier,
+} from "@/lib/security/rate-limit";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 import type { Json } from "@/lib/supabase/types";
@@ -102,7 +107,10 @@ async function getUserContext(): Promise<UserContext> {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error) return { error: error.message };
+  if (error) {
+    logServerError("ai.getUserContext.profile", error, { userId: user.id });
+    return { error: "Nao foi possivel carregar seu perfil agora." };
+  }
 
   const access = getAccessContext((profile as Profile | null) ?? null);
   if (!access.hasPlatformAccess) {
@@ -129,19 +137,36 @@ export async function generateQuestionExplanationAction(
     return { ok: false, message: "Questao invalida para explicacao." };
   }
 
-  const balance = await ensureCreditBalance(
-    context,
-    AI_QUESTION_EXPLANATION_CREDIT_COST,
-  );
-  if (!balance.ok) return balance;
+  const rateLimit = await checkRateLimit({
+    operation: "ai.generate",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 10,
+    windowSeconds: 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const question = await getQuestionForAi(context.supabase, parsed.data.questionId);
   if (!question) {
     return { ok: false, message: "Questao nao encontrada ou ainda em revisao editorial." };
   }
 
+  const reservation = await reserveAiCredits({
+    context,
+    operation: "question_explanation",
+    referenceType: isFallbackQuestionId(question.id) ? "fallback_question" : "question",
+    referenceId: uuidOrNull(question.id),
+    metadata: {
+      question_id: question.id,
+      selected_option: parsed.data.selectedOption ?? null,
+      subject: question.subjects.name,
+      topic: question.topics.name,
+    },
+  });
+  if (!reservation.ok) return reservation;
+
+  let ai: Awaited<ReturnType<typeof generateGroqText>>;
   try {
-    const ai = await generateGroqText({
+    ai = await generateGroqText({
       maxCompletionTokens: 900,
       temperature: 0.3,
       messages: [
@@ -156,64 +181,56 @@ export async function generateQuestionExplanationAction(
         },
       ],
     });
-
-    const ledger = await spendAiCredits({
-      context,
-      operation: "question_explanation",
-      cost: AI_QUESTION_EXPLANATION_CREDIT_COST,
-      referenceType: isFallbackQuestionId(question.id) ? "fallback_question" : "question",
-      referenceId: uuidOrNull(question.id),
-      metadata: {
-        question_id: question.id,
-        selected_option: parsed.data.selectedOption ?? null,
-        subject: question.subjects.name,
-        topic: question.topics.name,
-        model: ai.model,
-        total_tokens: ai.usage?.totalTokens ?? null,
-      },
-    });
-    if (!ledger.ok) return ledger;
-
-    await recordProductEvent({
-      supabase: context.supabase,
-      userId: context.user.id,
-      eventName: "ai_question_explanation_generated",
-      route: "/dashboard/praticar",
-      metadata: {
-        question_id: question.id,
-        subject: question.subjects.name,
-        topic: question.topics.name,
-        cost: AI_QUESTION_EXPLANATION_CREDIT_COST,
-        model: ai.model,
-      },
-    });
-    revalidateCreditViews();
-
-    return {
-      ok: true,
-      message: "Explicacao gerada com IA.",
-      output: ai.content,
-      cost: AI_QUESTION_EXPLANATION_CREDIT_COST,
-      balanceAfter: ledger.ledger.balance_after,
-      model: ai.model,
-    };
   } catch (error) {
+    logServerError("ai.questionExplanation", error, { userId: context.user.id });
+    await refundAiCreditReservation(context, reservation.ledger.id, error);
     return {
       ok: false,
       message: aiErrorMessage(error),
     };
   }
+
+  const ledger = await confirmAiCreditReservation(context, reservation.ledger, {
+    model: ai.model,
+    total_tokens: ai.usage?.totalTokens ?? null,
+  });
+
+  await recordProductEvent({
+    supabase: context.supabase,
+    userId: context.user.id,
+    eventName: "ai_question_explanation_generated",
+    route: "/dashboard/praticar",
+    metadata: {
+      question_id: question.id,
+      subject: question.subjects.name,
+      topic: question.topics.name,
+      cost: AI_QUESTION_EXPLANATION_CREDIT_COST,
+      model: ai.model,
+    },
+  });
+  revalidateCreditViews();
+
+  return {
+    ok: true,
+    message: "Explicacao gerada com IA.",
+    output: ai.content,
+    cost: AI_QUESTION_EXPLANATION_CREDIT_COST,
+    balanceAfter: ledger.ledger.balance_after,
+    model: ai.model,
+  };
 }
 
 export async function generatePerformanceAnalysisAction(): Promise<AiActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
 
-  const balance = await ensureCreditBalance(
-    context,
-    AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
-  );
-  if (!balance.ok) return balance;
+  const rateLimit = await checkRateLimit({
+    operation: "ai.generate",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 10,
+    windowSeconds: 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const answerRows = await getRecentAnswerRows(context.supabase, context.user.id);
   if (!answerRows.ok) return { ok: false, message: answerRows.message };
@@ -224,8 +241,20 @@ export async function generatePerformanceAnalysisAction(): Promise<AiActionResul
     };
   }
 
+  const reservation = await reserveAiCredits({
+    context,
+    operation: "performance_analysis",
+    referenceType: "performance_analysis",
+    referenceId: null,
+    metadata: {
+      answers_analyzed: answerRows.answers.length,
+    },
+  });
+  if (!reservation.ok) return reservation;
+
+  let ai: Awaited<ReturnType<typeof generateGroqText>>;
   try {
-    const ai = await generateGroqText({
+    ai = await generateGroqText({
       maxCompletionTokens: 1_000,
       temperature: 0.35,
       messages: [
@@ -240,62 +269,73 @@ export async function generatePerformanceAnalysisAction(): Promise<AiActionResul
         },
       ],
     });
-
-    const ledger = await spendAiCredits({
-      context,
-      operation: "performance_analysis",
-      cost: AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
-      referenceType: "performance_analysis",
-      referenceId: null,
-      metadata: {
-        answers_analyzed: answerRows.answers.length,
-        model: ai.model,
-        total_tokens: ai.usage?.totalTokens ?? null,
-      },
-    });
-    if (!ledger.ok) return ledger;
-
-    await recordProductEvent({
-      supabase: context.supabase,
-      userId: context.user.id,
-      eventName: "ai_performance_analysis_generated",
-      route: "/dashboard/radar?tab=desempenho",
-      metadata: {
-        answers_analyzed: answerRows.answers.length,
-        cost: AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
-        model: ai.model,
-      },
-    });
-    revalidateCreditViews();
-
-    return {
-      ok: true,
-      message: "Analise de desempenho gerada com IA.",
-      output: ai.content,
-      cost: AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
-      balanceAfter: ledger.ledger.balance_after,
-      model: ai.model,
-    };
   } catch (error) {
+    logServerError("ai.performanceAnalysis", error, { userId: context.user.id });
+    await refundAiCreditReservation(context, reservation.ledger.id, error);
     return {
       ok: false,
       message: aiErrorMessage(error),
     };
   }
+
+  const ledger = await confirmAiCreditReservation(context, reservation.ledger, {
+    model: ai.model,
+    total_tokens: ai.usage?.totalTokens ?? null,
+  });
+
+  await recordProductEvent({
+    supabase: context.supabase,
+    userId: context.user.id,
+    eventName: "ai_performance_analysis_generated",
+    route: "/dashboard/radar?tab=desempenho",
+    metadata: {
+      answers_analyzed: answerRows.answers.length,
+      cost: AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
+      model: ai.model,
+    },
+  });
+  revalidateCreditViews();
+
+  return {
+    ok: true,
+    message: "Analise de desempenho gerada com IA.",
+    output: ai.content,
+    cost: AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
+    balanceAfter: ledger.ledger.balance_after,
+    model: ai.model,
+  };
 }
 
 export async function generateSmartStudyPlanAction(): Promise<AiActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
 
-  const balance = await ensureCreditBalance(context, AI_STUDY_PLAN_CREDIT_COST);
-  if (!balance.ok) return balance;
+  const rateLimit = await checkRateLimit({
+    operation: "ai.generate",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 10,
+    windowSeconds: 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const planContext = await getStudyPlanContext(context.supabase, context.user.id);
   if (!planContext.ok) return { ok: false, message: planContext.message };
 
+  const reservation = await reserveAiCredits({
+    context,
+    operation: "study_plan",
+    referenceType: "study_plan",
+    referenceId: uuidOrNull(planContext.planId),
+    metadata: {
+      plan_id: planContext.planId,
+      weak_topics: planContext.weakTopics.length,
+    },
+  });
+  if (!reservation.ok) return reservation;
+
+  let ai: Awaited<ReturnType<typeof generateGroqText>>;
   try {
-    const ai = await generateGroqText({
+    ai = await generateGroqText({
       maxCompletionTokens: 1_000,
       temperature: 0.4,
       messages: [
@@ -310,90 +350,52 @@ export async function generateSmartStudyPlanAction(): Promise<AiActionResult> {
         },
       ],
     });
-
-    const ledger = await spendAiCredits({
-      context,
-      operation: "study_plan",
-      cost: AI_STUDY_PLAN_CREDIT_COST,
-      referenceType: "study_plan",
-      referenceId: uuidOrNull(planContext.planId),
-      metadata: {
-        plan_id: planContext.planId,
-        weak_topics: planContext.weakTopics.length,
-        model: ai.model,
-        total_tokens: ai.usage?.totalTokens ?? null,
-      },
-    });
-    if (!ledger.ok) return ledger;
-
-    await recordProductEvent({
-      supabase: context.supabase,
-      userId: context.user.id,
-      eventName: "ai_study_plan_generated",
-      route: "/dashboard#plano-semana",
-      metadata: {
-        plan_id: planContext.planId,
-        cost: AI_STUDY_PLAN_CREDIT_COST,
-        model: ai.model,
-      },
-    });
-    revalidateCreditViews();
-
-    return {
-      ok: true,
-      message: "Plano inteligente gerado com IA.",
-      output: ai.content,
-      cost: AI_STUDY_PLAN_CREDIT_COST,
-      balanceAfter: ledger.ledger.balance_after,
-      model: ai.model,
-    };
   } catch (error) {
+    logServerError("ai.studyPlan", error, { userId: context.user.id });
+    await refundAiCreditReservation(context, reservation.ledger.id, error);
     return {
       ok: false,
       message: aiErrorMessage(error),
     };
   }
-}
 
-async function ensureCreditBalance(
-  context: Exclude<UserContext, { error: string }>,
-  cost: number,
-): Promise<
-  | { ok: true; account: CreditAccount }
-  | { ok: false; message: string }
-> {
-  const { data, error } = await context.supabase.rpc("ensure_credit_account", {
-    target_user_id: context.user.id,
+  const ledger = await confirmAiCreditReservation(context, reservation.ledger, {
+    model: ai.model,
+    total_tokens: ai.usage?.totalTokens ?? null,
   });
 
-  if (error || !data) {
-    return {
-      ok: false,
-      message: mapCreditError(error?.message ?? "Nao foi possivel carregar creditos."),
-    };
-  }
+  await recordProductEvent({
+    supabase: context.supabase,
+    userId: context.user.id,
+    eventName: "ai_study_plan_generated",
+    route: "/dashboard#plano-semana",
+    metadata: {
+      plan_id: planContext.planId,
+      cost: AI_STUDY_PLAN_CREDIT_COST,
+      model: ai.model,
+    },
+  });
+  revalidateCreditViews();
 
-  if (data.balance < cost) {
-    return {
-      ok: false,
-      message: `Saldo insuficiente. Esta acao custa ${cost} credito${cost === 1 ? "" : "s"}.`,
-    };
-  }
-
-  return { ok: true, account: data };
+  return {
+    ok: true,
+    message: "Plano inteligente gerado com IA.",
+    output: ai.content,
+    cost: AI_STUDY_PLAN_CREDIT_COST,
+    balanceAfter: ledger.ledger.balance_after,
+    model: ai.model,
+  };
 }
 
-async function spendAiCredits({
+async function reserveAiCredits({
   context,
   operation,
-  cost,
   referenceType,
   referenceId,
   metadata,
 }: {
   context: Exclude<UserContext, { error: string }>;
   operation: "question_explanation" | "performance_analysis" | "study_plan";
-  cost: number;
   referenceType: string;
   referenceId: string | null;
   metadata: Record<string, Json | undefined>;
@@ -401,25 +403,66 @@ async function spendAiCredits({
   | { ok: true; ledger: CreditLedgerEntry }
   | { ok: false; message: string }
 > {
-  const { data, error } = await context.supabase.rpc("spend_ai_credits", {
+  const { data, error } = await context.supabase.rpc("reserve_ai_credits", {
     input_operation: operation,
-    input_cost: cost,
     input_reference_type: referenceType,
     input_reference_id: referenceId,
     input_metadata: stripUndefined(metadata),
   });
 
   if (error || !data) {
+    logServerError("ai.reserveCredits", error, {
+      userId: context.user.id,
+      operation,
+    });
     return {
       ok: false,
       message: mapCreditError(
-        error?.message ??
-          "A IA respondeu, mas o debito nao foi confirmado. Nenhum credito foi cobrado.",
+        error?.message ?? "Nao foi possivel reservar creditos para a IA.",
       ),
     };
   }
 
   return { ok: true, ledger: data };
+}
+
+async function confirmAiCreditReservation(
+  context: Exclude<UserContext, { error: string }>,
+  reservation: CreditLedgerEntry,
+  metadata: Record<string, Json | undefined>,
+): Promise<{ ok: true; ledger: CreditLedgerEntry }> {
+  const { data, error } = await context.supabase.rpc("confirm_ai_credit_reservation", {
+    input_ledger_id: reservation.id,
+    input_metadata: stripUndefined(metadata),
+  });
+
+  if (error || !data) {
+    logServerError("ai.confirmReservation", error, {
+      userId: context.user.id,
+      ledgerId: reservation.id,
+    });
+    return { ok: true, ledger: reservation };
+  }
+
+  return { ok: true, ledger: data };
+}
+
+async function refundAiCreditReservation(
+  context: Exclude<UserContext, { error: string }>,
+  ledgerId: string,
+  cause: unknown,
+) {
+  const { error } = await context.supabase.rpc("refund_ai_credit_reservation", {
+    input_ledger_id: ledgerId,
+    input_reason: aiFailureReason(cause),
+  });
+
+  if (error) {
+    logServerError("ai.refundReservation", error, {
+      userId: context.user.id,
+      ledgerId,
+    });
+  }
 }
 
 async function getQuestionForAi(
@@ -472,7 +515,10 @@ async function getRecentAnswerRows(
     .order("answered_at", { ascending: false })
     .limit(60);
 
-  if (error) return { ok: false, message: error.message };
+  if (error) {
+    logServerError("ai.recentAnswers", error, { userId });
+    return { ok: false, message: "Nao foi possivel carregar seu desempenho recente." };
+  }
 
   const answers = ((data ?? []) as unknown as Array<{
     is_correct: boolean;
@@ -571,9 +617,18 @@ async function getStudyPlanContext(
       .limit(10),
   ]);
 
-  if (profileResult.error) return { ok: false, message: profileResult.error.message };
-  if (planResult.error) return { ok: false, message: planResult.error.message };
-  if (performanceResult.error) return { ok: false, message: performanceResult.error.message };
+  if (profileResult.error) {
+    logServerError("ai.studyPlanContext.profile", profileResult.error, { userId });
+    return { ok: false, message: "Nao foi possivel carregar seu perfil de estudos." };
+  }
+  if (planResult.error) {
+    logServerError("ai.studyPlanContext.plan", planResult.error, { userId });
+    return { ok: false, message: "Nao foi possivel carregar seu plano atual." };
+  }
+  if (performanceResult.error) {
+    logServerError("ai.studyPlanContext.performance", performanceResult.error, { userId });
+    return { ok: false, message: "Nao foi possivel carregar seu desempenho por assunto." };
+  }
 
   const profile = profileResult.data as
     | {
@@ -743,14 +798,19 @@ function mapCreditError(message: string) {
   if (message.includes("platform access required")) {
     return accessRequiredMessage();
   }
-  return message;
+  return "Nao foi possivel reservar creditos para a IA.";
 }
 
 function aiErrorMessage(error: unknown) {
   if (error instanceof GroqConfigurationError) {
     return "A chave da Groq ainda nao esta configurada no servidor.";
   }
-  return error instanceof Error ? error.message : "Nao foi possivel gerar a resposta da IA.";
+  return "Nao foi possivel gerar a resposta da IA agora. Tente novamente em instantes.";
+}
+
+function aiFailureReason(error: unknown) {
+  if (error instanceof GroqConfigurationError) return "provider_not_configured";
+  return error instanceof Error ? error.name || "provider_failed" : "provider_failed";
 }
 
 function clip(value: string, maxLength: number) {

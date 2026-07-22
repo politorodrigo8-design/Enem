@@ -32,7 +32,10 @@ export function LegalPage({
                 <ol className="mt-3 grid gap-2 text-sm leading-6 text-slate-600 sm:grid-cols-2">
                   {sections.map((section, index) => (
                     <li key={section.id}>
-                      <a className="hover:text-blue-800" href={`#${section.id}`}>
+                      <a
+                        className="flex min-h-11 items-center rounded-md px-2 py-2 hover:bg-white hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                        href={`#${section.id}`}
+                      >
                         {index + 1}. {section.heading}
                       </a>
                     </li>

@@ -20,6 +20,12 @@ import {
   type UpdatePasswordInput,
 } from "@/lib/schemas/auth";
 import { recordProductEvent } from "@/lib/services/product-events";
+import { logServerError } from "@/lib/security/public-errors";
+import {
+  checkRateLimit,
+  emailRateLimitIdentifier,
+  rateLimitedResult,
+} from "@/lib/security/rate-limit";
 
 export type ActionResult = {
   ok: boolean;
@@ -61,33 +67,13 @@ function authErrorMessage(error: unknown) {
 }
 
 function logAuthError(context: string, error: unknown) {
-  const cause = error instanceof Error ? error.cause : undefined;
-  const causeRecord =
-    cause && typeof cause === "object" ? (cause as Record<string, unknown>) : {};
   const publicKey = getSupabasePublicKey();
 
-  console.error(`[Pontua Enem auth] ${context}`, {
+  logServerError(`auth.${context}`, error, {
     supabaseUrl: getSupabaseUrl(),
     publicKeyLength: publicKey.length,
     publicKeyHasWhitespace: /\s/.test(publicKey),
     publicKeyHasWrappingQuotes: /^['"]|['"]$/.test(publicKey),
-    errorName: error instanceof Error ? error.name : typeof error,
-    errorMessage: error instanceof Error ? error.message : String(error),
-    errorStack: error instanceof Error ? error.stack : undefined,
-    causeName:
-      cause instanceof Error
-        ? cause.name
-        : typeof causeRecord.name === "string"
-          ? causeRecord.name
-          : undefined,
-    causeCode: causeRecord.code,
-    causeMessage:
-      cause instanceof Error
-        ? cause.message
-        : typeof causeRecord.message === "string"
-          ? causeRecord.message
-          : undefined,
-    causeStack: cause instanceof Error ? cause.stack : undefined,
   });
 }
 
@@ -100,6 +86,14 @@ export async function signInAction(input: SignInInput): Promise<ActionResult> {
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  const rateLimit = await checkRateLimit({
+    operation: "auth.sign_in",
+    identifier: emailRateLimitIdentifier(parsed.data.email),
+    limit: 10,
+    windowSeconds: 15 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   try {
     const supabase = await createClient();
@@ -127,6 +121,14 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  const rateLimit = await checkRateLimit({
+    operation: "auth.sign_up",
+    identifier: emailRateLimitIdentifier(parsed.data.email),
+    limit: 5,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   try {
     const supabase = await createClient();
@@ -176,6 +178,14 @@ export async function resetPasswordAction(
   if (!parsed.success) {
     return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
+
+  const rateLimit = await checkRateLimit({
+    operation: "auth.reset_password",
+    identifier: emailRateLimitIdentifier(parsed.data.email),
+    limit: 5,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   try {
     const supabase = await createClient();

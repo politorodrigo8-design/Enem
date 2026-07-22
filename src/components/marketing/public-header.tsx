@@ -31,7 +31,7 @@ export function PublicHeader({ cta }: PublicHeaderProps) {
             <Link
               key={link.href}
               href={link.href}
-              className="text-sm font-medium text-slate-600 transition-colors hover:text-slate-950"
+              className="inline-flex min-h-10 items-center rounded-md px-1 text-sm font-medium text-slate-600 transition-colors hover:text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             >
               {link.label}
             </Link>
@@ -55,7 +55,7 @@ export function PublicHeader({ cta }: PublicHeaderProps) {
         </div>
         <button
           type="button"
-          className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-200 text-slate-700 md:hidden"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 md:hidden"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
           aria-label="Abrir menu"
@@ -70,7 +70,7 @@ export function PublicHeader({ cta }: PublicHeaderProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                className="inline-flex min-h-11 items-center rounded-lg px-3 py-3 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 onClick={() => setOpen(false)}
               >
                 {link.label}

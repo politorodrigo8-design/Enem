@@ -21,6 +21,12 @@ import {
 } from "@/lib/schemas/essay";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
+import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
+import {
+  checkRateLimit,
+  rateLimitedResult,
+  userRateLimitIdentifier,
+} from "@/lib/security/rate-limit";
 
 async function getAuthenticatedContext() {
   if (!isSupabaseConfigured()) {
@@ -42,7 +48,10 @@ async function getAuthenticatedContext() {
     .eq("id", user.id)
     .maybeSingle();
 
-  if (error) return { error: error.message } as const;
+  if (error) {
+    logServerError("credits.getAuthenticatedContext.profile", error);
+    return { error: publicDatabaseErrorMessage(error) } as const;
+  }
 
   return {
     supabase,
@@ -71,7 +80,7 @@ function mapEssaySubmitError(message: string) {
   if (message.includes("invalid file count")) {
     return "Envie de 1 a 4 arquivos por redacao.";
   }
-  return message;
+  return "Nao foi possivel enviar a redacao agora.";
 }
 
 function mapAdminEssayError(message: string) {
@@ -90,7 +99,7 @@ function mapAdminEssayError(message: string) {
   if (message.includes("cancelled submission cannot be completed")) {
     return "Redacao cancelada nao pode ser concluida.";
   }
-  return message;
+  return "Nao foi possivel atualizar a redacao agora.";
 }
 
 export async function submitEssayCorrectionAction(
@@ -135,6 +144,14 @@ export async function submitEssayCorrectionAction(
       message: filesParsed.error.issues[0]?.message ?? "Arquivos invalidos.",
     };
   }
+
+  const rateLimit = await checkRateLimit({
+    operation: "essays.submit",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 5,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const { supabase, user } = context;
   const { data: attemptRows, error: attemptError } = await supabase.rpc(
@@ -225,6 +242,9 @@ export async function submitEssayCorrectionAction(
       }
     }
   } catch (error) {
+    logServerError("credits.submitEssayCorrection.upload", error, {
+      submissionId: attempt.submission_id,
+    });
     await removeUploadedFiles(uploadedPaths);
     await supabase
       .from("essay_submission_files")
@@ -283,6 +303,14 @@ export async function submitOnlineEssayCorrectionAction(
       message: parsed.error.issues[0]?.message ?? "Dados invalidos.",
     };
   }
+
+  const rateLimit = await checkRateLimit({
+    operation: "essays.submit",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 5,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const { data, error } = await context.supabase.rpc("submit_essay_for_correction", {
     input_client_token: parsed.data.idempotencyKey,
@@ -363,7 +391,8 @@ export async function createEssayFileSignedUrlAction(
     .maybeSingle();
 
   if (error || !file) {
-    return { ok: false, message: error?.message ?? "Arquivo nao encontrado." };
+    if (error) logServerError("credits.createEssayFileSignedUrl.file", error);
+    return { ok: false, message: "Arquivo nao encontrado." };
   }
 
   const { data, error: signedError } = await context.supabase.storage
@@ -371,7 +400,8 @@ export async function createEssayFileSignedUrlAction(
     .createSignedUrl(file.storage_path, ESSAY_SIGNED_URL_EXPIRES_IN_SECONDS);
 
   if (signedError || !data?.signedUrl) {
-    return { ok: false, message: signedError?.message ?? "Nao foi possivel abrir o arquivo." };
+    if (signedError) logServerError("credits.createEssayFileSignedUrl.signedUrl", signedError);
+    return { ok: false, message: "Nao foi possivel abrir o arquivo." };
   }
 
   return {

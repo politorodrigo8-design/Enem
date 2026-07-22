@@ -413,7 +413,8 @@ export type Database = {
             | "purchase"
             | "ai_question_explanation"
             | "ai_performance_analysis"
-            | "ai_study_plan";
+            | "ai_study_plan"
+            | "ai_credit_refund";
           reference_type: string | null;
           reference_id: string | null;
           related_ledger_id: string | null;
@@ -436,7 +437,8 @@ export type Database = {
             | "purchase"
             | "ai_question_explanation"
             | "ai_performance_analysis"
-            | "ai_study_plan";
+            | "ai_study_plan"
+            | "ai_credit_refund";
           reference_type?: string | null;
           reference_id?: string | null;
           related_ledger_id?: string | null;
@@ -826,6 +828,25 @@ export type Database = {
         };
         Update: Partial<Database["public"]["Tables"]["radar_methodology_versions"]["Insert"]>;
       };
+      rate_limit_buckets: {
+        Row: {
+          operation: string;
+          identifier_hash: string;
+          window_start: string;
+          expires_at: string;
+          count: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          operation: string;
+          identifier_hash: string;
+          window_start?: string;
+          expires_at: string;
+          count?: number;
+        };
+        Update: Partial<Database["public"]["Tables"]["rate_limit_buckets"]["Insert"]>;
+      };
     };
     Functions: {
       grant_paid_access_for_order: {
@@ -845,6 +866,46 @@ export type Database = {
           input_metadata?: Json;
         };
         Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
+      };
+      reserve_ai_credits: {
+        Args: {
+          input_operation: string;
+          input_reference_type?: string | null;
+          input_reference_id?: string | null;
+          input_metadata?: Json;
+        };
+        Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
+      };
+      confirm_ai_credit_reservation: {
+        Args: {
+          input_ledger_id: string;
+          input_metadata?: Json;
+        };
+        Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
+      };
+      refund_ai_credit_reservation: {
+        Args: {
+          input_ledger_id: string;
+          input_reason?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
+      };
+      consume_rate_limit: {
+        Args: {
+          input_operation: string;
+          input_identifier_hash: string;
+          input_limit: number;
+          input_window_seconds: number;
+        };
+        Returns: Array<{
+          allowed: boolean;
+          retry_after_seconds: number;
+          remaining: number;
+        }>;
+      };
+      delete_expired_rate_limits: {
+        Args: Record<string, never>;
+        Returns: number;
       };
       is_admin: {
         Args: { user_id?: string };

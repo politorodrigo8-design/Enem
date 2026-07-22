@@ -9,6 +9,8 @@ import {
   isTrustedCheckoutOrigin,
 } from "@/lib/services/payment-security.mjs";
 import { recordProductEvent } from "@/lib/services/product-events";
+import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
+import { checkRateLimit, userRateLimitIdentifier } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
@@ -53,6 +55,19 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { ok: false, message: "Entre na sua conta antes de iniciar a compra." },
       { status: 401 },
+    );
+  }
+
+  const rateLimit = await checkRateLimit({
+    operation: "payments.create",
+    identifier: userRateLimitIdentifier(user.id),
+    limit: 5,
+    windowSeconds: 10 * 60,
+  });
+  if (!rateLimit.allowed) {
+    return NextResponse.json(
+      { ok: false, message: rateLimit.message },
+      { status: 429, headers: { "Retry-After": String(rateLimit.retryAfterSeconds) } },
     );
   }
 
@@ -187,8 +202,15 @@ export async function POST(request: NextRequest) {
     .single();
 
   if (orderError || !order) {
+    logServerError("payments.create.order", orderError, { userId: user.id });
     return NextResponse.json(
-      { ok: false, message: orderError?.message ?? "Não foi possível criar o pedido." },
+      {
+        ok: false,
+        message: publicDatabaseErrorMessage(
+          orderError,
+          "Nao foi possivel criar o pedido agora.",
+        ),
+      },
       { status: 500 },
     );
   }
@@ -214,7 +236,7 @@ export async function POST(request: NextRequest) {
       userEmail: user.email ?? typedProfile?.email ?? "",
     });
   } catch (error) {
-    console.error("Mercado Pago preference creation failed", error);
+    logServerError("payments.create.preference", error, { orderId: createdOrder.id });
     await admin
       .from("orders")
       .update({
@@ -241,8 +263,9 @@ export async function POST(request: NextRequest) {
     .eq("id", createdOrder.id);
 
   if (updateError || !preference.checkoutUrl) {
+    logServerError("payments.create.update", updateError, { orderId: createdOrder.id });
     return NextResponse.json(
-      { ok: false, message: updateError?.message ?? "Checkout sem URL de pagamento." },
+      { ok: false, message: "Nao foi possivel preparar o checkout agora." },
       { status: 500 },
     );
   }
