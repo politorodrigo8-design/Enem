@@ -49,15 +49,15 @@ export function CheckoutButton({
         onClick={startCheckout}
       >
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <LockKeyhole className="h-5 w-5" />}
-        {disabled ? "Checkout indisponivel" : "Ir para pagamento"}
+        {disabled ? "Pagamento indisponível" : "Finalizar compra"}
       </Button>
       {disabledMessage ? (
-        <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold text-slate-700">
+        <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold leading-6 text-slate-700">
           {disabledMessage}
         </p>
       ) : null}
       {message ? (
-        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">
+        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-900">
           {message}
         </p>
       ) : null}

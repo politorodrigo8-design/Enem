@@ -75,7 +75,7 @@ export async function getPublicProduct(): Promise<Product> {
     return fallbackProduct();
   }
 
-  return data;
+  return withCurrentProductBrand(data);
 }
 
 export async function getActiveProductForCheckout(
@@ -92,7 +92,14 @@ export async function getActiveProductForCheckout(
     throw new Error(error?.message ?? "Produto ativo nao encontrado.");
   }
 
-  return data as Product;
+  return withCurrentProductBrand(data as Product);
+}
+
+function withCurrentProductBrand(product: Product): Product {
+  return {
+    ...product,
+    product_name: PRODUCT_NAME,
+  };
 }
 
 function fallbackProduct(): Product {
