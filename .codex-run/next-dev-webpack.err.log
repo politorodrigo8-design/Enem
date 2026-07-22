@@ -1,0 +1,10 @@
+⨯ SyntaxError: Unexpected end of JSON input
+    at JSON.parse (<anonymous>) {
+  page: '/dashboard'
+}
+⨯ Error: Manifest file is empty
+    at ignore-listed frames {
+  page: '/'
+}
+[browser] Uncaught Error: Manifest file is empty
+⚠ Found a change in next.config.ts. Restarting the server to apply the changes...

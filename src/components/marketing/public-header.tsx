@@ -12,7 +12,14 @@ const links = [
   { label: "Preços", href: "/#precos" },
 ];
 
-export function PublicHeader() {
+type PublicHeaderProps = {
+  cta: {
+    href: string;
+    label: string;
+  };
+};
+
+export function PublicHeader({ cta }: PublicHeaderProps) {
   const [open, setOpen] = useState(false);
 
   return (
@@ -39,10 +46,10 @@ export function PublicHeader() {
             Entrar
           </Link>
           <Link
-            href="/checkout"
+            href={cta.href}
             className={buttonClasses({ variant: "primary", size: "md" })}
           >
-            Comprar acesso
+            {cta.label}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
         </div>
@@ -78,11 +85,11 @@ export function PublicHeader() {
               Entrar
             </Link>
             <Link
-              href="/checkout"
+              href={cta.href}
               className={buttonClasses({ variant: "primary", size: "md", full: true })}
               onClick={() => setOpen(false)}
             >
-              Comprar acesso
+              {cta.label}
             </Link>
           </nav>
         </div>

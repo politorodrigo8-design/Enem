@@ -6,6 +6,8 @@ import {
   BookOpen,
   ChevronDown,
   Coins,
+  FileCheck2,
+  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -30,12 +32,14 @@ const navigation = [
       { label: "Praticar", href: "/dashboard/praticar", icon: BookOpen },
       { label: "Simulados", href: "/dashboard/simulados", icon: Target },
       { label: "Radar ENEM", href: "/dashboard/radar", icon: Radar },
+      { label: "Correção de redação", href: "/dashboard/correcao-redacao", icon: FileText },
     ],
   },
   {
     group: "Conta",
     items: [
       { label: "Editorial", href: "/dashboard/editorial", icon: FilePenLine, adminOnly: true },
+      { label: "Correções", href: "/dashboard/redacoes", icon: FileCheck2, adminOnly: true },
       { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
     ],
   },

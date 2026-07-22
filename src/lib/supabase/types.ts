@@ -253,6 +253,10 @@ export type Database = {
           duration_minutes: number;
           difficulty: string;
           status: string;
+          created_by: string | null;
+          is_generated: boolean;
+          criteria: Json | null;
+          created_at: string;
         };
         Insert: {
           id?: string;
@@ -261,6 +265,10 @@ export type Database = {
           duration_minutes: number;
           difficulty: string;
           status?: string;
+          created_by?: string | null;
+          is_generated?: boolean;
+          criteria?: Json | null;
+          created_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["simulations"]["Insert"]>;
       };
@@ -368,6 +376,235 @@ export type Database = {
           priority_score?: number;
         };
         Update: Partial<Database["public"]["Tables"]["user_topic_performance"]["Insert"]>;
+      };
+      credit_accounts: {
+        Row: {
+          user_id: string;
+          balance: number;
+          monthly_allowance: number;
+          cycle_started_at: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          user_id: string;
+          balance?: number;
+          monthly_allowance?: number;
+          cycle_started_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["credit_accounts"]["Insert"]>;
+      };
+      credit_ledger: {
+        Row: {
+          id: string;
+          user_id: string;
+          amount: number;
+          balance_after: number;
+          reason:
+            | "initial_allowance"
+            | "essay_correction"
+            | "essay_refund"
+            | "manual_adjustment"
+            | "training_reward"
+            | "simulation_reward"
+            | "study_plan_reward"
+            | "purchase";
+          reference_type: string | null;
+          reference_id: string | null;
+          related_ledger_id: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          amount: number;
+          balance_after: number;
+          reason:
+            | "initial_allowance"
+            | "essay_correction"
+            | "essay_refund"
+            | "manual_adjustment"
+            | "training_reward"
+            | "simulation_reward"
+            | "study_plan_reward"
+            | "purchase";
+          reference_type?: string | null;
+          reference_id?: string | null;
+          related_ledger_id?: string | null;
+          metadata?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["credit_ledger"]["Insert"]>;
+      };
+      essay_submissions: {
+        Row: {
+          id: string;
+          user_id: string;
+          client_token: string | null;
+          idempotency_key: string | null;
+          theme: string;
+          delivery_type: "online" | "upload";
+          essay_text: string | null;
+          file_name: string | null;
+          file_size: number | null;
+          file_type: string | null;
+          storage_bucket: string | null;
+          storage_path: string | null;
+          word_count: number;
+          credit_cost: number;
+          status:
+            | "uploading"
+            | "pending"
+            | "in_review"
+            | "completed"
+            | "cancelled"
+            | "upload_failed";
+          file_count: number;
+          student_note: string | null;
+          debit_ledger_id: string | null;
+          assigned_admin_id: string | null;
+          assigned_at: string | null;
+          scores: Json | null;
+          feedback: Json | null;
+          reviewer_notes: string | null;
+          refunded_by: string | null;
+          refunded_at: string | null;
+          refund_ledger_id: string | null;
+          cancellation_reason: string | null;
+          upload_failed_at: string | null;
+          upload_failure_reason: string | null;
+          submitted_at: string;
+          created_at: string;
+          completed_at: string | null;
+          completed_by: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          client_token?: string | null;
+          idempotency_key?: string | null;
+          theme: string;
+          delivery_type: "online" | "upload";
+          essay_text?: string | null;
+          file_name?: string | null;
+          file_size?: number | null;
+          file_type?: string | null;
+          storage_bucket?: string | null;
+          storage_path?: string | null;
+          word_count?: number;
+          credit_cost?: number;
+          status?:
+            | "uploading"
+            | "pending"
+            | "in_review"
+            | "completed"
+            | "cancelled"
+            | "upload_failed";
+          file_count?: number;
+          student_note?: string | null;
+          debit_ledger_id?: string | null;
+          assigned_admin_id?: string | null;
+          assigned_at?: string | null;
+          scores?: Json | null;
+          feedback?: Json | null;
+          reviewer_notes?: string | null;
+          refunded_by?: string | null;
+          refunded_at?: string | null;
+          refund_ledger_id?: string | null;
+          cancellation_reason?: string | null;
+          upload_failed_at?: string | null;
+          upload_failure_reason?: string | null;
+          submitted_at?: string;
+          created_at?: string;
+          completed_at?: string | null;
+          completed_by?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["essay_submissions"]["Insert"]>;
+      };
+      essay_submission_files: {
+        Row: {
+          id: string;
+          submission_id: string;
+          user_id: string;
+          storage_bucket: string;
+          storage_path: string;
+          page_order: number;
+          mime_type: "application/pdf" | "image/png" | "image/jpeg";
+          size_bytes: number;
+          original_name: string | null;
+          uploaded_at: string;
+        };
+        Insert: {
+          id?: string;
+          submission_id: string;
+          user_id: string;
+          storage_bucket?: string;
+          storage_path: string;
+          page_order: number;
+          mime_type: "application/pdf" | "image/png" | "image/jpeg";
+          size_bytes: number;
+          original_name?: string | null;
+          uploaded_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["essay_submission_files"]["Insert"]>;
+      };
+      essay_submission_events: {
+        Row: {
+          id: string;
+          submission_id: string;
+          actor_id: string | null;
+          event_type:
+            | "submitted"
+            | "status_changed"
+            | "correction_saved"
+            | "cancelled"
+            | "credits_refunded";
+          from_status: string | null;
+          to_status: string | null;
+          metadata: Json;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          submission_id: string;
+          actor_id?: string | null;
+          event_type:
+            | "submitted"
+            | "status_changed"
+            | "correction_saved"
+            | "cancelled"
+            | "credits_refunded";
+          from_status?: string | null;
+          to_status?: string | null;
+          metadata?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["essay_submission_events"]["Insert"]>;
+      };
+      essay_correction_results: {
+        Row: {
+          id: string;
+          submission_id: string;
+          general_text: string | null;
+          result_storage_bucket: string | null;
+          result_storage_path: string | null;
+          created_by: string | null;
+          completed_at: string | null;
+          published_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          submission_id: string;
+          general_text?: string | null;
+          result_storage_bucket?: string | null;
+          result_storage_path?: string | null;
+          created_by?: string | null;
+          completed_at?: string | null;
+          published_at?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["essay_correction_results"]["Insert"]>;
       };
       products: {
         Row: {
@@ -582,6 +819,89 @@ export type Database = {
       grant_paid_access_for_order: {
         Args: { target_order_id: string };
         Returns: undefined;
+      };
+      ensure_credit_account: {
+        Args: { target_user_id: string };
+        Returns: Database["public"]["Tables"]["credit_accounts"]["Row"];
+      };
+      is_admin: {
+        Args: { user_id?: string };
+        Returns: boolean;
+      };
+      submit_essay_for_correction: {
+        Args: {
+          input_client_token: string;
+          input_theme: string;
+          input_delivery_type: string;
+          input_essay_text?: string | null;
+          input_file_name?: string | null;
+          input_file_size?: number | null;
+          input_file_type?: string | null;
+          input_storage_bucket?: string | null;
+          input_storage_path?: string | null;
+          input_student_note?: string | null;
+        };
+        Returns: string;
+      };
+      initiate_essay_submission: {
+        Args: {
+          input_idempotency_key: string;
+          input_theme?: string | null;
+          input_student_note?: string | null;
+          input_expected_file_count?: number | null;
+        };
+        Returns: Array<{
+          submission_id: string;
+          submission_status: string;
+          already_confirmed: boolean;
+        }>;
+      };
+      confirm_essay_submission: {
+        Args: {
+          input_submission_id: string;
+          input_idempotency_key: string;
+          input_expected_file_count: number;
+        };
+        Returns: string;
+      };
+      mark_essay_upload_failed: {
+        Args: {
+          input_submission_id: string;
+          input_idempotency_key: string;
+          input_reason?: string | null;
+        };
+        Returns: undefined;
+      };
+      admin_set_essay_in_review: {
+        Args: { input_submission_id: string };
+        Returns: undefined;
+      };
+      admin_claim_essay_submission: {
+        Args: { input_submission_id: string };
+        Returns: undefined;
+      };
+      admin_release_essay_submission: {
+        Args: { input_submission_id: string };
+        Returns: undefined;
+      };
+      admin_transfer_essay_submission: {
+        Args: {
+          input_submission_id: string;
+          input_target_admin_id: string;
+        };
+        Returns: undefined;
+      };
+      admin_complete_essay_submission: {
+        Args: { input_submission_id: string };
+        Returns: undefined;
+      };
+      admin_cancel_essay_submission: {
+        Args: { input_submission_id: string; input_reason?: string | null };
+        Returns: undefined;
+      };
+      admin_mark_abandoned_essay_uploads: {
+        Args: { input_older_than?: string };
+        Returns: Array<{ submission_id: string; storage_path: string | null }>;
       };
       revoke_paid_access_for_order: {
         Args: { target_order_id: string; target_status?: string };

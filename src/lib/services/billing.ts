@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Database } from "@/lib/supabase/types";
+import { PRODUCT_NAME } from "@/lib/product-config";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 
@@ -7,7 +8,7 @@ export type Product = Database["public"]["Tables"]["products"]["Row"];
 export type Order = Database["public"]["Tables"]["orders"]["Row"];
 
 export const DEFAULT_PRODUCT = {
-  product_name: "NexoENEM Completo",
+  product_name: PRODUCT_NAME,
   slug: "nexoenem-completo-2026",
   regular_price_cents: 9990,
   sale_price_cents: null,
@@ -15,8 +16,12 @@ export const DEFAULT_PRODUCT = {
   sale_ends_at: null,
   access_valid_until: "2026-11-30T23:59:59-03:00",
   active: true,
-  launch_ready: false,
+  launch_ready: true,
 } satisfies Partial<Product>;
+
+export function getProductCta() {
+  return { href: "/checkout", label: "Comprar acesso" };
+}
 
 export function formatCurrency(cents: number) {
   return new Intl.NumberFormat("pt-BR", {
@@ -29,7 +34,7 @@ export function getMockCheckoutState() {
   return {
     enabled: false,
     message:
-      "Creditos avulsos nao estao a venda. O produto comercial atual e o NexoENEM Completo em pagamento unico.",
+      "Créditos avulsos ainda não estão à venda. Esta área mostra como o controle de uso deve funcionar quando os recursos avançados forem liberados.",
   };
 }
 
@@ -101,7 +106,7 @@ function fallbackProduct(): Product {
     sale_ends_at: null,
     access_valid_until: DEFAULT_PRODUCT.access_valid_until,
     active: true,
-    launch_ready: false,
+    launch_ready: true,
     checkout_provider: "mercado_pago",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),

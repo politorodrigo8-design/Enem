@@ -54,7 +54,7 @@ export async function createMercadoPagoPreference({
         pending: `${siteUrl}/pagamento/pendente?order=${order.id}`,
         failure: `${siteUrl}/pagamento/falha?order=${order.id}`,
       },
-      notification_url: `${siteUrl}/api/payments/webhook?source_news=webhooks`,
+      notification_url: `${siteUrl}/api/payments/webhook`,
       auto_return: "approved",
     }),
   });

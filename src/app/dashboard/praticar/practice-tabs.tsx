@@ -100,8 +100,9 @@ export function PracticeTabs({
       {tab === "banco" ? (
         <div key="banco" className="animate-rise">
           <Notice tone="info" className="mb-6">
-            As questões desta versão são autorais, criadas pela nossa equipe
-            para treino. Nenhuma questão oficial foi copiada integralmente.
+            Cada questão deve manter fonte, revisão e status editorial
+            identificados. O banco pode combinar itens oficiais antigos e
+            questões autorais, sempre sem promessa de previsão da prova.
           </Notice>
           <QuestionBankClient questions={questions} access={access} />
         </div>

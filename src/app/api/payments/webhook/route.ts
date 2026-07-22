@@ -33,7 +33,10 @@ export async function POST(request: NextRequest) {
     request.nextUrl.searchParams.get("data_id") ??
     getPayloadDataId(payload) ??
     request.nextUrl.searchParams.get("id");
-  const providerEventId = stringify(payload?.id) ?? `${eventType}:${dataId ?? hashPayload(rawBody)}`;
+  const providerEventId =
+    dataId && eventType.includes("payment")
+      ? `payment:${dataId}`
+      : stringify(payload?.id) ?? `${eventType}:${dataId ?? hashPayload(rawBody)}`;
   const payloadHash = hashPayload(rawBody);
   const secret = process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim();
 
@@ -141,6 +144,13 @@ export async function POST(request: NextRequest) {
         target_order_id: checkedOrder.id,
       } as never);
       if (error) throw new Error(error.message);
+      await recordProductEvent({
+        supabase: admin,
+        userId: checkedOrder.user_id,
+        eventName: "payment_approved",
+        route: "/api/payments/webhook",
+        metadata: { order_id: checkedOrder.id },
+      });
     } else if (payment.status === "refunded" || payment.status === "charged_back") {
       const { error } = await admin.rpc("revoke_paid_access_for_order" as never, {
         target_order_id: checkedOrder.id,

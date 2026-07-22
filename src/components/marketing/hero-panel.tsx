@@ -63,7 +63,7 @@ export function HeroPanel() {
   const step = (delay: number) => ({
     className: cn(
       "transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-      active ? "translate-y-0 opacity-100" : "translate-y-3 opacity-0",
+      active ? "translate-y-0 opacity-100" : "translate-y-3 opacity-100",
     ),
     style: { transitionDelay: active ? `${delay}ms` : "0ms" },
   });
@@ -73,12 +73,6 @@ export function HeroPanel() {
       ref={panelRef}
       className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10"
     >
-      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-        <span className="h-2.5 w-2.5 rounded-full bg-blue-700" aria-hidden="true" />
-        <span className="font-mono text-xs text-slate-500">
-          app.nexoenem.com/dashboard
-        </span>
-      </div>
       <div className="p-5">
         <div {...step(0)}>
           <div className="flex items-center justify-between">
@@ -87,14 +81,18 @@ export function HeroPanel() {
                 Painel estratégico
               </p>
               <p className="mt-1 text-2xl font-bold text-slate-950">
-                Nota estimada <span className="tnum">{score}</span>
+                Faixa atual <span className="tnum">{score - 18}-{score + 18}</span>
               </p>
             </div>
             <Badge tone="green">
               <TrendingUp className="mr-1 h-3.5 w-3.5" aria-hidden="true" />+
-              {scoreGain} pts em 6 semanas
+              {scoreGain} pts de evolução estimada
             </Badge>
           </div>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Indicador educacional baseado no desempenho registrado, sem previsão
+            garantida de nota.
+          </p>
           <div className="mt-3 flex flex-wrap gap-2 border-b border-slate-100 pb-4">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
               <Target className="h-3.5 w-3.5" aria-hidden="true" />
@@ -110,7 +108,7 @@ export function HeroPanel() {
         <div {...step(180)}>
           <div className="mt-4 flex items-baseline justify-between">
             <p className="text-sm font-semibold text-slate-950">
-              Evolução da nota
+              Evolução estimada
             </p>
             <p className="text-xs font-medium text-slate-500">
               uma barra por semana

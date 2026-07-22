@@ -12,6 +12,15 @@ export type StudyPlan = Database["public"]["Tables"]["study_plans"]["Row"];
 export type StudyPlanItem = Database["public"]["Tables"]["study_plan_items"]["Row"];
 export type TopicPerformance =
   Database["public"]["Tables"]["user_topic_performance"]["Row"];
+export type CreditAccount = Database["public"]["Tables"]["credit_accounts"]["Row"];
+export type CreditLedgerEntry = Database["public"]["Tables"]["credit_ledger"]["Row"];
+export type EssaySubmission = Database["public"]["Tables"]["essay_submissions"]["Row"];
+export type EssaySubmissionFile =
+  Database["public"]["Tables"]["essay_submission_files"]["Row"];
+export type EssaySubmissionEvent =
+  Database["public"]["Tables"]["essay_submission_events"]["Row"];
+export type EssayCorrectionResult =
+  Database["public"]["Tables"]["essay_correction_results"]["Row"];
 
 export type QuestionRecord = Question & {
   media_url?: string | null;
@@ -30,6 +39,41 @@ export type QuestionRecord = Question & {
     answered_at: string;
   }>;
   user_question_reviews?: Array<{ id: string; mastered: boolean }>;
+};
+
+export type CreditsData = {
+  account: CreditAccount;
+  ledger: CreditLedgerEntry[];
+  recentEssays: EssaySubmission[];
+};
+
+export type EssayCorrectionData = {
+  account: CreditAccount;
+  submissions: EssaySubmission[];
+};
+
+export type DashboardEssayCreditData = {
+  account: CreditAccount;
+  latestDebit: CreditLedgerEntry | null;
+  latestEssay: EssaySubmission | null;
+  essayCounts: {
+    total: number;
+    pending: number;
+    inReview: number;
+    completed: number;
+  };
+};
+
+export type EssaySubmissionWithProfile = EssaySubmission & {
+  profiles?: Pick<Profile, "full_name" | "email"> | null;
+  assigned_admin_profile?: Pick<Profile, "full_name" | "email"> | null;
+  essay_submission_files?: EssaySubmissionFile[];
+};
+
+export type EssaySubmissionDetail = EssaySubmissionWithProfile & {
+  essay_submission_events?: EssaySubmissionEvent[];
+  essay_correction_results?: EssayCorrectionResult[];
+  completed_by_profile?: Pick<Profile, "full_name" | "email"> | null;
 };
 
 export type TopicWithSubject = Topic & {

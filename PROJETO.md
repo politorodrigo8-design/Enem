@@ -56,7 +56,7 @@ O posicionamento é deliberadamente **anti-hype e honesto**: a plataforma repete
 
 Público-alvo: estudantes que vão prestar o ENEM (mercado enorme, recorrente todo ano, com forte sazonalidade de compra entre o meio do ano e a prova em novembro).
 
-Existe também um resquício de um modelo de **créditos avulsos** abandonado (página `/dashboard/creditos` e `getMockCheckoutState()`), 100% mock e desativado — "Créditos avulsos não estão à venda".
+A página `/dashboard/creditos` exibe a experiência planejada de créditos, ainda sem ledger/backend real. Ela mantém saldo, usos e pacotes como interface de produto em preparação, com aviso de que créditos avulsos ainda não estão à venda.
 
 ---
 
@@ -106,7 +106,7 @@ src/
 supabase/
 ├── migrations/            # 001–006 (schema completo)
 ├── seed.sql               # 12 questões demo fictícias + dados de exemplo
-├── imports/               # 14 questões oficiais ENEM prontas p/ importar (JSON)
+├── imports/               # lotes oficiais ENEM por área prontos p/ importar (JSON)
 └── scripts/               # SQL operacional manual (grant/revoke beta e paid)
 
 scripts/                   # Pipeline Python de extração de questões + importador Node
@@ -142,8 +142,8 @@ Funil clássico completo:
 - **Zero prova social** (nenhum depoimento/número).
 - Sem ancoragem de preço, parcelamento ou selo de garantia; a garantia aparece como "política provisória" em texto cinza.
 - **Acentuação inconsistente** em metade dos textos ("diagnostico", "questoes", "ate o ENEM").
-- **Footer com todos os links quebrados**: Termos, Privacidade e Contato apontam para `/#` (`(public)/layout.tsx:37`).
-- Contradição: o FAQ diz que as questões são "autorais", mas os imports contêm questões oficiais reais do ENEM 2023/2024.
+- **Footer corrigido**: Termos, Privacidade, Reembolso e Contato apontam para destinos reais.
+- Copy pública alinhada: o banco agora é descrito como conteúdo com fonte identificada, podendo combinar questões oficiais antigas revisadas e questões autorais/demonstrativas. O bloqueio jurídico sobre reprodução em produto pago continua aberto.
 
 ### 5.2 Checkout — `/checkout`
 
@@ -170,9 +170,9 @@ Lacunas jurídicas conhecidas:
 - **Privacidade:** não é LGPD completa — faltam base legal, encarregado/DPO, direitos do titular, retenção, citação dos suboperadores (Supabase, Mercado Pago, Vercel), cookies.
 - **Reembolso:** não declara o prazo concreto de **7 dias do CDC art. 49**.
 
-### 5.6 `/lote-001-preview` (QA interno exposto)
+### 5.6 `/lote-001-preview` (QA interno protegido)
 
-Tela de conferência editorial do lote 001 que **lê os JSONs de `supabase/imports/` do disco em runtime** (`fs.readFileSync(process.cwd()…)`). Não está linkada em lugar nenhum, não tem auth, e **quebra em deploy serverless** (Vercel) porque a pasta pode não existir no bundle. Deveria ser removida ou protegida.
+Tela de conferência editorial que lê os JSONs de `supabase/imports/` do disco em runtime (`fs.readFileSync(process.cwd()…)`). Está restrita a usuários admin via Supabase; ainda deve ser removida do deploy público se o bundle serverless não incluir os imports.
 
 ---
 
@@ -181,8 +181,8 @@ Tela de conferência editorial do lote 001 que **lê os JSONs de `supabase/impor
 - **Supabase Auth** com e-mail/senha. Fluxos: cadastro (modo default da tela é `signup`), login, reset de senha (e-mail → `/auth/reset-password`), callback em `/auth/callback`.
 - Server Actions em `src/lib/actions/auth.ts` com validação Zod (`src/lib/schemas/auth.ts`).
 - Ao criar usuário, o trigger `handle_new_user` (SECURITY DEFINER, idempotente) cria automaticamente a linha em `profiles` com `access_level='unpaid'`.
-- **Login com Google é placeholder** — botão desabilitado "Continuar com Google em breve".
-- ⚠️ **Bug grave:** os formulários têm `defaultValues` com credenciais de teste reais hardcoded (e-mail e senha de um dos fundadores) em `src/app/(auth)/login/page.tsx:55-70`. Precisa ser removido antes de qualquer deploy.
+- Login por e-mail/senha está implementado. Login com Google não está exposto no formulário atual.
+- Credenciais hardcoded de teste foram removidas dos `defaultValues`.
 - `logAuthError` loga metadados de configuração (URL, tamanho de chave) — verboso demais para produção, mas não vaza segredos.
 
 ---
@@ -226,13 +226,13 @@ Mercado Pago → POST /api/payments/webhook
 
 | # | Problema | Onde | Gravidade |
 |---|---|---|---|
-| 1 | Verificação de assinatura é **fail-open**: sem `MERCADO_PAGO_WEBHOOK_SECRET`, qualquer POST é aceito | `webhook/route.ts:33-46` | **Alta** |
-| 2 | `sandbox_init_point` priorizado sobre `init_point` → em produção pode mandar o cliente ao checkout sandbox | `mercado-pago.ts:69` | **Alta** |
+| 1 | Verificação de assinatura fecha em produção sem `MERCADO_PAGO_WEBHOOK_SECRET`; em dev continua permissiva para testes locais | `webhook/route.ts` | Monitorar |
+| 2 | ~~`sandbox_init_point` priorizado sobre `init_point`~~ — produção usa `init_point`; sandbox só com `MERCADO_PAGO_SANDBOX=true` | `mercado-pago.ts` | Resolvido |
 | 3 | **Nenhum e-mail transacional é enviado** — `email-templates.ts` (7 templates) é código morto, nunca importado | `services/email-templates.ts` | **Alta** (UX/chargeback) |
-| 4 | Cada clique cria uma nova order pending + preference (sem reaproveitamento) | `create/route.ts:82` | Média |
-| 5 | `provider_event_id` cai no `id` de topo da notificação, que muda a cada retry do MP → dedup furada; idempotência real depende só da RPC | `webhook/route.ts:31` | Média |
+| 4 | Pedidos pendentes com `checkout_url` válida são reaproveitados; ainda falta expirar/limpar pendências antigas sem URL | `create/route.ts` | Baixa |
+| 5 | `provider_event_id` usa `payment:{dataId}` quando disponível; ainda depende de testes reais com payloads do MP | `webhook/route.ts` | Monitorar |
 | 6 | `/pagamento/sucesso` não confirma o pedido (sem polling) | — | Média |
-| 7 | `checkout_started` registrado antes do gate `launch_ready` → polui métricas | `create/route.ts:56-64` | Baixa |
+| 7 | ~~`checkout_started` registrado antes do gate `launch_ready`~~ — corrigido | `create/route.ts` | Resolvido |
 | 8 | Status `pending`/`in_process` do MP caem num else silencioso | `webhook/route.ts` | Baixa |
 | 9 | Precedência de operador frágil na checagem de produto (`\|\|` + `&&` sem parênteses) | `webhook/route.ts:95` | Baixa |
 
@@ -319,8 +319,8 @@ Reusa o banco de questões filtrado por flags editoriais de alta prioridade (fal
 ### 9.12 `/dashboard/configuracoes` — ✅ REAL
 Perfil (nome, meta de nota, horas), troca de senha, logout.
 
-### 9.13 `/dashboard/creditos` — ❌ 100% FACHADA
-Saldo fictício "42 de 50" **hardcoded**, pacotes vindos do mock `creditPackages`, botões "Disponível em breve". Único uso vivo da pasta `src/data/`. Deveria sair do menu até existir.
+### 9.13 `/dashboard/creditos` — experiência planejada
+A página mostra saldo, usos, formas de recuperação e pacotes adicionais como visão do produto. Ainda não há ledger/backend real de créditos, e a tela informa que créditos avulsos não estão à venda nesta etapa.
 
 ### 9.14 Componentes de apoio
 - `premium-gate.tsx` — gate visual de conteúdo pago.
@@ -328,7 +328,7 @@ Saldo fictício "42 de 50" **hardcoded**, pacotes vindos do mock `creditPackages
 - `charts/` — SVGs artesanais; `simple-bar-chart.tsx` está **sem uso** (morto); `mini-trend.tsx` só é usado no marketing.
 
 ### 9.15 `src/data/*` — quase tudo morto
-`areaPerformance`, `subjectPerformance`, `studentSummary`, `priorityCards`, `recentActivities`, `simulations`, `questions`, `weeklyStudyPlan`, `radarTopics` — **nenhum é importado por página nenhuma**. Só `creditPackages` (créditos, fachada) e `evolutionData` (hero do marketing) estão vivos. É legado da fase mock e pode ser deletado.
+`areaPerformance`, `subjectPerformance`, `studentSummary`, `priorityCards`, `recentActivities`, `simulations`, `questions`, `weeklyStudyPlan`, `radarTopics` — **nenhum é importado por página nenhuma**. `creditPackages` segue vivo para a tela planejada de créditos; o restante é legado da fase mock e pode ser deletado em uma limpeza separada.
 
 ---
 
@@ -409,11 +409,10 @@ A metodologia é documentada e versionada (`radar_methodology_versions`) e a pá
 
 0. **`service_role` sem DML (corrigido em `011`)** — as migrations 002/003 concederam privilégios só a `authenticated`, o que removeu os defaults do `service_role` em todo o schema `public`. Consequência: **qualquer** operação com a service key falhava com `permission denied` — incluindo o webhook de pagamento (gravar `payment_events`, atualizar `orders`/`profiles`) e a área editorial admin. Foi descoberto ao rodar o importador e corrigido pela migration `011_service_role_grants.sql`. **Aplicar essa migration no banco remoto antes de qualquer venda real.**
 
-1. **Webhook fail-open sem secret** (§7.3 #1) — o mais grave.
+1. Webhook exige `MERCADO_PAGO_WEBHOOK_SECRET` em produção, mas ainda precisa de teste real com payloads assinados do Mercado Pago.
 2. `beta_applications` aceita INSERT de `anon` sem rate-limit (só unique de e-mail) — spam possível.
-3. DoS leve de idempotência: `provider_event_id` derivado de campo controlável pelo remetente; um atacante que pré-insira o id faz o webhook legítimo virar `duplicate`.
-4. `/lote-001-preview` sem auth expõe material de QA.
-5. Credenciais de teste hardcoded no login (§6).
+3. Idempotência do webhook foi melhorada para `payment:{dataId}` quando disponível; ainda precisa ser validada com retries reais do MP.
+4. `/lote-001-preview` está protegido por admin, mas deve sair do deploy público se os imports não estiverem no bundle serverless.
 
 ---
 
@@ -509,15 +508,14 @@ As provas do ENEM são obras do INEP/MEC, e os textos de apoio e imagens (fotos,
 - Controle de acesso em 3 camadas (middleware + página + RLS)
 
 ### Fachada / incompleto ❌⚠️
-- ❌ Créditos (100% mock, saldo fictício hardcoded)
+- Créditos e correção de redação expostos no menu como visão do produto, ainda sem backend real completo
 - ❌ E-mails transacionais (templates prontos, nunca enviados)
-- ❌ Login com Google (botão desabilitado)
-- ❌ Conteúdo: 14 questões (meta: 300; concorrência: milhares)
+- ⚠️ Conteúdo: 880 questões importadas; resta revisão humana por professor, jurídico e tratamento das questões em `needs_review`
 - ⚠️ Simulado "personalizado" não personaliza
 - ⚠️ Drag-and-drop do plano é só visual
 - ⚠️ Tempo por questão sempre 0
 - ⚠️ Card "Simulados" da visão geral é cosmético
-- ⚠️ Páginas legais provisórias; footer com links quebrados
+- ⚠️ Páginas legais provisórias
 - ⚠️ `src/data/` quase todo código morto
 
 ---
@@ -529,19 +527,19 @@ As provas do ENEM são obras do INEP/MEC, e os textos de apoio e imagens (fotos,
 1. ~~**CONTEÚDO**~~ — ✅ **resolvido**: 880 questões oficiais de 2020–2025 importadas nas 4 áreas (ver 13.3). Resta a revisão humana por professor das resoluções e o tratamento das 249 questões em `needs_review`.
 2. **JURÍDICO** — parecer sobre reprodução de provas do INEP em produto pago + finalizar termos/privacidade (LGPD)/reembolso (prazo CDC). **Agora é o bloqueador nº 1**, e ficou mais material: o banco reproduz 880 questões oficiais, com recortes de imagem das provas.
 3. **Aplicar `011_service_role_grants.sql` no banco remoto** — sem ela o webhook de pagamento não consegue gravar nada (ver 12.2).
-4. **Webhook fail-open** — exigir `MERCADO_PAGO_WEBHOOK_SECRET` (rejeitar 401 sem ele).
-5. **`sandbox_init_point`** priorizado — inverter para `init_point` em produção.
-6. **Credenciais hardcoded no login** — remover `defaultValues`.
+4. ~~**Webhook fail-open em produção**~~ — corrigido; produção falha fechado sem secret.
+5. ~~**`sandbox_init_point`** priorizado~~ — corrigido.
+6. ~~**Credenciais hardcoded no login**~~ — corrigido.
 7. **E-mail de confirmação de compra** — ligar os templates a um provedor (Resend etc.).
-8. **Footer** — apontar Termos/Privacidade/Contato para as rotas reais.
-9. **`/lote-001-preview`** — remover ou proteger (quebra em serverless + expõe QA).
+8. ~~**Footer**~~ — corrigido.
+9. **`/lote-001-preview`** — protegido por admin; remover do deploy público se o ambiente serverless não incluir os imports.
 
 ### Correções desejáveis (não bloqueiam)
 
-- Página de sucesso com polling do pedido; reaproveitar order pending; dedup de eventos por `payment.id` real.
+- Página de sucesso com polling do pedido; limpar pendências sem `checkout_url`; validar dedup de eventos com payload real do MP.
 - Simulados: `ORDER BY` na leitura de tentativas; decidir se "personalizado" gera prova de verdade ou muda a copy.
 - Medir `response_time_seconds` real; gate premium correto no Radar sem acesso; `reviewed_by` com id real.
-- Limpar `src/data/`, `email-templates` (após uso), `database.ts` stub, `getMockCheckoutState`, colunas do free tier morto.
+- Limpar `src/data/` remanescente que não alimenta telas, `email-templates` (após uso), `database.ts` stub e colunas do free tier morto.
 - Corrigir acentuação da landing; adicionar prova social, parcelamento, garantia visível.
 - Rate-limit/captcha em `beta_applications`; reconciliação `orders`↔`profiles`.
 

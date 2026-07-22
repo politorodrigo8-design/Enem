@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PublicHeader } from "@/components/marketing/public-header";
 import { Logo } from "@/components/ui/logo";
+import { getProductCta } from "@/lib/services/billing";
 
 const footerLinks = [
   { label: "Como funciona", href: "/#como-funciona" },
@@ -12,12 +13,14 @@ const footerLinks = [
   { label: "Contato", href: "mailto:suporte@nexoenem.com" },
 ];
 
-export default function PublicLayout({
+export default async function PublicLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const cta = getProductCta();
+
   return (
     <>
-      <PublicHeader />
+      <PublicHeader cta={cta} />
       {children}
       <footer className="border-t border-white/10 bg-slate-950 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1fr_2fr] lg:px-8">

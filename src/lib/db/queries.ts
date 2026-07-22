@@ -10,12 +10,18 @@ import {
 import type {
   ActivityRecord,
   AreaMetric,
+  CreditsData,
+  DashboardEssayCreditData,
+  EssayCorrectionData,
+  EssaySubmissionDetail,
+  EssaySubmissionWithProfile,
   Profile,
   QuestionRecord,
   SimulationWithQuestions,
   StudyPlanWithItems,
   TopicWithSubject,
 } from "@/lib/db/types";
+import { canEditEditorial } from "@/lib/editorial/rules.mjs";
 
 type QueryError = {
   code?: string;
@@ -420,4 +426,334 @@ export async function getRadarMethodologyVersions() {
   }
 
   return data ?? [];
+}
+
+const essayStatusPriority: Record<string, number> = {
+  uploading: 4,
+  pending: 0,
+  in_review: 1,
+  completed: 2,
+  cancelled: 3,
+  upload_failed: 5,
+};
+
+export async function getCreditsData(): Promise<CreditsData> {
+  const { supabase, user } = await requirePlatformAccess();
+
+  const { data: account, error: accountError } = await supabase.rpc(
+    "ensure_credit_account",
+    { target_user_id: user.id },
+  );
+  if (accountError || !account) {
+    logQueryError("credit_accounts.ensure", accountError);
+    throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
+  }
+
+  const [ledgerResult, essaysResult] = await Promise.all([
+    supabase
+      .from("credit_ledger")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("essay_submissions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("submitted_at", { ascending: false })
+      .limit(5),
+  ]);
+
+  if (ledgerResult.error) {
+    logQueryError("credit_ledger.recent", ledgerResult.error);
+  }
+  if (essaysResult.error) {
+    logQueryError("essay_submissions.recent", essaysResult.error);
+  }
+
+  return {
+    account,
+    ledger: ledgerResult.data ?? [],
+    recentEssays: essaysResult.data ?? [],
+  };
+}
+
+export async function getDashboardEssayCreditData(): Promise<DashboardEssayCreditData> {
+  const { supabase, user } = await requirePlatformAccess();
+
+  const { data: account, error: accountError } = await supabase.rpc(
+    "ensure_credit_account",
+    { target_user_id: user.id },
+  );
+  if (accountError || !account) {
+    logQueryError("credit_accounts.ensure_for_dashboard", accountError);
+    throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
+  }
+
+  const [
+    ledgerResult,
+    recentEssayResult,
+    totalResult,
+    pendingResult,
+    inReviewResult,
+    completedResult,
+  ] = await Promise.all([
+    supabase
+      .from("credit_ledger")
+      .select("*")
+      .eq("user_id", user.id)
+      .lt("amount", 0)
+      .order("created_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("essay_submissions")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("submitted_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("essay_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+    supabase
+      .from("essay_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "pending"),
+    supabase
+      .from("essay_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "in_review"),
+    supabase
+      .from("essay_submissions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("status", "completed"),
+  ]);
+
+  if (ledgerResult.error) logQueryError("credit_ledger.latest_debit", ledgerResult.error);
+  if (recentEssayResult.error) logQueryError("essay_submissions.latest", recentEssayResult.error);
+  if (totalResult.error) logQueryError("essay_submissions.count.total", totalResult.error);
+  if (pendingResult.error) logQueryError("essay_submissions.count.pending", pendingResult.error);
+  if (inReviewResult.error) logQueryError("essay_submissions.count.in_review", inReviewResult.error);
+  if (completedResult.error) logQueryError("essay_submissions.count.completed", completedResult.error);
+
+  return {
+    account,
+    latestDebit: ledgerResult.data?.[0] ?? null,
+    latestEssay: recentEssayResult.data?.[0] ?? null,
+    essayCounts: {
+      total: totalResult.count ?? 0,
+      pending: pendingResult.count ?? 0,
+      inReview: inReviewResult.count ?? 0,
+      completed: completedResult.count ?? 0,
+    },
+  };
+}
+
+export async function getEssayCorrectionData(): Promise<EssayCorrectionData> {
+  const { supabase, user } = await requirePlatformAccess();
+
+  const { data: account, error: accountError } = await supabase.rpc(
+    "ensure_credit_account",
+    { target_user_id: user.id },
+  );
+  if (accountError || !account) {
+    logQueryError("credit_accounts.ensure_for_essay", accountError);
+    throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
+  }
+
+  const { data: submissions, error } = await supabase
+    .from("essay_submissions")
+    .select("*, essay_submission_files(*)")
+    .eq("user_id", user.id)
+    .order("submitted_at", { ascending: false })
+    .order("page_order", { referencedTable: "essay_submission_files", ascending: true })
+    .limit(8);
+
+  if (error) {
+    logQueryError("essay_submissions.by_user", error);
+  }
+
+  return {
+    account,
+    submissions: submissions ?? [],
+  };
+}
+
+async function requireEssayAdminAccess() {
+  const context = await requirePlatformAccess();
+  if (!canEditEditorial(context.profile?.access_level)) {
+    redirect("/dashboard");
+  }
+  return context;
+}
+
+export type AdminEssayQueueFilters = {
+  status?: string;
+  from?: string;
+  to?: string;
+  student?: string;
+  responsible?: string;
+  unassigned?: string;
+};
+
+export async function getAdminEssayQueue(
+  filters: AdminEssayQueueFilters = {},
+): Promise<EssaySubmissionWithProfile[]> {
+  const { supabase } = await requireEssayAdminAccess();
+
+  let query = supabase
+    .from("essay_submissions")
+    .select("*, essay_submission_files(*)")
+    .order("submitted_at", { ascending: true })
+    .order("page_order", { referencedTable: "essay_submission_files", ascending: true })
+    .limit(300);
+
+  if (filters.status && filters.status !== "all") {
+    query = query.eq("status", filters.status);
+  }
+  if (filters.from) {
+    query = query.gte("submitted_at", `${filters.from}T00:00:00.000Z`);
+  }
+  if (filters.to) {
+    query = query.lte("submitted_at", `${filters.to}T23:59:59.999Z`);
+  }
+  if (filters.unassigned === "1") {
+    query = query.is("assigned_admin_id", null);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    logQueryError("essay_submissions.admin_queue", error);
+    throw new Error(error.message);
+  }
+
+  const student = filters.student?.trim().toLowerCase();
+  const responsible = filters.responsible?.trim().toLowerCase();
+  const rawRows = (data ?? []) as EssaySubmissionWithProfile[];
+  const userIds = Array.from(new Set(rawRows.map((item) => item.user_id)));
+  const { data: profiles } = userIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", userIds)
+    : { data: [] };
+  const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const adminIds = Array.from(
+    new Set(rawRows.map((item) => item.assigned_admin_id).filter(Boolean)),
+  ) as string[];
+  const { data: adminProfiles } = adminIds.length
+    ? await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", adminIds)
+    : { data: [] };
+  const adminProfilesById = new Map(
+    (adminProfiles ?? []).map((profile) => [profile.id, profile]),
+  );
+  const rows = rawRows.map((item) => ({
+    ...item,
+    profiles: profilesById.get(item.user_id) ?? null,
+    assigned_admin_profile: item.assigned_admin_id
+      ? adminProfilesById.get(item.assigned_admin_id) ?? null
+      : null,
+  })).filter((item) => {
+    if (!student) return true;
+    const profile = item.profiles;
+    return (
+      profile?.full_name?.toLowerCase().includes(student) ||
+      profile?.email?.toLowerCase().includes(student)
+    );
+  }).filter((item) => {
+    if (!responsible) return true;
+    const profile = item.assigned_admin_profile;
+    return (
+      item.assigned_admin_id?.toLowerCase().includes(responsible) ||
+      profile?.full_name?.toLowerCase().includes(responsible) ||
+      profile?.email?.toLowerCase().includes(responsible)
+    );
+  });
+
+  return rows.sort((a, b) => {
+    const statusDelta =
+      (essayStatusPriority[a.status] ?? 99) - (essayStatusPriority[b.status] ?? 99);
+    if (statusDelta) return statusDelta;
+    return new Date(a.submitted_at).getTime() - new Date(b.submitted_at).getTime();
+  });
+}
+
+export async function getAdminEssayDetail(id: string): Promise<EssaySubmissionDetail | null> {
+  const { supabase } = await requireEssayAdminAccess();
+
+  const { data, error } = await supabase
+    .from("essay_submissions")
+    .select("*, essay_submission_files(*), essay_submission_events(*), essay_correction_results(*)")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    logQueryError("essay_submissions.admin_detail", error);
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+
+  const detail = data as unknown as EssaySubmissionDetail;
+  const { data: studentProfile } = await supabase
+    .from("profiles")
+    .select("full_name,email")
+    .eq("id", detail.user_id)
+    .maybeSingle();
+  detail.profiles = studentProfile ?? null;
+
+  if (detail.assigned_admin_id) {
+    const { data: assigned } = await supabase
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", detail.assigned_admin_id)
+      .maybeSingle();
+    detail.assigned_admin_profile = assigned ?? null;
+  }
+  if (detail.completed_by) {
+    const { data: completedBy } = await supabase
+      .from("profiles")
+      .select("full_name,email")
+      .eq("id", detail.completed_by)
+      .maybeSingle();
+    detail.completed_by_profile = completedBy ?? null;
+  }
+
+  detail.essay_submission_files = [...(detail.essay_submission_files ?? [])].sort(
+    (a, b) => a.page_order - b.page_order,
+  );
+
+  detail.essay_submission_events = [...(detail.essay_submission_events ?? [])].sort(
+    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+  );
+
+  return detail;
+}
+
+export async function getStudentEssayDetail(id: string): Promise<EssaySubmissionDetail | null> {
+  const { supabase, user } = await requirePlatformAccess();
+
+  const { data, error } = await supabase
+    .from("essay_submissions")
+    .select("*, essay_submission_files(*), essay_submission_events(*), essay_correction_results(*)")
+    .eq("id", id)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    logQueryError("essay_submissions.student_detail", error);
+    throw new Error(error.message);
+  }
+  if (!data) return null;
+
+  const detail = data as unknown as EssaySubmissionDetail;
+  detail.essay_submission_files = [...(detail.essay_submission_files ?? [])].sort(
+    (a, b) => a.page_order - b.page_order,
+  );
+  return detail;
 }

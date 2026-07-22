@@ -4,6 +4,10 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { createClient } from "@supabase/supabase-js";
 import { z } from "zod";
+import {
+  canonicalizeQuestionTaxonomy,
+  normalizeKey,
+} from "./normalize-question-imports.mjs";
 
 const optionKeys = ["A", "B", "C", "D", "E"];
 const booleanish = z.preprocess((value) => {
@@ -342,7 +346,7 @@ export function validateRows(rows) {
   const questionSchema = getQuestionSchema();
 
   rows.forEach((row, index) => {
-    const parsed = questionSchema.safeParse(row);
+    const parsed = questionSchema.safeParse(canonicalizeQuestionTaxonomy(row));
     if (!parsed.success) {
       invalid.push({
         index,
@@ -490,7 +494,7 @@ export async function importQuestions(questions) {
 async function findDuplicate(question) {
   let query = supabase
     .from("questions")
-    .select("id, statement, year, source, question_number")
+    .select("id, statement, year, source, question_number, question_fingerprint")
     .eq("year", question.year)
     .eq("source", question.source)
     .limit(20);
@@ -504,13 +508,17 @@ async function findDuplicate(question) {
 
   return (data || []).some(
     (item) =>
+      item.question_fingerprint === fingerprintQuestion(question) ||
       fingerprintQuestion(item) === fingerprintQuestion(question) ||
       normalize(item.statement) === normalize(question.statement),
   );
 }
 
 async function upsertSubject(question) {
-  const slug = slugify(`${question.area}-${question.subject}`);
+  const slug = canonicalSubjectSlug(question.area, question.subject);
+  const existing = await findSubjectBySlugOrName(slug, question.area, question.subject);
+  if (existing) return existing;
+
   const { data, error } = await supabase
     .from("subjects")
     .upsert({ name: question.subject, area: question.area, slug }, { onConflict: "slug" })
@@ -521,6 +529,9 @@ async function upsertSubject(question) {
 }
 
 async function upsertTopic(question, subjectId) {
+  const existing = await findTopicByName(subjectId, question.topic);
+  if (existing) return existing;
+
   const slug = slugify(`${question.area}-${question.subject}-${question.topic}`);
   const { data, error } = await supabase
     .from("topics")
@@ -540,6 +551,51 @@ async function upsertTopic(question, subjectId) {
     .single();
   if (error) throw new Error(error.message);
   return data;
+}
+
+async function findSubjectBySlugOrName(slug, area, subject) {
+  const { data, error } = await supabase
+    .from("subjects")
+    .select("id,name,area,slug")
+    .or(`slug.eq.${slug},name.eq.${subject}`)
+    .limit(50);
+  if (error) throw new Error(error.message);
+
+  const bySlug = (data ?? []).find((item) => item.slug === slug);
+  if (bySlug) return bySlug;
+
+  return (data ?? []).find(
+    (item) =>
+      normalizeKey(item.area) === normalizeKey(area) &&
+      normalizeKey(item.name) === normalizeKey(subject),
+  );
+}
+
+async function findTopicByName(subjectId, topic) {
+  const { data, error } = await supabase
+    .from("topics")
+    .select("id,name,slug")
+    .eq("subject_id", subjectId)
+    .limit(200);
+  if (error) throw new Error(error.message);
+
+  return (data ?? []).find((item) => normalizeKey(item.name) === normalizeKey(topic));
+}
+
+function canonicalSubjectSlug(area, subject) {
+  const key = `${normalizeKey(area)}|${normalizeKey(subject)}`;
+  const seededSlugs = {
+    "matematica|matematica": "matematica",
+    "ciencias da natureza|biologia": "biologia",
+    "ciencias da natureza|fisica": "fisica",
+    "ciencias da natureza|quimica": "quimica",
+    "ciencias humanas|geografia": "geografia",
+    "ciencias humanas|historia": "historia",
+    "ciencias humanas|sociologia": "sociologia",
+    "linguagens|linguagens": "linguagens",
+    "redacao|redacao": "redacao",
+  };
+  return seededSlugs[key] ?? slugify(`${area}-${subject}`);
 }
 
 function toDatabaseDifficulty(value) {

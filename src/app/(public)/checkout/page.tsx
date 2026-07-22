@@ -11,7 +11,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Notice } from "@/components/ui/notice";
 import { Reveal } from "@/components/ui/reveal";
 import { getAccessContext } from "@/lib/access";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
@@ -22,7 +21,7 @@ import { CheckoutButton } from "./checkout-button";
 const included = [
   "Radar ENEM",
   "Banco de questões",
-  "Questões antigas priorizadas quando revisadas",
+  "Questões com fonte identificada e revisão editorial",
   "Treino de alta prioridade",
   "Diagnóstico personalizado",
   "Simulados",
@@ -104,15 +103,6 @@ export default async function CheckoutPage() {
             </Card>
           </Reveal>
 
-          {!product.launch_ready ? (
-            <Reveal delay={70}>
-              <Notice tone="warning" className="mt-6">
-                As vendas ainda não foram abertas. Nenhuma cobrança é feita antes
-                do lançamento oficial — enquanto isso, você pode entrar na lista
-                de espera.
-              </Notice>
-            </Reveal>
-          ) : null}
         </section>
 
         <aside
@@ -154,7 +144,7 @@ export default async function CheckoutPage() {
               </div>
 
               <div className="mt-6">
-                <CheckoutButton disabled={!product.launch_ready} />
+                <CheckoutButton />
               </div>
 
               <div className="mt-5 grid gap-2">

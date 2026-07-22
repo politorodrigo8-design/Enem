@@ -61,22 +61,33 @@ export async function POST() {
     metadata: { product_id: product.id },
   });
 
-  if (!product.launch_ready) {
-    return NextResponse.json(
-      {
-        ok: false,
-        message:
-          "As vendas ainda nao estao ativas. O checkout real permanece bloqueado por launch_ready=false.",
-      },
-      { status: 409 },
-    );
-  }
-
   if (!isMercadoPagoConfigured()) {
     return NextResponse.json(
       { ok: false, message: "Mercado Pago ainda nao configurado no servidor." },
       { status: 503 },
     );
+  }
+
+  const { data: pendingOrder } = await admin
+    .from("orders")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("product_id", product.id)
+    .eq("status", "pending")
+    .not("checkout_url", "is", null)
+    .gt("expires_at", new Date().toISOString())
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const reusableOrder = pendingOrder as Order | null;
+
+  if (reusableOrder?.checkout_url) {
+    return NextResponse.json({
+      ok: true,
+      orderId: reusableOrder.id,
+      redirectTo: reusableOrder.checkout_url,
+      reused: true,
+    });
   }
 
   const { data: order, error: orderError } = await admin

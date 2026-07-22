@@ -5,7 +5,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 
-export function CheckoutButton({ disabled }: { disabled: boolean }) {
+export function CheckoutButton() {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
 
@@ -36,11 +36,11 @@ export function CheckoutButton({ disabled }: { disabled: boolean }) {
         type="button"
         size="lg"
         full
-        disabled={disabled || pending}
+        disabled={pending}
         onClick={startCheckout}
       >
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <LockKeyhole className="h-5 w-5" />}
-        {disabled ? "Lista de espera" : "Ir para pagamento"}
+        Ir para pagamento
       </Button>
       {message ? (
         <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold text-amber-900">

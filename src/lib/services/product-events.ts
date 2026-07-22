@@ -24,6 +24,9 @@ export const productEventNames = [
   "premium_block_seen",
   "beta_application_submitted",
   "feedback_submitted",
+  "essay_submitted",
+  "essay_corrected",
+  "essay_cancelled",
 ] as const;
 
 export type ProductEventName = (typeof productEventNames)[number];
