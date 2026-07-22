@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { User } from "@supabase/supabase-js";
 import { z } from "zod";
 import { accessRequiredMessage, getAccessContext } from "@/lib/access";
+import type { ActionResult } from "@/lib/actions/auth";
 import {
   AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
   AI_QUESTION_EXPLANATION_CREDIT_COST,
@@ -626,6 +627,81 @@ export async function generateSmartStudyPlanAction(
     cost: AI_STUDY_PLAN_CREDIT_COST,
     balanceAfter: ledger.ledger.balance_after,
   };
+}
+
+export async function applySmartStudyPlanAction(input: unknown): Promise<ActionResult> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const parsed = studyPlanResultSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, message: "Plano inválido para aplicação." };
+
+  let plan: SmartStudyPlanResult;
+  try {
+    assertNoTechnicalText(parsed.data);
+    plan = addStudyPlanTotals(parsed.data, []);
+  } catch (error) {
+    logServerError("ai.applyStudyPlan.validation", error, { userId: context.user.id });
+    return { ok: false, message: "Plano inválido para aplicação." };
+  }
+
+  const topicIds = await getTopicIdsForPlan(context.supabase, plan);
+  if (!topicIds.ok) return { ok: false, message: topicIds.message };
+
+  const weekStart = getWeekStart();
+  const { error: archiveError } = await context.supabase
+    .from("study_plans")
+    .update({ status: "Arquivado" })
+    .eq("user_id", context.user.id)
+    .eq("week_start", weekStart);
+
+  if (archiveError) {
+    logServerError("ai.applyStudyPlan.archive", archiveError, { userId: context.user.id });
+    return { ok: false, message: "Não foi possível substituir o plano atual." };
+  }
+
+  const { data: createdPlan, error: planError } = await context.supabase
+    .from("study_plans")
+    .insert({ user_id: context.user.id, week_start: weekStart, status: "Ativo" })
+    .select("id")
+    .single();
+
+  if (planError || !createdPlan) {
+    if (planError) logServerError("ai.applyStudyPlan.create", planError, { userId: context.user.id });
+    return { ok: false, message: "Não foi possível aplicar o plano agora." };
+  }
+
+  const items = plan.days.flatMap((day) =>
+    day.sessions.map((session) => ({
+      study_plan_id: createdPlan.id,
+      topic_id: topicIds.map.get(planTopicKey(session.area, session.subject, session.topic))!,
+      scheduled_date: day.date,
+      duration_minutes: session.durationMinutes,
+      question_goal: session.questionGoal,
+    })),
+  );
+
+  if (items.length) {
+    const { error } = await context.supabase.from("study_plan_items").insert(items);
+    if (error) {
+      logServerError("ai.applyStudyPlan.items", error, { userId: context.user.id });
+      return { ok: false, message: "Não foi possível salvar as sessões do plano." };
+    }
+  }
+
+  await recordProductEvent({
+    supabase: context.supabase,
+    userId: context.user.id,
+    eventName: "study_plan_generated",
+    route: "/dashboard#plano-semana",
+    metadata: {
+      item_count: items.length,
+      total_minutes: plan.totals.totalMinutes,
+      total_questions: plan.totals.totalQuestions,
+    },
+  });
+  revalidatePath("/dashboard");
+  return { ok: true, message: "Plano aplicado sem novo desconto de créditos." };
 }
 
 async function reserveAiCredits({
@@ -1302,16 +1378,86 @@ function validateStudyPlan(
   const availableMinutes = context.weeklyHours * 60;
   if (totalMinutes > availableMinutes) throw new Error("plan_exceeds_available_hours");
 
+  return addStudyPlanTotals(parsed, importedPriorities, {
+    totalMinutes,
+    totalSessions,
+    totalQuestions,
+  });
+}
+
+function addStudyPlanTotals(
+  plan: z.infer<typeof studyPlanResultSchema>,
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+  totals?: { totalMinutes: number; totalSessions: number; totalQuestions: number },
+): SmartStudyPlanResult {
+  const computed =
+    totals ??
+    plan.days.reduce(
+      (sum, day) => {
+        for (const session of day.sessions) {
+          sum.totalMinutes += session.durationMinutes;
+          sum.totalSessions += 1;
+          sum.totalQuestions += session.questionGoal;
+        }
+        return sum;
+      },
+      { totalMinutes: 0, totalSessions: 0, totalQuestions: 0 },
+    );
+
   return {
-    ...parsed,
+    ...plan,
     totals: {
-      totalMinutes,
-      totalHoursLabel: formatMinutes(totalMinutes),
-      totalSessions,
-      totalQuestions,
+      totalMinutes: computed.totalMinutes,
+      totalHoursLabel: formatMinutes(computed.totalMinutes),
+      totalSessions: computed.totalSessions,
+      totalQuestions: computed.totalQuestions,
     },
     importedPrioritiesUsed: importedPriorities,
   };
+}
+
+async function getTopicIdsForPlan(
+  supabase: AppSupabaseClient,
+  plan: SmartStudyPlanResult,
+): Promise<{ ok: true; map: Map<string, string> } | { ok: false; message: string }> {
+  const wanted = new Set(
+    plan.days.flatMap((day) =>
+      day.sessions.map((session) => planTopicKey(session.area, session.subject, session.topic)),
+    ),
+  );
+  const { data, error } = await supabase
+    .from("topics")
+    .select("id, name, subjects(name, area)");
+
+  if (error) {
+    logServerError("ai.applyStudyPlan.topics", error);
+    return { ok: false, message: "Não foi possível validar os tópicos do plano." };
+  }
+
+  const map = new Map<string, string>();
+  for (const row of (data ?? []) as unknown as Array<{
+    id: string;
+    name: string;
+    subjects: Pick<Subject, "name" | "area"> | Array<Pick<Subject, "name" | "area">> | null;
+  }>) {
+    const subject = firstRelation(row.subjects);
+    if (!subject) continue;
+    const key = planTopicKey(subject.area, subject.name, row.name);
+    if (wanted.has(key)) map.set(key, row.id);
+  }
+
+  if (map.size !== wanted.size) {
+    return {
+      ok: false,
+      message: "O plano cita conteúdos que não existem no Radar atual.",
+    };
+  }
+
+  return { ok: true, map };
+}
+
+function planTopicKey(area: string, subject: string, topic: string) {
+  return normalizeKey(`${area}|${subject}|${topic}`);
 }
 
 function parseJsonObject(content: string): unknown {
