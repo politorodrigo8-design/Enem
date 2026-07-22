@@ -1,19 +1,32 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const aiActionSource = readFileSync(
   new URL("../src/lib/actions/ai.ts", import.meta.url),
   "utf8",
 );
-const aiUiSource = readFileSync(
+const aiUiEntrySource = readFileSync(
   new URL("../src/components/dashboard/ai-credit-actions.tsx", import.meta.url),
   "utf8",
 );
+const aiUiSource = [
+  aiUiEntrySource,
+  ...readSources(new URL("../src/components/dashboard/ai/", import.meta.url)),
+].join("\n");
 const creditsPageSource = readFileSync(
   new URL("../src/app/dashboard/creditos/page.tsx", import.meta.url),
   "utf8",
 );
+
+function readSources(directoryUrl) {
+  return readdirSync(directoryUrl, { withFileTypes: true }).flatMap((entry) => {
+    const childUrl = new URL(entry.name, directoryUrl);
+    if (entry.isDirectory()) return readSources(new URL(`${entry.name}/`, directoryUrl));
+    if (!entry.name.endsWith(".ts") && !entry.name.endsWith(".tsx")) return [];
+    return readFileSync(childUrl, "utf8");
+  });
+}
 
 test("acoes de IA usam JSON estruturado e validacao Zod antes de confirmar credito", () => {
   assert.match(aiActionSource, /explanationResultSchema = z\.object/);
@@ -47,11 +60,17 @@ test("interface publica nao expõe provedor, modelo ou textos antigos das featur
   assert.doesNotMatch(publicAiText, /Groq ativa|Modelo:|llama-3\.3|assuntos para atacar|Tira duvida|Explicar questao|Gerar analise|Otimizar plano/);
 });
 
+test("exports publicos das acoes de IA permanecem estaveis", () => {
+  assert.match(aiUiEntrySource, /export \{ QuestionExplanationCreditAction \}/);
+  assert.match(aiUiEntrySource, /export \{ PerformanceAnalysisCreditAction \}/);
+  assert.match(aiUiEntrySource, /export \{ SmartStudyPlanCreditAction \}/);
+});
+
 test("interface renderiza paineis estruturados com custo, saldo e estados esperados", () => {
-  assert.match(aiUiSource, /ResponsivePanel/);
-  assert.match(aiUiSource, /QuestionExplanationView/);
-  assert.match(aiUiSource, /PerformanceAnalysisView/);
-  assert.match(aiUiSource, /SmartStudyPlanView/);
+  assert.match(aiUiSource, /AiResponsivePanel/);
+  assert.match(aiUiSource, /QuestionExplanationContent/);
+  assert.match(aiUiSource, /PerformanceAnalysisContent/);
+  assert.match(aiUiSource, /IntelligentPlanContent/);
   assert.match(aiUiSource, /Custo: \{cost\} cr[eé]dito/);
   assert.match(aiUiSource, /Saldo após esta explicação/);
   assert.match(aiUiSource, /Saldo após esta análise/);
