@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { PublicHeader } from "@/components/marketing/public-header";
 import { Logo } from "@/components/ui/logo";
+import { RevealController } from "@/components/ui/reveal-controller";
 import { getProductCta } from "@/lib/services/billing";
 
 const footerLinks = [
@@ -20,6 +21,7 @@ export default async function PublicLayout({
 
   return (
     <>
+      <RevealController />
       <PublicHeader cta={cta} />
       {children}
       <footer className="border-t border-white/10 bg-slate-950 text-white">

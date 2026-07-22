@@ -38,7 +38,11 @@ export function HeroPanel() {
         observer.disconnect();
         setActive(true);
 
-        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        const shouldSkipCountAnimation =
+          window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+          window.matchMedia("(max-width: 640px)").matches;
+
+        if (shouldSkipCountAnimation) {
           setScore(finalScore);
           return;
         }

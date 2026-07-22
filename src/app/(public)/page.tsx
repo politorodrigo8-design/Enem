@@ -24,11 +24,10 @@ import {
 } from "@/lib/services/billing";
 import {
   ENEM_YEAR,
-  ESSAY_ACCEPTED_FILE_LABEL,
-  ESSAY_CREDIT_COST_LABEL,
   PRODUCT_NAME,
-  formatAccessDate,
 } from "@/lib/product-config";
+
+const LANDING_ACCESS_UNTIL_LABEL = "01 de dezembro de 2026";
 
 const problemItems = [
   "Estudar assuntos aleatórios, sem saber o que pesa mais na prova.",
@@ -83,7 +82,7 @@ const features = [
   {
     title: "Correção de redação",
     description:
-      "Envie digitada, por foto ou PDF e acompanhe o andamento da correção pela plataforma.",
+      "Envie redação digitada ou manuscrita, por foto ou PDF, e acompanhe o andamento da correção pela plataforma.",
     icon: FileText,
   },
   {
@@ -182,37 +181,36 @@ const planItems = [
   "Atualizações até a prova",
 ];
 
-function buildFaqs(product: { access_valid_until: string }) {
-  const accessUntil = formatAccessDate(product.access_valid_until);
-
+function buildFaqs() {
   return [
     {
       question: "A plataforma garante uma nota específica?",
       answer:
-        "Não. A Pontua Enem organiza prioridades, treino e acompanhamento de evolução. Quem faz a nota é você, e nenhuma plataforma honesta promete resultado garantido.",
+        "Não. A Pontua Enem organiza prioridades, treino e acompanhamento da evolução. Quem faz a nota é você, e nenhuma plataforma honesta promete resultado garantido.",
     },
     {
       question: "As questões são oficiais do ENEM?",
       answer:
-        "O banco pode reunir questões antigas do ENEM, sempre com fonte identificada, e questões autorais ou demonstrativas quando usadas. O conteúdo passa por revisão editorial e jurídica antes da abertura comercial.",
+        "O banco reúne questões antigas do ENEM, sempre com a fonte identificada, além de questões autorais ou demonstrativas devidamente sinalizadas. Todo o conteúdo passa por revisão editorial.",
     },
     {
       question: "Como funcionam o acesso e o pagamento?",
-      answer: `O acesso principal não é mensal: é comprado uma vez no checkout, após criar ou entrar na conta. Depois da confirmação do pagamento, o dashboard é liberado até ${accessUntil}, sem renovação automática.`,
+      answer: `O acesso principal não é mensal. Você realiza um pagamento único pelo checkout, após criar ou entrar na sua conta. Depois da confirmação do pagamento, o dashboard é liberado até ${LANDING_ACCESS_UNTIL_LABEL}, sem mensalidade ou renovação automática.`,
     },
     {
       question: "Como funcionam o Radar ENEM e a análise de desempenho?",
       answer:
-        "O Radar não prevê a prova. Ele cruza recorrência histórica dos assuntos com seus acertos e erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
+        "O Radar ENEM não prevê a prova. Ele cruza a recorrência histórica dos assuntos com seus acertos e erros para indicar prioridades de estudo e os pontos com maior potencial de evolução.",
     },
     {
       question: "Como funcionam a correção de redação e os créditos?",
-      answer: `Você pode digitar a redação ou anexar ${ESSAY_ACCEPTED_FILE_LABEL}. A correção não é instantânea: fica em acompanhamento até ser disponibilizada. Cada submissão confirmada usa ${ESSAY_CREDIT_COST_LABEL}; créditos adicionais poderão ser comprados quando essa opção estiver habilitada.`,
+      answer:
+        "Você pode enviar uma redação digitada ou manuscrita, por foto ou PDF. A correção utiliza créditos da conta, e a quantidade necessária é informada antes da confirmação. Os créditos também podem ser utilizados em outros recursos de inteligência artificial da plataforma. O saldo e o histórico de uso ficam disponíveis no dashboard, e créditos adicionais podem ser comprados a qualquer momento.",
     },
     {
       question: "A Pontua Enem funciona no celular e substitui um cursinho?",
       answer:
-        "Sim, as telas principais são responsivas para celular, tablet, notebook e desktop. Ela não substitui necessariamente um cursinho; pode complementar a rotina com prioridade, treino, desempenho, simulados e redação.",
+        "Sim. As telas principais são responsivas para celular, tablet, notebook e desktop. A Pontua Enem não substitui necessariamente um cursinho, mas complementa a preparação com prioridades personalizadas, banco de questões, simulados, análise de desempenho, plano de estudos e correção de redação.",
     },
   ];
 }
@@ -221,8 +219,8 @@ export default async function HomePage() {
   const product = await getPublicProduct();
   const price = getCurrentProductPrice(product);
   const cta = getProductCta();
-  const accessUntil = formatAccessDate(product.access_valid_until);
-  const faqs = buildFaqs(product);
+  const accessUntil = LANDING_ACCESS_UNTIL_LABEL;
+  const faqs = buildFaqs();
 
   return (
     <main>
@@ -274,7 +272,7 @@ export default async function HomePage() {
                 "Sem promessa de nota garantida — com método para evoluir",
                 "Prioridades baseadas no seu desempenho real",
                 `Pagamento único, acesso até ${accessUntil}`,
-                "Redação digitada, por foto ou PDF",
+                "Redação digitada ou manuscrita, por foto ou PDF",
               ].map((label) => (
                 <li
                   key={label}
@@ -456,9 +454,9 @@ export default async function HomePage() {
                 Envie redações e acompanhe tudo no mesmo painel.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
-                Envie sua redação digitada, por foto ou PDF e acompanhe a
-                correção dentro da plataforma. O histórico fica junto do seu
-                plano, banco de questões, Radar e desempenho.
+                Envie sua redação digitada ou manuscrita, por foto ou PDF, e
+                acompanhe a correção dentro da plataforma. O histórico fica
+                junto do seu plano, banco de questões, Radar e desempenho.
               </p>
             </Reveal>
 
@@ -468,9 +466,9 @@ export default async function HomePage() {
                   title: "Correção de redação",
                   icon: FileText,
                   lines: [
-                    "Envio digitado, por foto ou PDF",
+                    "Redação digitada ou manuscrita, enviada por foto ou PDF",
                     "Status: aguardando, em análise ou concluída",
-                    `Custo por submissão: ${ESSAY_CREDIT_COST_LABEL}`,
+                    "Uso de créditos informado antes da confirmação",
                   ],
                 },
                 {
@@ -571,8 +569,8 @@ export default async function HomePage() {
               Um pagamento. Acesso até {accessUntil}.
             </h2>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              Sem mensalidade, sem renovação automática. Funcionalidades
-              específicas podem consumir créditos internos.
+              Funcionalidades específicas podem consumir créditos internos, com
+              o consumo informado antes da confirmação.
             </p>
           </Reveal>
           <Reveal
@@ -580,13 +578,18 @@ export default async function HomePage() {
             className="mt-12 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/5"
           >
             <div className="grid md:grid-cols-[0.9fr_1.1fr]">
-              <div className="flex flex-col justify-center bg-slate-950 p-10 text-white">
+              <div className="flex flex-col justify-center bg-slate-950 p-6 text-white sm:p-10">
                 <p className="text-sm font-semibold text-blue-300">{PRODUCT_NAME}</p>
-                <p className="tnum mt-4 font-display text-6xl font-semibold tracking-tight">
-                  {formatCurrency(price)}
+                <p className="tnum mt-4 flex items-start font-display text-6xl font-semibold tracking-tight">
+                  <span>{formatCurrency(price)}</span>
+                  <sup className="ml-1 mt-1 text-2xl leading-none text-blue-300">*</sup>
                 </p>
                 <p className="mt-4 text-sm leading-6 text-slate-400">
-                  Pagamento único. Acesso completo até {accessUntil}.
+                  Inclui 50 créditos para recursos de inteligência artificial.
+                </p>
+                <p className="mt-5 text-xs leading-5 text-slate-500">
+                  * Pagamento único, sem mensalidade ou renovação automática.
+                  Acesso completo até {accessUntil}.
                 </p>
                 <Link
                   href={cta.href}
@@ -601,7 +604,7 @@ export default async function HomePage() {
                   <ArrowRight className="h-5 w-5" aria-hidden="true" />
                 </Link>
               </div>
-              <div className="p-10">
+              <div className="p-6 sm:p-10">
                 <p className="text-sm font-semibold text-slate-500">Incluído no acesso</p>
                 <div className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2">
                   {planItems.map((item) => (
@@ -617,13 +620,16 @@ export default async function HomePage() {
                   ))}
                 </div>
                 <div className="mt-6 rounded-lg bg-blue-50 p-4 text-sm leading-6 text-blue-950">
-                  <p className="font-semibold">Como entram os créditos</p>
+                  <p className="font-semibold">Como funcionam os créditos</p>
                   <p className="mt-1">
-                    O acesso principal é adquirido uma vez. Envios de redação
-                    para correção usam {ESSAY_CREDIT_COST_LABEL} por submissão
-                    confirmada. Saldo e histórico ficam disponíveis na conta;
-                    créditos adicionais poderão ser adquiridos quando essa
-                    opção estiver habilitada.
+                    O acesso inclui 50 créditos para usar nos recursos de
+                    inteligência artificial da Pontua Enem, como correção de
+                    redação, explicação de questões, análise de desempenho e
+                    plano de estudos inteligente. Cada recurso consome uma
+                    quantidade específica de créditos, informada antes da
+                    confirmação. O saldo e o histórico de uso ficam disponíveis
+                    na sua conta, e créditos adicionais podem ser comprados a
+                    qualquer momento.
                   </p>
                 </div>
               </div>
