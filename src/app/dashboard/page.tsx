@@ -445,7 +445,13 @@ function getWeeklyRecommendation(topicName: string | undefined, essay: EssaySubm
 }
 
 function formatLedgerEntry(entry: CreditLedgerEntry) {
-  const label = entry.reason === "essay_correction" ? "correção de redação" : "uso de créditos";
+  const labels: Partial<Record<CreditLedgerEntry["reason"], string>> = {
+    essay_correction: "correção de redação",
+    ai_question_explanation: "explicação de questão",
+    ai_performance_analysis: "análise de desempenho",
+    ai_study_plan: "plano inteligente",
+  };
+  const label = labels[entry.reason] ?? "uso de créditos";
   const date = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
     month: "2-digit",

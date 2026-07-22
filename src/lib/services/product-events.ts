@@ -27,6 +27,9 @@ export const productEventNames = [
   "essay_submitted",
   "essay_corrected",
   "essay_cancelled",
+  "ai_question_explanation_generated",
+  "ai_performance_analysis_generated",
+  "ai_study_plan_generated",
 ] as const;
 
 export type ProductEventName = (typeof productEventNames)[number];

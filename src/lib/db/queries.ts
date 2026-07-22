@@ -191,7 +191,7 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
     .filter(isStudentReadyQuestion)
     .map(stripAnswerKey);
 
-  return readyRecords.length ? readyRecords : getFallbackQuestionRecords();
+  return mergeQuestionRecordSources(readyRecords, getFallbackQuestionRecords());
 }
 
 export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
@@ -209,9 +209,7 @@ export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
 
   const topics = (data ?? []) as unknown as TopicWithSubject[];
   const fallbackTopics = getFallbackTopicsWithPerformance();
-  return topics.length >= 25 || topics.length >= fallbackTopics.length
-    ? topics
-    : fallbackTopics;
+  return mergeTopicSources(topics, fallbackTopics);
 }
 
 export async function getAreaMetrics(): Promise<AreaMetric[]> {
@@ -368,14 +366,11 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
         questions: stripAnswerKey(item.questions),
       })),
   }));
-  const largestSimulation = Math.max(
-    0,
-    ...readySimulations.map(
-      (simulation) => simulation.simulation_questions.length,
-    ),
+  const usableSimulations = readySimulations.filter(
+    (simulation) => simulation.simulation_questions.length > 0,
   );
 
-  return largestSimulation >= 10 ? readySimulations : getFallbackSimulations();
+  return mergeSimulationSources(usableSimulations, getFallbackSimulations());
 }
 
 export async function getCurrentStudyPlan(): Promise<StudyPlanWithItems | null> {
@@ -444,6 +439,106 @@ function hasHighPrioritySignal(question: QuestionRecord) {
     Boolean(question.priority_reason || question.is_demo) &&
     (recurrenceIsHigh || editorialScoreIsHigh || topicRecurrenceIsHigh)
   );
+}
+
+function mergeTopicSources(primary: TopicWithSubject[], fallback: TopicWithSubject[]) {
+  const seen = new Set(primary.map(topicSignature));
+  const merged = [...primary];
+
+  for (const topic of fallback) {
+    const signature = topicSignature(topic);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    merged.push(topic);
+  }
+
+  return merged.sort(
+    (a, b) =>
+      Number(b.historical_recurrence ?? 0) - Number(a.historical_recurrence ?? 0) ||
+      a.subjects.area.localeCompare(b.subjects.area) ||
+      a.name.localeCompare(b.name),
+  );
+}
+
+function topicSignature(topic: TopicWithSubject) {
+  return normalizeQuestionKey([
+    topic.subjects.area,
+    topic.subjects.name,
+    topic.name,
+  ]);
+}
+
+function mergeSimulationSources(
+  primary: SimulationWithQuestions[],
+  fallback: SimulationWithQuestions[],
+) {
+  const seen = new Set(primary.map(simulationSignature));
+  const merged = [...primary];
+
+  for (const simulation of fallback) {
+    const signature = simulationSignature(simulation);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    merged.push(simulation);
+  }
+
+  return merged;
+}
+
+function simulationSignature(simulation: SimulationWithQuestions) {
+  return normalizeQuestionKey([simulation.title]);
+}
+
+function mergeQuestionRecordSources(
+  primary: QuestionRecord[],
+  fallback: QuestionRecord[],
+) {
+  const seen = new Set(primary.map(questionSignature));
+  const merged = [...primary];
+
+  for (const question of fallback) {
+    const signature = questionSignature(question);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    merged.push(question);
+  }
+
+  return merged.sort((a, b) => {
+    const officialDelta = Number(b.is_official) - Number(a.is_official);
+    if (officialDelta) return officialDelta;
+    const yearDelta = Number(b.year) - Number(a.year);
+    if (yearDelta) return yearDelta;
+    return Number(b.priority_score ?? 0) - Number(a.priority_score ?? 0);
+  });
+}
+
+function questionSignature(question: QuestionRecord) {
+  if (question.is_official && question.question_number) {
+    return normalizeQuestionKey([
+      question.exam_name || "ENEM",
+      question.year,
+      question.exam_day || "",
+      question.question_number,
+      question.language || "",
+    ]);
+  }
+
+  return normalizeQuestionKey([
+    question.statement,
+    question.year,
+    question.source,
+    question.question_number || "",
+  ]);
+}
+
+function normalizeQuestionKey(parts: Array<string | number>) {
+  return parts
+    .join("|")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export async function getRadarMethodologyVersions() {

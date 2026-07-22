@@ -23,6 +23,9 @@ const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
   simulation_reward: "Simulado finalizado",
   study_plan_reward: "Plano concluído",
   purchase: "Compra de créditos",
+  ai_question_explanation: "Explicação de questão com IA",
+  ai_performance_analysis: "Análise de desempenho com IA",
+  ai_study_plan: "Plano inteligente com IA",
 };
 
 const essayStatusLabels: Record<EssaySubmission["status"], string> = {
@@ -57,28 +60,28 @@ const creditTools = [
     title: "Explicar questão",
     description: "Tirar dúvida rápida sobre enunciado, alternativa ou resolução.",
     cost: "1 crédito",
-    status: "API em integração",
+    status: "Groq ativa",
     href: "/dashboard/praticar?tab=banco",
     cta: "Ver no treino",
-    available: false,
+    available: true,
   },
   {
     title: "Análise de desempenho",
     description: "Resumo dos erros recentes com próximos assuntos para atacar.",
     cost: "2 créditos",
-    status: "API em integração",
+    status: "Groq ativa",
     href: "/dashboard/radar?tab=desempenho",
     cta: "Ver desempenho",
-    available: false,
+    available: true,
   },
   {
     title: "Plano inteligente",
     description: "Ajuste automático do plano semanal com base no Radar e nos erros.",
     cost: "2 créditos",
-    status: "API em integração",
+    status: "Groq ativa",
     href: "/dashboard#plano-semana",
     cta: "Ver no plano",
-    available: false,
+    available: true,
   },
 ];
 

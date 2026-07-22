@@ -61,7 +61,7 @@ export default async function RadarPage({
           </div>
         }
         performance={
-          <PerformanceView questions={questions} areaMetrics={areaMetrics} />
+          <PerformanceView questions={questions} areaMetrics={areaMetrics} access={access} />
         }
       />
     </div>

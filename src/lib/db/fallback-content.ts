@@ -1,3 +1,5 @@
+import "server-only";
+
 import matematicaRows from "../../../supabase/imports/enem-piloto-matematica.json";
 import linguagensRows from "../../../supabase/imports/enem-piloto-linguagens.json";
 import humanasRows from "../../../supabase/imports/enem-piloto-humanas.json";
@@ -83,7 +85,7 @@ const importedRows = [
   ...(linguagensRows as FallbackImportRow[]),
   ...(humanasRows as FallbackImportRow[]),
   ...(naturezaRows as FallbackImportRow[]),
-].filter((row) => isApprovedFallbackRow(row));
+].filter((row) => isApprovedFallbackRow(row) && isUsableFallbackRow(row));
 
 const fallbackQuestionsWithAnswers = importedRows.map((row, index) =>
   buildFallbackQuestion(row, index, true),
@@ -186,13 +188,26 @@ function buildFallbackQuestion(
   const difficulty = displayDifficulty(row.difficulty);
   const recurrenceCategory = row.recurrence_category || row.estimated_priority || "Complementar";
   const mediaUrl = row.media_url || null;
+  const statement = cleanFallbackStatement(row.statement);
+  const explanation = cleanFallbackText(row.explanation);
+  const optionValues = [
+    ["A", row.option_a],
+    ["B", row.option_b],
+    ["C", row.option_c],
+    ["D", row.option_d],
+    ["E", row.option_e],
+  ].map(([optionKey, optionText]) => [
+    optionKey,
+    cleanFallbackOption(optionText, optionKey),
+  ]);
 
   return {
     id: questionId,
-    statement: row.statement,
+    statement,
     subject_id: subjectId,
     topic_id: topicId,
     difficulty,
+    language: row.language || null,
     year: Number(row.year),
     source: row.source,
     source_url: row.source_url || null,
@@ -233,7 +248,7 @@ function buildFallbackQuestion(
     media_required: Boolean(row.media_required),
     classification_version: row.classification_version || "fallback-2026-07",
     recurrence_category: recurrenceCategory,
-    explanation: includeAnswerKey ? row.explanation : "",
+    explanation: includeAnswerKey ? explanation : "",
     correct_option: includeAnswerKey ? row.correct_option : "",
     created_at: createdAt,
     media_url: mediaUrl,
@@ -260,13 +275,7 @@ function buildFallbackQuestion(
         Math.min(10, Number(row.priority_score ?? 0) / 10).toFixed(2),
       ),
     },
-    question_options: [
-      ["A", row.option_a],
-      ["B", row.option_b],
-      ["C", row.option_c],
-      ["D", row.option_d],
-      ["E", row.option_e],
-    ].map(([optionKey, optionText]) => ({
+    question_options: optionValues.map(([optionKey, optionText]) => ({
       id: `${questionId}-option-${optionKey}`,
       question_id: questionId,
       option_key: optionKey,
@@ -503,6 +512,73 @@ function isApprovedFallbackRow(row: FallbackImportRow) {
     row.answer_verified === true &&
     Boolean(row.statement) &&
     Boolean(row.correct_option)
+  );
+}
+
+function isUsableFallbackRow(row: FallbackImportRow) {
+  const statement = cleanFallbackStatement(row.statement);
+  const explanation = cleanFallbackText(row.explanation);
+  const optionValues = [
+    cleanFallbackOption(row.option_a, "A"),
+    cleanFallbackOption(row.option_b, "B"),
+    cleanFallbackOption(row.option_c, "C"),
+    cleanFallbackOption(row.option_d, "D"),
+    cleanFallbackOption(row.option_e, "E"),
+  ];
+  const optionsRequireImage = optionValues.every(optionRefersToImage);
+
+  return (
+    hasUsableFallbackText(statement, 40) &&
+    hasUsableFallbackText(explanation, 20) &&
+    optionValues.every((option) => hasUsableFallbackText(option, 1)) &&
+    (!optionsRequireImage || Boolean(row.media_url))
+  );
+}
+
+function hasUsableFallbackText(value: string | null | undefined, minLength: number) {
+  const normalized = value?.replace(/\s+/g, " ").trim() ?? "";
+  return normalized.length >= minLength && !normalized.includes("\uFFFD");
+}
+
+function cleanFallbackStatement(value: string) {
+  return cleanFallbackText(value)
+    .replace(
+      /^[\s\u2014\u2013\-_.>"'()\d]*[\u2014\u2013\->]+[\s\u2014\u2013\-_.>"'()\d]*enem[a-z0-9]*\s*/i,
+      "",
+    )
+    .replace(/^[\s\u2014\u2013\-_.>"'()]+/, "")
+    .replace(/\bArela([çc])ao\b/gi, "A relação")
+    .trim();
+}
+
+function cleanFallbackOption(value: string, optionKey: string) {
+  const cleaned = cleanFallbackText(value)
+    .replace(/\s+enem[a-z0-9>]*\s+(?:LC|MT|CN|CH)\s*-.*$/i, "")
+    .replace(/\s+(?:LC|MT|CN|CH)\s*-\s*.*$/i, "")
+    .replace(/\s+\d+\s*-\s+AZUL\s+-.*$/i, "")
+    .replace(/\s+Exame Nacional.*$/i, "")
+    .replace(/\s+\*\d{6,}.*$/i, "")
+    .trim();
+
+  if (optionRefersToImage(cleaned)) {
+    return `Ver alternativa ${optionKey} na imagem.`;
+  }
+
+  return cleaned;
+}
+
+function cleanFallbackText(value: string) {
+  return value
+    .normalize("NFC")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function optionRefersToImage(value: string) {
+  const key = normalizeKey(value);
+  return (
+    key.includes("ver imagem da questao") ||
+    (key.includes("ver alternativa") && key.includes("imagem"))
   );
 }
 

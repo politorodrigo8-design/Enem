@@ -83,6 +83,7 @@ export type Database = {
           subject_id: string;
           topic_id: string;
           difficulty: string;
+          language: string | null;
           year: number;
           source: string;
           source_url: string | null;
@@ -132,6 +133,7 @@ export type Database = {
           subject_id: string;
           topic_id: string;
           difficulty: string;
+          language?: string | null;
           year: number;
           source: string;
           source_url?: string | null;
@@ -408,7 +410,10 @@ export type Database = {
             | "training_reward"
             | "simulation_reward"
             | "study_plan_reward"
-            | "purchase";
+            | "purchase"
+            | "ai_question_explanation"
+            | "ai_performance_analysis"
+            | "ai_study_plan";
           reference_type: string | null;
           reference_id: string | null;
           related_ledger_id: string | null;
@@ -428,7 +433,10 @@ export type Database = {
             | "training_reward"
             | "simulation_reward"
             | "study_plan_reward"
-            | "purchase";
+            | "purchase"
+            | "ai_question_explanation"
+            | "ai_performance_analysis"
+            | "ai_study_plan";
           reference_type?: string | null;
           reference_id?: string | null;
           related_ledger_id?: string | null;
@@ -823,6 +831,16 @@ export type Database = {
       ensure_credit_account: {
         Args: { target_user_id: string };
         Returns: Database["public"]["Tables"]["credit_accounts"]["Row"];
+      };
+      spend_ai_credits: {
+        Args: {
+          input_operation: string;
+          input_cost: number;
+          input_reference_type?: string | null;
+          input_reference_id?: string | null;
+          input_metadata?: Json;
+        };
+        Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
       };
       is_admin: {
         Args: { user_id?: string };

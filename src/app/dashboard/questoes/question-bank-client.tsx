@@ -6,12 +6,10 @@ import {
   BookmarkCheck,
   BookmarkPlus,
   CheckCircle2,
-  Coins,
   Filter,
   ImageIcon,
   ListChecks,
   Search,
-  Sparkles,
   Target,
   XCircle,
 } from "lucide-react";
@@ -25,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PremiumGate } from "@/components/dashboard/premium-gate";
+import { QuestionExplanationCreditAction } from "@/components/dashboard/ai-credit-actions";
 import {
   submitQuestionAnswerAction,
   toggleQuestionReviewAction,
@@ -576,7 +575,11 @@ export function QuestionBankClient({
                   />
                 </dl>
                 <PriorityDetails question={question} />
-                <AiCreditAction />
+                <QuestionExplanationCreditAction
+                  questionId={question.id}
+                  selectedOption={displayedSelected || undefined}
+                  disabled={accessBlocked || !currentResult}
+                />
                 <Button
                   variant="outline"
                   full
@@ -718,30 +721,6 @@ function PriorityDetails({ question }: { question: QuestionRecord }) {
           {question.content_recurrence}
         </p>
       ) : null}
-    </div>
-  );
-}
-
-function AiCreditAction() {
-  return (
-    <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="flex items-center gap-1.5 text-sm font-bold text-slate-950">
-            <Sparkles className="h-4 w-4 text-blue-700" aria-hidden="true" />
-            Explicar questão
-          </p>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
-            Dúvida sobre enunciado, alternativa ou resolução.
-          </p>
-        </div>
-        <span className="tnum inline-flex items-center gap-1 rounded-md bg-white px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-200">
-          <Coins className="h-3.5 w-3.5" aria-hidden="true" />1
-        </span>
-      </div>
-      <Button className="mt-3" variant="outline" size="sm" full disabled>
-        API em integração
-      </Button>
     </div>
   );
 }
