@@ -32,8 +32,11 @@ export function AiResponsivePanel({
   useEffect(() => {
     if (!open) return;
     const opener = openerRef.current;
+    const root = document.documentElement;
     const previousOverflow = document.body.style.overflow;
+    const previousRootOverflow = root.style.overflow;
     document.body.style.overflow = "hidden";
+    root.style.overflow = "hidden";
     const timer = window.setTimeout(() => panelRef.current?.focus(), 0);
 
     function onKeyDown(event: KeyboardEvent) {
@@ -58,6 +61,7 @@ export function AiResponsivePanel({
     return () => {
       window.clearTimeout(timer);
       document.body.style.overflow = previousOverflow;
+      root.style.overflow = previousRootOverflow;
       document.removeEventListener("keydown", onKeyDown);
       opener?.focus();
     };
@@ -88,7 +92,7 @@ export function AiResponsivePanel({
           "fixed flex max-h-[100dvh] flex-col overflow-hidden bg-white shadow-2xl outline-none",
           "pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]",
           mode === "drawer"
-            ? "inset-y-0 right-0 w-full sm:max-w-[620px]"
+            ? "inset-y-0 right-0 w-full sm:max-w-[620px] sm:inset-y-3 sm:right-3 sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-xl sm:border sm:border-slate-200"
             : "inset-x-0 bottom-0 top-0 w-full sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:max-h-[88dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
           mode === "modal" && (wide ? "sm:max-w-[1040px]" : "sm:max-w-[860px]"),
         )}
