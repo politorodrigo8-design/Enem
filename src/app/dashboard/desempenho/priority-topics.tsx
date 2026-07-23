@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { PlayCircle, Search } from "lucide-react";
+import { ChevronDown, ChevronUp, PlayCircle, Search } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, priorityTone } from "@/lib/utils";
@@ -81,6 +81,7 @@ export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
 export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
   const [query, setQuery] = useState("");
   const [area, setArea] = useState("Todas");
+  const [showAll, setShowAll] = useState(false);
 
   const areas = useMemo(
     () => ["Todas", ...Array.from(new Set(items.map((item) => item.area)))],
@@ -97,6 +98,13 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       );
     });
   }, [area, items, query]);
+  const displayed = useMemo(
+    () => (showAll ? visible : visible.filter(isMainPriority)),
+    [showAll, visible],
+  );
+  const hiddenCount = visible.filter((item) => !isMainPriority(item)).length;
+  const toggleLabel = showAll ? "Ver menos" : "Ver todos";
+  const ToggleIcon = showAll ? ChevronUp : ChevronDown;
 
   return (
     <Card>
@@ -136,40 +144,61 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       </CardHeader>
       <CardContent>
         {visible.length ? (
-          <ul className="divide-y divide-slate-100">
-            {visible.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
-              >
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">
-                    {item.discipline}: {item.name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
-                </div>
-                <div className="flex shrink-0 items-center gap-3">
-                  <span
-                    className={cn(
-                      "hidden rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset sm:inline-flex",
-                      priorityTone(item.label),
-                    )}
+          <>
+            {displayed.length ? (
+              <ul className="divide-y divide-slate-100">
+                {displayed.map((item) => (
+                  <li
+                    key={item.id}
+                    className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
                   >
-                    {item.label}
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium text-slate-800">
+                        {item.discipline}: {item.name}
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span
+                        className={cn(
+                          "hidden rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset sm:inline-flex",
+                          priorityTone(item.label),
+                        )}
+                      >
+                        {item.label}
+                      </span>
+                      <span className="tnum w-12 text-right text-xs text-slate-500">
+                        {item.answered ? `${item.accuracy ?? 0}%` : "—"}
+                      </span>
+                      <Link
+                        href={`/dashboard/praticar?topic=${item.id}`}
+                        className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+                      >
+                        Treinar
+                      </Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+
+            {hiddenCount > 0 && (
+              <div className={cn("flex justify-center", displayed.length > 0 && "mt-4")}>
+                <button
+                  type="button"
+                  onClick={() => setShowAll((current) => !current)}
+                  className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                  aria-expanded={showAll}
+                >
+                  <span>
+                    {toggleLabel}
+                    {!showAll && hiddenCount > 0 ? ` (${hiddenCount})` : ""}
                   </span>
-                  <span className="tnum w-12 text-right text-xs text-slate-500">
-                    {item.answered ? `${item.accuracy ?? 0}%` : "—"}
-                  </span>
-                  <Link
-                    href={`/dashboard/praticar?topic=${item.id}`}
-                    className="text-sm font-semibold text-blue-700 hover:text-blue-800"
-                  >
-                    Treinar
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+                  <ToggleIcon className="h-4 w-4" aria-hidden="true" />
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <p className="py-6 text-center text-sm leading-6 text-slate-500">
             Nenhum assunto corresponde à busca. Tente outro termo ou limpe o
@@ -179,6 +208,10 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       </CardContent>
     </Card>
   );
+}
+
+function isMainPriority(item: PriorityTopicItem) {
+  return item.label.includes("máxima") || item.label.includes("alta");
 }
 
 function normalize(value: string) {

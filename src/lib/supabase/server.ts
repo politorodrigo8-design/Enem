@@ -5,6 +5,7 @@ import {
   getSupabaseUrl,
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
+import { supabaseAuthCookieOptions } from "@/lib/auth/session-timeout";
 
 export async function createClient() {
   if (!isSupabaseConfigured()) {
@@ -14,21 +15,22 @@ export async function createClient() {
   const cookieStore = await cookies();
 
   return createServerClient(getSupabaseUrl(), getSupabasePublicKey(), {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          } catch {
-            // Server Components cannot mutate cookies; middleware refreshes the session.
-          }
-        },
+    cookieOptions: supabaseAuthCookieOptions,
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
       },
-    });
+      setAll(cookiesToSet) {
+        try {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            cookieStore.set(name, value, options),
+          );
+        } catch {
+          // Server Components cannot mutate cookies; middleware refreshes the session.
+        }
+      },
+    },
+  });
 }
 
 export async function getCurrentUser() {

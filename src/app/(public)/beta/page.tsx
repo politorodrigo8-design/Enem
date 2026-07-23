@@ -8,7 +8,7 @@ import { BetaApplicationForm } from "./beta-application-form";
 
 const betaItems = [
   "Diagnóstico inicial e dashboard",
-  "Radar ENEM",
+  "Análise de desempenho",
   "Banco de questões (amostra inicial)",
   "Simulados",
   "Resumo de desempenho",
@@ -20,7 +20,7 @@ const transparencyItems = [
   "O produto está em fase beta.",
   "Alguns indicadores ainda são estimativas educacionais.",
   "Não há garantia de nota.",
-  "O Radar não prevê exatamente o que cairá.",
+  "A análise de desempenho não prevê exatamente o que cairá.",
   "A recorrência é uma estimativa educacional.",
   "O acesso à beta é liberado manualmente pela equipe.",
 ];
@@ -83,10 +83,10 @@ export default function BetaPage() {
               <Card>
                 <CardContent>
                   <Radar className="h-6 w-6 text-blue-700" aria-hidden="true" />
-                  <h2 className="mt-4 text-lg font-bold text-slate-950">Radar ENEM</h2>
+                  <h2 className="mt-4 text-lg font-bold text-slate-950">Desempenho</h2>
                   <p className="mt-2 text-sm leading-6 text-slate-600">
-                    O Radar usa recorrência histórica e padrões de cobrança como
-                    estimativa educacional. Ele não prevê questões exatas.
+                    A análise usa recorrência histórica e padrões de cobrança
+                    como estimativa educacional. Ela não prevê questões exatas.
                   </p>
                 </CardContent>
               </Card>

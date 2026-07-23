@@ -10,6 +10,10 @@ type GroqMessage = {
   content: string;
 };
 
+type GroqResponseFormat = {
+  type: "json_object";
+};
+
 type GroqChatCompletionPayload = {
   model?: string;
   choices?: Array<{
@@ -58,11 +62,13 @@ export async function generateGroqText({
   maxCompletionTokens = 900,
   temperature = 0.35,
   timeoutMs = 30_000,
+  responseFormat,
 }: {
   messages: GroqMessage[];
   maxCompletionTokens?: number;
   temperature?: number;
   timeoutMs?: number;
+  responseFormat?: GroqResponseFormat;
 }): Promise<GroqTextResult> {
   const apiKey = getGroqApiKey();
   if (!apiKey) {
@@ -84,6 +90,7 @@ export async function generateGroqText({
         model,
         messages,
         max_completion_tokens: maxCompletionTokens,
+        response_format: responseFormat,
         temperature,
         stream: false,
       }),

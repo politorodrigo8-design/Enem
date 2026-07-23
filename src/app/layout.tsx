@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     template: "%s | Pontua Enem",
   },
   description:
-    "Descubra o que estudar para aumentar sua nota no ENEM: diagnóstico, Radar de prioridades, banco de questões e plano semanal de estudos.",
+    "Descubra o que estudar para aumentar sua nota no ENEM: diagnóstico, análise de desempenho, banco de questões e plano semanal de estudos.",
   applicationName: "Pontua Enem",
   keywords: ["ENEM", "estudos", "simulado", "desempenho", "plano de estudos"],
   openGraph: {

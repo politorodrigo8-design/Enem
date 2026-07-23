@@ -654,7 +654,13 @@ const essayStatusPriority: Record<string, number> = {
   upload_failed: 5,
 };
 
-export async function getCreditsData(): Promise<CreditsData> {
+export async function getCreditsData({
+  ledgerPage = 1,
+  ledgerPageSize = 8,
+}: {
+  ledgerPage?: number;
+  ledgerPageSize?: number;
+} = {}): Promise<CreditsData> {
   const { supabase, user } = await requirePlatformAccess();
 
   const { data: account, error: accountError } = await supabase.rpc(
@@ -666,13 +672,30 @@ export async function getCreditsData(): Promise<CreditsData> {
     throw new Error(accountError?.message ?? "Não foi possível carregar créditos.");
   }
 
+  const safeLedgerPageSize = Math.max(1, Math.floor(ledgerPageSize));
+  const requestedLedgerPage = Math.max(1, Math.floor(ledgerPage));
+  const { count: ledgerTotal, error: ledgerCountError } = await supabase
+    .from("credit_ledger")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id);
+
+  if (ledgerCountError) {
+    logQueryError("credit_ledger.count", ledgerCountError);
+  }
+
+  const safeLedgerTotal = ledgerTotal ?? 0;
+  const ledgerPageCount = Math.max(1, Math.ceil(safeLedgerTotal / safeLedgerPageSize));
+  const currentLedgerPage = Math.min(requestedLedgerPage, ledgerPageCount);
+  const ledgerFrom = (currentLedgerPage - 1) * safeLedgerPageSize;
+  const ledgerTo = ledgerFrom + safeLedgerPageSize - 1;
+
   const [ledgerResult, essaysResult] = await Promise.all([
     supabase
       .from("credit_ledger")
       .select("*")
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
-      .limit(8),
+      .range(ledgerFrom, ledgerTo),
     supabase
       .from("essay_submissions")
       .select("*")
@@ -691,6 +714,9 @@ export async function getCreditsData(): Promise<CreditsData> {
   return {
     account,
     ledger: ledgerResult.data ?? [],
+    ledgerPage: currentLedgerPage,
+    ledgerPageSize: safeLedgerPageSize,
+    ledgerTotal: safeLedgerTotal,
     recentEssays: essaysResult.data ?? [],
   };
 }

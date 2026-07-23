@@ -304,7 +304,7 @@ function LoginPageContent() {
                   Li e concordo com os{" "}
                   <LegalLink href="/termos">Termos de Uso</LegalLink> e com a{" "}
                   <LegalLink href="/reembolso">Política de Reembolso</LegalLink>, e
-                  declaro que li e estou ciente da{" "}
+                  Declaro que li e estou ciente da{" "}
                   <LegalLink href="/privacidade">Política de Privacidade</LegalLink>.
                 </LegalCheckbox>
                 {signUpForm.formState.errors.legalAcceptance ? (

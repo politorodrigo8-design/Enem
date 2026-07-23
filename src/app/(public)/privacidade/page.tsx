@@ -43,7 +43,7 @@ export default function PrivacyPage() {
               items={[
                 "Dados de conta, como nome, e-mail, identificadores internos e autenticação.",
                 "Dados de pedidos e pagamentos, como produto, valor, status, identificadores internos e identificadores limitados do Mercado Pago.",
-                "Dados de estudo, como respostas, simulados, diagnóstico, desempenho, Radar ENEM, favoritos, revisão de erros e plano semanal.",
+                "Dados de estudo, como respostas, simulados, diagnóstico, desempenho, prioridades, favoritos, revisão de erros e plano semanal.",
                 "Dados de redação, incluindo tema, observações, texto digitado, arquivos enviados, status, eventos da fila, correções e créditos debitados ou estornados.",
                 "Dados de créditos, como saldo, consumo, compra, estorno, razão do lançamento e histórico em ledger.",
                 "Dados técnicos necessários, como cookies essenciais de autenticação e sessão, IP, navegador, dispositivo e logs gerados pela infraestrutura.",

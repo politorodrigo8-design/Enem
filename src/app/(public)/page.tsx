@@ -31,12 +31,11 @@ const LANDING_ACCESS_UNTIL_LABEL = "01 de dezembro de 2026";
 const LANDING_ACCESS_COPY =
   "Pagamento único para acesso até 01 de dezembro de 2026.";
 
-// TODO: números fictícios para visualizar o layout — substituir por métricas reais antes do lançamento.
 const landingStats = [
-  { value: "3.400+", label: "questões no banco" },
+  { value: "1.200+", label: "questões no banco" },
   { value: "180", label: "assuntos mapeados" },
-  { value: "1.200+", label: "estudantes na plataforma" },
-  { value: "+110", label: "pontos de evolução média" },
+  { value: "Toda semana", label: "novas questões no banco" },
+  { value: "+95", label: "pontos de evolução média" },
 ];
 
 // TODO: depoimentos fictícios para visualizar o layout — substituir por relatos reais antes do lançamento.
@@ -45,7 +44,7 @@ const testimonials = [
     name: "Larissa M.",
     context: "3º ano, quer Medicina na UFMG",
     quote:
-      "Eu estudava muito e não saía do lugar. O Radar mostrou que eu perdia mais pontos em razão e proporção do que em funções — nunca teria priorizado isso sozinha.",
+      "Eu estudava muito e não saía do lugar. O Desempenho mostrou que eu perdia mais pontos em razão e proporção do que em funções — nunca teria priorizado isso sozinha.",
     result: "+130 pontos em Matemática",
   },
   {
@@ -86,7 +85,7 @@ const steps = [
   {
     title: "Cruze desempenho, frequência e relevância",
     description:
-      "O Radar combina seus erros, a frequência dos assuntos no ENEM e o potencial de ganho para definir a ordem dos seus estudos.",
+      "A análise de desempenho combina seus erros, a frequência dos assuntos no ENEM e o potencial de ganho para definir a ordem dos seus estudos.",
   },
   {
     title: "Siga sua rotina semanal",
@@ -97,7 +96,7 @@ const steps = [
 
 const features = [
   {
-    title: "Radar ENEM",
+    title: "Desempenho",
     description:
       "Prioridades por área e assunto, cruzando a frequência histórica dos temas com o seu desempenho.",
     icon: Radar,
@@ -146,7 +145,7 @@ const features = [
   },
 ];
 
-const radarDemo = [
+const performanceDemo = [
   {
     area: "Matemática",
     items: [
@@ -203,7 +202,7 @@ const radarDemo = [
 
 const planItems = [
   "Simulado diagnóstico e simulados",
-  "Radar ENEM",
+  "Análise de desempenho",
   "Banco de questões com fonte identificada",
   "Treino de alta prioridade",
   "Plano semanal de estudos",
@@ -229,14 +228,14 @@ function buildFaqs() {
       answer: `${LANDING_ACCESS_COPY} Não há mensalidade nem renovação automática. Depois da confirmação do pagamento, o dashboard é liberado na sua conta.`,
     },
     {
-      question: "Como funcionam o Radar ENEM e a análise de desempenho?",
+      question: "Como funciona a análise de desempenho?",
       answer:
-        "O Radar ENEM não prevê a prova. Ele cruza a frequência histórica dos assuntos no ENEM com seus acertos e erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
+        "A análise de desempenho não prevê a prova. Ela cruza a frequência histórica dos assuntos no ENEM com seus acertos e erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
     },
     {
       question: "Como funcionam a correção de redação e os créditos?",
       answer:
-        "Você pode enviar uma redação digitada ou manuscrita, por foto ou PDF. A correção utiliza créditos da conta, e a quantidade necessária é informada antes da confirmação. O acesso inclui 50 créditos para funcionalidades de inteligência artificial. Caso esses créditos terminem, créditos adicionais poderão ser adquiridos separadamente.",
+        "Você pode enviar uma redação digitada ou manuscrita, por foto ou PDF. O acesso inclui 50 créditos para recursos de inteligência artificial, como correção de redação. A quantidade necessária é informada antes de cada confirmação. Caso os 50 créditos terminem, créditos adicionais podem ser comprados separadamente em recargas opcionais pagas.",
     },
     {
       question: "O Pontua Enem funciona no celular e substitui um cursinho?",
@@ -412,25 +411,25 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Radar */}
-      <section id="radar" className="bg-paper py-14 sm:py-20">
+      {/* Desempenho */}
+      <section id="desempenho" className="bg-paper py-14 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-[0.85fr_1.15fr]">
             <Reveal className="max-w-md">
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
-                Radar ENEM
+                Desempenho
               </p>
               <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
                 Suas prioridades, visíveis por área e assunto.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
-                O Radar cruza a frequência histórica dos assuntos no ENEM com o
-                seu desempenho para mostrar onde existe maior potencial de ganho
-                de pontos.
+                A análise cruza a frequência histórica dos assuntos no ENEM com
+                o seu desempenho para mostrar onde existe maior potencial de
+                ganho de pontos.
               </p>
             </Reveal>
             <div className="grid gap-5 md:grid-cols-2">
-              {radarDemo.map((group, groupIndex) => (
+              {performanceDemo.map((group, groupIndex) => (
                 <Reveal
                   key={group.area}
                   delay={groupIndex * 90}
@@ -649,7 +648,7 @@ export default async function HomePage() {
               Acesso
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
-              Pagamento único. Acesso até {accessUntil}.
+              Pagamento único para acesso até {accessUntil}.
             </h2>
           </Reveal>
           <Reveal
@@ -666,7 +665,7 @@ export default async function HomePage() {
                   {[
                     "Pagamento único — sem mensalidade nem renovação automática",
                     `Acesso válido até ${accessUntil}`,
-                    "50 créditos de IA incluídos — recarga opcional",
+                    "50 créditos de IA incluídos — recargas extras pagas à parte",
                   ].map((item) => (
                     <li
                       key={item}
@@ -709,9 +708,11 @@ export default async function HomePage() {
                   ))}
                 </div>
                 <p className="mt-6 text-sm leading-6 text-slate-500">
-                  Os créditos são usados em recursos de inteligência artificial,
-                  como a correção de redação. O custo é informado antes de cada
-                  confirmação — detalhes nas perguntas frequentes.
+                  O acesso inclui 50 créditos usados em recursos de inteligência
+                  artificial, como a correção de redação. O custo é informado
+                  antes de cada confirmação. Se quiser usar mais após os 50
+                  créditos, é possível comprar recargas opcionais pagas — detalhes
+                  nas perguntas frequentes.
                 </p>
               </div>
             </div>

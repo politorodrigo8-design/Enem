@@ -49,7 +49,7 @@ export default function TermsPage() {
             <>
               <p>
                 A plataforma pode oferecer banco revisado de questões, filtros de prática,
-                diagnóstico, simulados, Radar ENEM, prioridades de estudo, plano semanal,
+                diagnóstico, simulados, análise de desempenho, prioridades de estudo, plano semanal,
                 desempenho, revisão de erros, créditos internos e envio de redações.
               </p>
               <p>
@@ -78,7 +78,7 @@ export default function TermsPage() {
               <LegalList
                 items={[
                   "Não há garantia de aprovação, vaga, bolsa, classificação ou nota específica.",
-                  "Radar, prioridades, indicadores e projeções são estimativas educacionais.",
+                  "Desempenho, prioridades, indicadores e projeções são estimativas educacionais.",
                   "Recursos automatizados de IA são apoio educacional e não garantem exatidão absoluta, nota, aprovação ou resultado.",
                   "Não existe garantia de que determinado assunto, questão ou tema cairá no ENEM.",
                 ]}

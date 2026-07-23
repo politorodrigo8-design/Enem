@@ -7,7 +7,7 @@ import { getProductCta } from "@/lib/services/billing";
 
 const footerLinks = [
   { label: "Como funciona", href: "/#como-funciona" },
-  { label: "Radar ENEM", href: "/#radar" },
+  { label: "Desempenho", href: "/#desempenho" },
   { label: "Preço", href: "/#precos" },
   { label: "Termos de uso", href: "/termos" },
   { label: "Política de privacidade", href: "/privacidade" },

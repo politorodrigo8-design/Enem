@@ -44,6 +44,9 @@ export type QuestionRecord = Question & {
 export type CreditsData = {
   account: CreditAccount;
   ledger: CreditLedgerEntry[];
+  ledgerPage: number;
+  ledgerPageSize: number;
+  ledgerTotal: number;
   recentEssays: EssaySubmission[];
 };
 

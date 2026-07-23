@@ -8,7 +8,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { CheckoutButton } from "./checkout-button";
 
 const included = [
-  "Radar ENEM",
+  "Análise de desempenho",
   "Banco revisado de questões",
   "Treino de alta prioridade",
   "Diagnóstico personalizado",

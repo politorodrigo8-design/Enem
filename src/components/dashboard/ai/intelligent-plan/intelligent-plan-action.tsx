@@ -84,7 +84,7 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
           <AiFeatureHeader
             icon={CalendarDays}
             title="Plano inteligente"
-            description="Ajuste sua semana com base no Radar ENEM, nos erros recentes e na sua rotina de estudos."
+            description="Ajuste sua semana com base no desempenho, nos erros recentes e na sua rotina de estudos."
             titleClassName="gap-2"
             descriptionClassName="mt-1 max-w-2xl text-sm leading-6 text-slate-700"
           />
@@ -114,7 +114,7 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
       >
         {!result && !pending && !error ? (
           <AiConfirmationDialog
-            description="O plano será reorganizado respeitando sua rotina cadastrada, o Radar ENEM e as prioridades importadas."
+            description="O plano será reorganizado respeitando sua rotina cadastrada, seu desempenho e as prioridades importadas."
             cost={AI_STUDY_PLAN_CREDIT_COST}
             buttonLabel="Confirmar otimização"
             onConfirm={() => generate()}

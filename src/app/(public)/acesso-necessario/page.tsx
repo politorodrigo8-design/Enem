@@ -6,7 +6,7 @@ import { signOutAction } from "@/lib/actions/auth";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 
 const benefits = [
-  "Radar ENEM",
+  "Análise de desempenho",
   "Banco de questões",
   "Diagnóstico personalizado",
   "Simulados",

@@ -59,8 +59,66 @@ export const weeklyEssayTopics: WeeklyEssayTopic[] = [
     endsAt: "2026-07-27",
     active: true,
   },
+  {
+    id: "2026-07-27-envelhecimento-populacional",
+    title: "Desafios para garantir qualidade de vida à população idosa no Brasil",
+    shortDescription:
+      "Pratique um tema social recorrente, com foco em direitos, saúde pública e inclusão.",
+    command:
+      'A partir da leitura dos textos motivadores e com base nos conhecimentos construídos ao longo de sua formação, redija um texto dissertativo-argumentativo, em modalidade escrita formal da língua portuguesa, sobre o tema "Desafios para garantir qualidade de vida à população idosa no Brasil", apresentando uma proposta de intervenção que respeite os direitos humanos.',
+    motivatingTexts: [
+      {
+        title: "Texto I",
+        text:
+          "O envelhecimento populacional amplia a necessidade de políticas públicas voltadas à saúde preventiva, à mobilidade urbana, à proteção social e ao cuidado continuado. Quando esses serviços não acompanham a mudança demográfica, desigualdades já existentes tendem a se aprofundar.",
+      },
+      {
+        title: "Texto II",
+        text:
+          "A participação de pessoas idosas na vida comunitária depende de acesso a espaços seguros, transporte adequado, oportunidades de aprendizagem e combate a estereótipos que associam envelhecimento à incapacidade.",
+      },
+      {
+        title: "Texto III",
+        text:
+          "A Constituição Federal e o Estatuto da Pessoa Idosa reconhecem direitos relacionados à dignidade, à convivência familiar e comunitária, à saúde, à cultura e à prioridade no atendimento. O desafio está em transformar garantias legais em ações efetivas no cotidiano.",
+      },
+    ],
+    discussionAxes: [
+      "saúde pública",
+      "acessibilidade urbana",
+      "previdência e proteção social",
+      "combate ao etarismo",
+      "convivência familiar e comunitária",
+      "efetivação de direitos",
+    ],
+    suggestedRepertoires: [
+      "Estatuto da Pessoa Idosa como marco legal de proteção e prioridade de atendimento.",
+      "Conceito de envelhecimento ativo, associado à participação social, saúde e autonomia.",
+      "Debates sobre acessibilidade em cidades, transporte público e adaptação de serviços.",
+      "A Constituição Federal de 1988 e o princípio da dignidade da pessoa humana.",
+    ],
+    startsAt: "2026-07-27",
+    endsAt: "2026-08-03",
+    active: true,
+  },
 ];
 
-export function getActiveWeeklyEssayTopic() {
-  return weeklyEssayTopics.find((topic) => topic.active) ?? null;
+export function getActiveWeeklyEssayTopic(currentDate = todayInSaoPaulo()) {
+  return (
+    weeklyEssayTopics.find(
+      (topic) =>
+        topic.active && currentDate >= topic.startsAt && currentDate < topic.endsAt,
+    ) ?? null
+  );
+}
+
+function todayInSaoPaulo() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const get = (type: string) => parts.find((part) => part.type === type)?.value ?? "01";
+  return `${get("year")}-${get("month")}-${get("day")}`;
 }

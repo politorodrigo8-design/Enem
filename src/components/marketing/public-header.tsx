@@ -10,7 +10,7 @@ import type { PublicViewer } from "@/lib/db/queries";
 
 const links = [
   { label: "Como funciona", href: "/#como-funciona" },
-  { label: "Radar ENEM", href: "/#radar" },
+  { label: "Desempenho", href: "/#desempenho" },
   { label: "Preço", href: "/#precos" },
 ];
 

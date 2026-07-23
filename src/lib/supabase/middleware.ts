@@ -6,6 +6,13 @@ import {
   isSupabaseConfigured,
 } from "@/lib/supabase/config";
 import { getAccessContext } from "@/lib/access";
+import {
+  AUTH_SESSION_STARTED_AT_COOKIE,
+  clearSessionStartedResponseCookie,
+  hasSessionTimedOut,
+  setSessionStartedResponseCookie,
+  supabaseAuthCookieOptions,
+} from "@/lib/auth/session-timeout";
 
 export async function updateSession(request: NextRequest) {
   if (!isSupabaseConfigured()) {
@@ -22,19 +29,23 @@ export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
   const supabase = createServerClient(getSupabaseUrl(), getSupabasePublicKey(), {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options),
-          );
-        },
+    cookieOptions: supabaseAuthCookieOptions,
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
       },
-    });
+      setAll(cookiesToSet, headers) {
+        cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+        response = NextResponse.next({ request });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options),
+        );
+        Object.entries(headers).forEach(([key, value]) =>
+          response.headers.set(key, value),
+        );
+      },
+    },
+  });
 
   const {
     data: { user },
@@ -42,6 +53,24 @@ export async function updateSession(request: NextRequest) {
 
   const isDashboard = request.nextUrl.pathname.startsWith("/dashboard");
   const isAuthPage = request.nextUrl.pathname === "/login";
+  const sessionStartedAt = request.cookies.get(AUTH_SESSION_STARTED_AT_COOKIE)?.value;
+
+  if (user && hasSessionTimedOut(sessionStartedAt)) {
+    await supabase.auth.signOut();
+
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    url.searchParams.set("expired", "session");
+
+    const redirectResponse = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    clearSessionStartedResponseCookie(redirectResponse);
+    return redirectResponse;
+  }
+
+  if (user && !sessionStartedAt) {
+    setSessionStartedResponseCookie(response);
+  }
 
   if (isDashboard && !user) {
     const url = request.nextUrl.clone();

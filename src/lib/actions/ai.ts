@@ -233,6 +233,16 @@ const performanceResultSchema = z.object({
   }),
 });
 
+const studyPlanSessionTypes = [
+  "Estudo de conte\u00fado",
+  "Resolu\u00e7\u00e3o de quest\u00f5es",
+  "Revis\u00e3o de erros",
+  "Simulado",
+  "Corre\u00e7\u00e3o",
+  "Reda\u00e7\u00e3o",
+  "Revis\u00e3o te\u00f3rica",
+] as const;
+
 const studyPlanResultSchema = z.object({
   period: z.object({
     startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
@@ -251,15 +261,7 @@ const studyPlanResultSchema = z.object({
               period: z.string().trim().min(3).max(40),
               startTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
               endTime: z.string().regex(/^\d{2}:\d{2}$/).nullable(),
-              type: z.enum([
-                "Estudo de conteúdo",
-                "Resolução de questões",
-                "Revisão de erros",
-                "Simulado",
-                "Correção",
-                "Redação",
-                "Revisão teórica",
-              ]),
+              type: z.enum(studyPlanSessionTypes),
               area: z.string().trim().min(1).max(80),
               subject: z.string().trim().min(1).max(80),
               topic: z.string().trim().min(1).max(120),
@@ -372,29 +374,49 @@ export async function generateQuestionExplanationAction(
   });
   if (!reservation.ok) return reservation;
 
-  let ai: Awaited<ReturnType<typeof generateGroqText>>;
-  let explanation: QuestionExplanationResult;
-  try {
-    ai = await generateGroqText({
-      maxCompletionTokens: 1_400,
-      temperature: 0.3,
-      messages: [
-        {
-          role: "system",
-          content: buildStructuredSystemPrompt(
-            "Você é um tutor do ENEM. Explique com clareza, em português brasileiro natural, sem inventar dados e sem tom de julgamento.",
-          ),
-        },
-        {
-          role: "user",
-          content: buildQuestionExplanationPrompt(question, parsed.data.selectedOption),
-        },
-      ],
-    });
-    explanation = validateQuestionExplanation(ai.content, question, parsed.data.selectedOption);
-  } catch (error) {
-    logServerError("ai.questionExplanation", error, { userId: context.user.id });
-    await refundAiCreditReservation(context, reservation.ledger.id, error);
+  let ai: Awaited<ReturnType<typeof generateGroqText>> | null = null;
+  let explanation: QuestionExplanationResult | null = null;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2 && !explanation; attempt += 1) {
+    try {
+      ai = await generateGroqText({
+        maxCompletionTokens: 1_400,
+        responseFormat: { type: "json_object" },
+        temperature: attempt === 0 ? 0.3 : 0.15,
+        timeoutMs: 45_000,
+        messages: [
+          {
+            role: "system",
+            content: buildStructuredSystemPrompt(
+              "Você é um tutor do ENEM. Explique com clareza, em português brasileiro natural, sem inventar dados e sem tom de julgamento.",
+            ),
+          },
+          {
+            role: "user",
+            content: buildQuestionExplanationPrompt(question, parsed.data.selectedOption),
+          },
+          ...(attempt > 0 && lastError instanceof Error
+            ? [
+                {
+                  role: "user" as const,
+                  content: `A resposta anterior foi rejeitada pela validação (${lastError.message}). Gere novamente apenas JSON válido, preservando o gabarito real, a resposta do aluno e o schema solicitado.`,
+                },
+              ]
+            : []),
+        ],
+      });
+      explanation = validateQuestionExplanation(ai.content, question, parsed.data.selectedOption);
+    } catch (error) {
+      lastError = error;
+      logServerError("ai.questionExplanation", error, {
+        userId: context.user.id,
+        attempt,
+      });
+    }
+  }
+
+  if (!explanation || !ai) {
+    await refundAiCreditReservation(context, reservation.ledger.id, lastError);
     return {
       ok: false,
       message: "Não foi possível gerar a explicação agora. Seu crédito não foi consumido.",
@@ -469,29 +491,49 @@ export async function generatePerformanceAnalysisAction(): Promise<PerformanceAn
   });
   if (!reservation.ok) return reservation;
 
-  let ai: Awaited<ReturnType<typeof generateGroqText>>;
-  let analysis: PerformanceAnalysisResult;
-  try {
-    ai = await generateGroqText({
-      maxCompletionTokens: 1_800,
-      temperature: 0.35,
-      messages: [
-        {
-          role: "system",
-          content: buildStructuredSystemPrompt(
-            "Você é um analista pedagógico do ENEM. Organize recomendações acionáveis com base apenas nos números fornecidos.",
-          ),
-        },
-        {
-          role: "user",
-          content: buildPerformanceAnalysisPrompt(answerRows.answers, objectiveMetrics),
-        },
-      ],
-    });
-    analysis = validatePerformanceAnalysis(ai.content, objectiveMetrics);
-  } catch (error) {
-    logServerError("ai.performanceAnalysis", error, { userId: context.user.id });
-    await refundAiCreditReservation(context, reservation.ledger.id, error);
+  let ai: Awaited<ReturnType<typeof generateGroqText>> | null = null;
+  let analysis: PerformanceAnalysisResult | null = null;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2 && !analysis; attempt += 1) {
+    try {
+      ai = await generateGroqText({
+        maxCompletionTokens: 1_800,
+        responseFormat: { type: "json_object" },
+        temperature: attempt === 0 ? 0.35 : 0.15,
+        timeoutMs: 45_000,
+        messages: [
+          {
+            role: "system",
+            content: buildStructuredSystemPrompt(
+              "Você é um analista pedagógico do ENEM. Organize recomendações acionáveis com base apenas nos números fornecidos.",
+            ),
+          },
+          {
+            role: "user",
+            content: buildPerformanceAnalysisPrompt(answerRows.answers, objectiveMetrics),
+          },
+          ...(attempt > 0 && lastError instanceof Error
+            ? [
+                {
+                  role: "user" as const,
+                  content: `A resposta anterior foi rejeitada pela validação (${lastError.message}). Gere novamente apenas JSON válido, mantendo exatamente as métricas objetivas fornecidas pelo servidor.`,
+                },
+              ]
+            : []),
+        ],
+      });
+      analysis = validatePerformanceAnalysis(ai.content, objectiveMetrics);
+    } catch (error) {
+      lastError = error;
+      logServerError("ai.performanceAnalysis", error, {
+        userId: context.user.id,
+        attempt,
+      });
+    }
+  }
+
+  if (!analysis || !ai) {
+    await refundAiCreditReservation(context, reservation.ledger.id, lastError);
     return {
       ok: false,
       message: "Não foi possível concluir a análise agora. Seu crédito não foi consumido.",
@@ -555,7 +597,15 @@ export async function generateSmartStudyPlanAction(
   if ((parsed.data?.importedPriorities?.length ?? 0) > 0 && !importedPriorities.length) {
     return {
       ok: false,
-      message: "As prioridades importadas não correspondem aos dados atuais do seu Radar.",
+      message: "As prioridades importadas não correspondem aos seus dados atuais de desempenho.",
+    };
+  }
+
+  const draftPlan = buildDeterministicStudyPlan(planContext, importedPriorities);
+  if (!draftPlan) {
+    return {
+      ok: false,
+      message: "N\u00e3o h\u00e1 assuntos suficientes para montar um plano inteligente agora.",
     };
   }
 
@@ -581,7 +631,9 @@ export async function generateSmartStudyPlanAction(
     try {
       ai = await generateGroqText({
         maxCompletionTokens: 2_200,
+        responseFormat: { type: "json_object" },
         temperature: attempt === 0 ? 0.4 : 0.2,
+        timeoutMs: 45_000,
         messages: [
           {
             role: "system",
@@ -591,7 +643,7 @@ export async function generateSmartStudyPlanAction(
           },
           {
             role: "user",
-            content: buildStudyPlanPrompt(planContext, importedPriorities),
+            content: buildStudyPlanPrompt(planContext, importedPriorities, draftPlan),
           },
           ...(attempt > 0 && lastError instanceof Error
             ? [
@@ -925,6 +977,17 @@ type StudyPlanContextForAi = {
     answered: number;
     priorityScore: number;
   }>;
+  candidateTopics: StudyPlanTopicCandidate[];
+};
+
+type StudyPlanTopicCandidate = {
+  subject: string;
+  area: string;
+  topic: string;
+  accuracy: number | null;
+  answered: number | null;
+  priorityScore: number;
+  source: "performance" | "current_plan" | "recurrence";
 };
 
 async function getStudyPlanContext(
@@ -935,7 +998,7 @@ async function getStudyPlanContext(
   | { ok: false; message: string }
 > {
   const weekStart = getWeekStart();
-  const [profileResult, planResult, performanceResult] = await Promise.all([
+  const [profileResult, planResult, performanceResult, fallbackTopicsResult] = await Promise.all([
     supabase
       .from("profiles")
       .select("target_course, target_score, weekly_hours, available_days")
@@ -955,6 +1018,11 @@ async function getStudyPlanContext(
       .eq("user_id", userId)
       .order("priority_score", { ascending: false })
       .limit(10),
+    supabase
+      .from("topics")
+      .select("name, historical_recurrence, subjects (name, area)")
+      .order("historical_recurrence", { ascending: false })
+      .limit(12),
   ]);
 
   if (profileResult.error) {
@@ -968,6 +1036,11 @@ async function getStudyPlanContext(
   if (performanceResult.error) {
     logServerError("ai.studyPlanContext.performance", performanceResult.error, { userId });
     return { ok: false, message: "Não foi possível carregar seu desempenho por assunto." };
+  }
+
+  if (fallbackTopicsResult.error) {
+    logServerError("ai.studyPlanContext.fallbackTopics", fallbackTopicsResult.error, { userId });
+    return { ok: false, message: "NÃ£o foi possÃ­vel carregar assuntos recorrentes do ENEM." };
   }
 
   const profile = profileResult.data as
@@ -1018,6 +1091,47 @@ async function getStudyPlanContext(
     };
   });
 
+  const tasks =
+    plan?.study_plan_items.map((item) => ({
+      date: item.scheduled_date,
+      durationMinutes: item.duration_minutes,
+      questionGoal: item.question_goal,
+      completed: item.completed,
+      subject: item.topics.subjects.name,
+      area: item.topics.subjects.area,
+      topic: item.topics.name,
+    })) ?? [];
+  const fallbackTopics = ((fallbackTopicsResult.data ?? []) as unknown as Array<{
+    name: string;
+    historical_recurrence: number | null;
+    subjects: Pick<Subject, "name" | "area"> | Array<Pick<Subject, "name" | "area">> | null;
+  }>).flatMap((row) => {
+    const subject = firstRelation(row.subjects);
+    if (!subject) return [];
+    return {
+      subject: subject.name,
+      area: subject.area,
+      topic: row.name,
+      accuracy: null,
+      answered: null,
+      priorityScore: Number(row.historical_recurrence ?? 0),
+      source: "recurrence" as const,
+    };
+  });
+  const candidateTopics = mergeStudyPlanTopicCandidates([
+    ...weakTopics.map((topic) => ({ ...topic, source: "performance" as const })),
+    ...tasks.map((task) => ({
+      subject: task.subject,
+      area: task.area,
+      topic: task.topic,
+      accuracy: null,
+      answered: null,
+      priorityScore: task.completed ? 10 : 60,
+      source: "current_plan" as const,
+    })),
+    ...fallbackTopics,
+  ]);
+
   const allowedStartDate = todayInSaoPaulo();
   const allowedDates = buildAllowedPlanDates(
     weekStart,
@@ -1042,17 +1156,9 @@ async function getStudyPlanContext(
     availableDays: profile.available_days,
     targetCourse: profile?.target_course || "Não informado",
     targetScore: profile?.target_score ?? null,
-    tasks:
-      plan?.study_plan_items.map((item) => ({
-        date: item.scheduled_date,
-        durationMinutes: item.duration_minutes,
-        questionGoal: item.question_goal,
-        completed: item.completed,
-        subject: item.topics.subjects.name,
-        area: item.topics.subjects.area,
-        topic: item.topics.name,
-      })) ?? [],
+    tasks,
     weakTopics,
+    candidateTopics,
   };
 }
 
@@ -1073,6 +1179,199 @@ function buildAllowedPlanDates(
     dates.push({ date, weekday });
   }
   return dates;
+}
+
+function buildDeterministicStudyPlan(
+  context: StudyPlanContextForAi,
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+): SmartStudyPlanResult | null {
+  const rankedTopics = rankStudyPlanCandidates(context, importedPriorities);
+  if (!rankedTopics.length || !context.allowedDates.length) return null;
+
+  const selectedWeekdayCount = parseAvailableWeekdays(context.availableDays).size;
+  const plannedStudyDays = Math.max(selectedWeekdayCount, context.allowedDates.length, 1);
+  const targetMinutesPerDay = clamp(
+    roundToNearest((context.weeklyHours * 60) / plannedStudyDays, 5),
+    45,
+    150,
+  );
+  const sessionsPerDay = targetMinutesPerDay >= 100 && rankedTopics.length > 1 ? 2 : 1;
+  const sessionsPerAvailableDay = Math.min(sessionsPerDay, rankedTopics.length);
+  const durationMinutes = clamp(
+    roundToNearest(targetMinutesPerDay / sessionsPerAvailableDay, 5),
+    25,
+    90,
+  );
+  const questionGoal = clamp(Math.round(durationMinutes / 4), 6, 25);
+  let topicIndex = 0;
+
+  const days = context.allowedDates.map((day) => ({
+    date: day.date,
+    dayLabel: day.weekday,
+    sessions: Array.from({ length: sessionsPerAvailableDay }, (_, sessionIndex) => {
+      const topic = rankedTopics[topicIndex % rankedTopics.length];
+      topicIndex += 1;
+      const type: (typeof studyPlanSessionTypes)[number] =
+        topic.source === "performance" || importedPriorityMatchesTopic(importedPriorities, topic)
+          ? "Revis\u00e3o de erros"
+          : sessionIndex === 0
+            ? "Resolu\u00e7\u00e3o de quest\u00f5es"
+            : "Estudo de conte\u00fado";
+
+      return {
+        period: `Bloco ${sessionIndex + 1}`,
+        startTime: null,
+        endTime: null,
+        type,
+        area: topic.area,
+        subject: topic.subject,
+        topic: topic.topic,
+        durationMinutes,
+        questionGoal,
+        reason: buildDraftSessionReason(topic, importedPriorities),
+      };
+    }),
+  }));
+  const startDate = context.allowedDates[0].date;
+  const endDate = context.allowedDates.at(-1)?.date ?? startDate;
+
+  return addStudyPlanTotals(
+    {
+      period: {
+        startDate,
+        endDate,
+        label: `${formatPlanDateShort(startDate)} a ${formatPlanDateShort(endDate)}`,
+      },
+      summary:
+        "Plano ajustado para os dias restantes da semana, com foco nos assuntos mais importantes e em metas de questões realistas.",
+      days,
+      weeklyGoals: buildDraftWeeklyGoals(rankedTopics, importedPriorities),
+      recommendationReason:
+        "A distribuição prioriza desempenho recente, recorrência no ENEM e a rotina cadastrada, sem concentrar toda a carga semanal em um único bloco.",
+    },
+    importedPriorities,
+  );
+}
+
+function rankStudyPlanCandidates(
+  context: StudyPlanContextForAi,
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+) {
+  return context.candidateTopics
+    .slice()
+    .sort((a, b) => candidateScore(b, importedPriorities) - candidateScore(a, importedPriorities));
+}
+
+function candidateScore(
+  topic: StudyPlanTopicCandidate,
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+) {
+  const importedBoost = importedPriorityMatchesTopic(importedPriorities, topic) ? 1_000 : 0;
+  const sourceBoost =
+    topic.source === "performance" ? 200 : topic.source === "current_plan" ? 100 : 0;
+  return importedBoost + sourceBoost + topic.priorityScore;
+}
+
+function importedPriorityMatchesTopic(
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+  topic: Pick<StudyPlanTopicCandidate, "area" | "subject" | "topic">,
+) {
+  const key = planTopicKey(topic.area, topic.subject, topic.topic);
+  return importedPriorities.some(
+    (priority) => planTopicKey(priority.area, priority.subject, priority.topic) === key,
+  );
+}
+
+function buildDraftSessionReason(
+  topic: StudyPlanTopicCandidate,
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+) {
+  const imported = importedPriorities.find(
+    (priority) =>
+      planTopicKey(priority.area, priority.subject, priority.topic) ===
+      planTopicKey(topic.area, topic.subject, topic.topic),
+  );
+  if (imported?.reason) return imported.reason;
+  if (topic.accuracy != null && topic.answered != null) {
+    return `Prioridade por desempenho recente: ${topic.accuracy}% de acerto em ${topic.answered} respostas.`;
+  }
+  if (topic.source === "current_plan") {
+    return "Mantém continuidade com o plano atual e evita perder o ritmo da semana.";
+  }
+  return "Assunto recorrente no ENEM e útil para manter equilíbrio entre áreas.";
+}
+
+function buildDraftWeeklyGoals(
+  topics: StudyPlanTopicCandidate[],
+  importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+) {
+  const mainTopic = topics[0];
+  const goals = [
+    mainTopic
+      ? `Consolidar ${mainTopic.subject}: ${mainTopic.topic} com questões corrigidas.`
+      : "Cumprir as sessões planejadas e revisar os erros ao final de cada bloco.",
+    "Registrar erros recorrentes para orientar a próxima prática.",
+  ];
+  if (importedPriorities.length) {
+    goals.push("Usar as prioridades importadas como primeiro critério de estudo.");
+  }
+  return goals.slice(0, 4);
+}
+
+function stripStudyPlanForAi({
+  totals,
+  importedPrioritiesUsed,
+  ...jsonPlan
+}: SmartStudyPlanResult) {
+  void totals;
+  void importedPrioritiesUsed;
+  return jsonPlan;
+}
+
+function mergeStudyPlanTopicCandidates(topics: StudyPlanTopicCandidate[]) {
+  const map = new Map<string, StudyPlanTopicCandidate>();
+  for (const topic of topics) {
+    const key = planTopicKey(topic.area, topic.subject, topic.topic);
+    const previous = map.get(key);
+    if (!previous || candidateTopicBaseScore(topic) > candidateTopicBaseScore(previous)) {
+      map.set(key, topic);
+    }
+  }
+  return Array.from(map.values()).sort(
+    (a, b) => candidateTopicBaseScore(b) - candidateTopicBaseScore(a),
+  );
+}
+
+function candidateTopicBaseScore(topic: StudyPlanTopicCandidate) {
+  const sourceBoost =
+    topic.source === "performance" ? 200 : topic.source === "current_plan" ? 100 : 0;
+  return sourceBoost + topic.priorityScore;
+}
+
+function findStudyPlanTopicCandidate(
+  context: StudyPlanContextForAi,
+  session: Pick<
+    SmartStudyPlanResult["days"][number]["sessions"][number],
+    "area" | "subject" | "topic"
+  >,
+) {
+  const fullKey = planTopicKey(session.area, session.subject, session.topic);
+  const fullMatch = context.candidateTopics.find(
+    (topic) => planTopicKey(topic.area, topic.subject, topic.topic) === fullKey,
+  );
+  if (fullMatch) return fullMatch;
+
+  const subjectTopicKey = normalizeKey(`${session.subject}|${session.topic}`);
+  const subjectTopicMatch = context.candidateTopics.find(
+    (topic) => normalizeKey(`${topic.subject}|${topic.topic}`) === subjectTopicKey,
+  );
+  if (subjectTopicMatch) return subjectTopicMatch;
+
+  const topicKey = normalizeKey(session.topic);
+  const topicMatches = context.candidateTopics.filter(
+    (topic) => normalizeKey(topic.topic) === topicKey,
+  );
+  return topicMatches.length === 1 ? topicMatches[0] : null;
 }
 
 function buildQuestionExplanationPrompt(question: AiQuestion, selectedOption?: string) {
@@ -1144,6 +1443,7 @@ function buildPerformanceAnalysisPrompt(
 function buildStudyPlanPrompt(
   context: StudyPlanContextForAi,
   importedPriorities: Array<z.infer<typeof importedPrioritySchema>>,
+  draftPlan: SmartStudyPlanResult,
 ) {
   const tasks = context.tasks.length
     ? context.tasks
@@ -1165,6 +1465,13 @@ function buildStudyPlanPrompt(
   const allowedDates = context.allowedDates
     .map((item) => `${item.date} (${item.weekday})`)
     .join(", ");
+  const candidateTopics = context.candidateTopics
+    .map(
+      (topic, index) =>
+        `${index + 1}. ${topic.area} / ${topic.subject} / ${topic.topic}`,
+    )
+    .join("\n");
+  const draftJson = JSON.stringify(stripStudyPlanForAi(draftPlan), null, 2);
 
   return [
     "Ajuste o plano semanal deste aluno.",
@@ -1183,9 +1490,20 @@ function buildStudyPlanPrompt(
     "Prioridades importadas da análise de desempenho, já confirmadas pelo aluno:",
     importedPriorities.length ? JSON.stringify(importedPriorities, null, 2) : "Nenhuma.",
     "",
-    "Schema esperado: period, summary, days, weeklyGoals e recommendationReason. Não inclua totalHours livre.",
+    "Assuntos permitidos para area/subject/topic. Use somente estes nomes, exatamente como escritos:",
+    candidateTopics,
+    "",
+    "Rascunho seguro calculado pelo servidor. Melhore o texto pedagógico, mas mantenha o formato JSON e os campos obrigatórios:",
+    draftJson,
+    "",
+    "Contrato obrigatório do JSON:",
+    "- period deve ser objeto com startDate, endDate e label.",
+    "- days deve ter apenas datas permitidas; cada day precisa de date, dayLabel e sessions.",
+    "- cada sessão precisa de period, startTime, endTime, type, area, subject, topic, durationMinutes, questionGoal e reason.",
+    `- type deve ser um destes valores: ${studyPlanSessionTypes.join(", ")}.`,
+    "- weeklyGoals deve ser array de 1 a 4 textos.",
     "A soma de durationMinutes de todas as sessões deve caber nas horas semanais.",
-    "Não use 'Raciocínio' como título, nome de provedor, modelo, prompt ou detalhes internos.",
+    "Não inclua campos extras, Markdown, comentários, nome de provedor, modelo, prompt ou detalhes internos.",
   ].join("\n");
 }
 
@@ -1410,6 +1728,12 @@ function validateStudyPlan(
     lastDate = day.date;
 
     for (const session of day.sessions) {
+      const canonicalTopic = findStudyPlanTopicCandidate(context, session);
+      if (!canonicalTopic) throw new Error("unknown_plan_topic");
+      session.area = canonicalTopic.area;
+      session.subject = canonicalTopic.subject;
+      session.topic = canonicalTopic.topic;
+
       const key = [
         day.date,
         session.period,
@@ -1507,7 +1831,7 @@ async function getTopicIdsForPlan(
   if (map.size !== wanted.size) {
     return {
       ok: false,
-      message: "O plano cita conteúdos que não existem no Radar atual.",
+      message: "O plano cita conteúdos que não existem no desempenho atual.",
     };
   }
 
@@ -1567,14 +1891,14 @@ function filterImportedPriorities(
   priorities: Array<z.infer<typeof importedPrioritySchema>>,
   context: StudyPlanContextForAi,
 ) {
-  const weakTopicKeys = new Set(
-    context.weakTopics.map((topic) =>
+  const candidateTopicKeys = new Set(
+    context.candidateTopics.map((topic) =>
       normalizeKey(`${topic.area}|${topic.subject}|${topic.topic}`),
     ),
   );
   return priorities
     .filter((priority) =>
-      weakTopicKeys.has(normalizeKey(`${priority.area}|${priority.subject}|${priority.topic}`)),
+      candidateTopicKeys.has(normalizeKey(`${priority.area}|${priority.subject}|${priority.topic}`)),
     )
     .slice(0, 5);
 }
@@ -1700,6 +2024,22 @@ function formatMinutes(minutes: number) {
   if (!hours) return `${remaining} min`;
   if (!remaining) return `${hours} h`;
   return `${hours} h ${remaining} min`;
+}
+
+function formatPlanDateShort(date: string) {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(`${date}T12:00:00-03:00`));
+}
+
+function roundToNearest(value: number, step: number) {
+  return Math.max(step, Math.round(value / step) * step);
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
 }
 
 function revalidateCreditViews() {

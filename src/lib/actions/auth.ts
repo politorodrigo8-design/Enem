@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -29,6 +30,10 @@ import {
   emailRateLimitIdentifier,
   rateLimitedResult,
 } from "@/lib/security/rate-limit";
+import {
+  clearSessionStartedCookie,
+  setSessionStartedCookie,
+} from "@/lib/auth/session-timeout";
 
 export type ActionResult = {
   ok: boolean;
@@ -107,6 +112,7 @@ export async function signInAction(input: SignInInput): Promise<ActionResult> {
       return { ok: false, message: authErrorMessage(error) };
     }
 
+    setSessionStartedCookie(await cookies());
     revalidatePath("/dashboard", "layout");
     return { ok: true, message: "Você entrou na sua conta." };
   } catch (error) {
@@ -183,6 +189,10 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
         eventName: "signup_completed",
         route: "/login",
       });
+    }
+
+    if (data.session) {
+      setSessionStartedCookie(await cookies());
     }
 
     revalidatePath("/dashboard", "layout");
@@ -272,6 +282,7 @@ export async function signOutAction() {
     await supabase.auth.signOut();
   }
 
+  clearSessionStartedCookie(await cookies());
   revalidatePath("/", "layout");
   redirect("/login");
 }

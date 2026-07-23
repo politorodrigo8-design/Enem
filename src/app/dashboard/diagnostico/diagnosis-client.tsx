@@ -418,7 +418,7 @@ function DiagnosisForm({
             <div>
               <p className="text-sm leading-6 text-slate-600">
                 Como você sente cada área hoje? Sua resposta entra no cálculo de
-                prioridade de cada tópico no Radar.
+                prioridade de cada tópico no desempenho.
               </p>
               <div className="mt-4 max-w-xl divide-y divide-slate-100">
                 {areas.map((area) => (

@@ -29,7 +29,13 @@ test("tema sugerido semanal mantem conteudo editorial estruturado", () => {
   assert.match(contentSource, /active: boolean/);
   assert.match(contentSource, /WEEKLY_ESSAY_TOPIC_UNLOCK_COST = 1/);
   assert.match(contentSource, /Desafios para combater a desinformação entre jovens no Brasil/);
+  assert.match(contentSource, /2026-07-27-envelhecimento-populacional/);
   assert.match(contentSource, /active: true/);
+});
+
+test("tema semanal ativo troca por janela de datas", () => {
+  assert.match(contentSource, /getActiveWeeklyEssayTopic\(currentDate = todayInSaoPaulo\(\)\)/);
+  assert.match(contentSource, /currentDate >= topic\.startsAt && currentDate < topic\.endsAt/);
 });
 
 test("card semanal oferece a proposta completa sem expor historico vazio", () => {

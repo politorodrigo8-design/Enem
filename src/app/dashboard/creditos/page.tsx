@@ -4,6 +4,8 @@ import {
   BarChart3,
   BookOpen,
   CalendarCheck,
+  ChevronLeft,
+  ChevronRight,
   Coins,
   History,
   PenLine,
@@ -12,6 +14,7 @@ import type { LucideIcon } from "lucide-react";
 import { CreditPackageCheckoutButton } from "@/components/dashboard/credit-package-checkout-button";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
+import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
@@ -23,6 +26,7 @@ import { formatAppDateTime } from "@/lib/dates";
 import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
 
 export const dynamic = "force-dynamic";
+const LEDGER_PAGE_SIZE = 8;
 
 const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
   initial_allowance: "Saldo inicial do ciclo",
@@ -110,14 +114,25 @@ const creditUses: CreditUse[] = [
   },
 ];
 
-export default async function CreditsPage() {
-  const [data, identity] = await Promise.all([getCreditsData(), getDashboardIdentity()]);
+export default async function CreditsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
+  const ledgerPage = parsePageParam(params.historico);
+  const [data, identity] = await Promise.all([
+    getCreditsData({ ledgerPage, ledgerPageSize: LEDGER_PAGE_SIZE }),
+    getDashboardIdentity(),
+  ]);
   const used = Math.max(0, data.account.monthly_allowance - data.account.balance);
   const balancePercentage = data.account.monthly_allowance
     ? Math.round((data.account.balance / data.account.monthly_allowance) * 100)
     : 0;
   const lowCredits = data.account.balance < ESSAY_CREDIT_COST;
   const ledger = data.ledger.map(formatLedgerEntry);
+  const ledgerPageCount = Math.max(1, Math.ceil(data.ledgerTotal / data.ledgerPageSize));
+  const hasLedgerPagination = ledgerPageCount > 1;
 
   return (
     <div>
@@ -208,6 +223,63 @@ export default async function CreditsPage() {
                   </li>
                 ))}
               </ul>
+              {hasLedgerPagination ? (
+                <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                  {data.ledgerPage > 1 ? (
+                    <Link
+                      href={getLedgerPageHref(data.ledgerPage - 1)}
+                      className={buttonClasses({
+                        variant: "outline",
+                        size: "sm",
+                        className: "h-9 w-9 shrink-0 px-0",
+                      })}
+                      aria-label="Página anterior do histórico"
+                      title="Página anterior"
+                    >
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <span
+                      className={buttonClasses({
+                        variant: "outline",
+                        size: "sm",
+                        className: "h-9 w-9 shrink-0 px-0 opacity-55",
+                      })}
+                      aria-disabled="true"
+                    >
+                      <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  )}
+                  <p className="tnum text-xs font-semibold text-slate-500">
+                    Página {data.ledgerPage} de {ledgerPageCount}
+                  </p>
+                  {data.ledgerPage < ledgerPageCount ? (
+                    <Link
+                      href={getLedgerPageHref(data.ledgerPage + 1)}
+                      className={buttonClasses({
+                        variant: "outline",
+                        size: "sm",
+                        className: "h-9 w-9 shrink-0 px-0",
+                      })}
+                      aria-label="Próxima página do histórico"
+                      title="Próxima página"
+                    >
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </Link>
+                  ) : (
+                    <span
+                      className={buttonClasses({
+                        variant: "outline",
+                        size: "sm",
+                        className: "h-9 w-9 shrink-0 px-0 opacity-55",
+                      })}
+                      aria-disabled="true"
+                    >
+                      <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                    </span>
+                  )}
+                </div>
+              ) : null}
             </CardContent>
           </Card>
         </Reveal>
@@ -384,6 +456,18 @@ function formatLedgerEntry(entry: CreditLedgerEntry) {
     date: formatDate(entry.created_at),
     value: entry.amount,
   };
+}
+
+function parsePageParam(value: string | string[] | undefined) {
+  const rawValue = Array.isArray(value) ? value[0] : value;
+  const parsedValue = Number.parseInt(rawValue ?? "", 10);
+  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 1;
+}
+
+function getLedgerPageHref(page: number) {
+  return page > 1
+    ? `/dashboard/creditos?historico=${page}#historico`
+    : "/dashboard/creditos#historico";
 }
 
 function formatDate(value: string) {
