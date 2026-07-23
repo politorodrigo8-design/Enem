@@ -41,7 +41,7 @@ const headline: Record<Mode, { title: string; description: string }> = {
   },
   signup: {
     title: "Criar sua conta",
-    description: "Leva menos de um minuto. O diagnóstico começa em seguida.",
+    description: "Leva menos de um minuto. Depois você conclui a compra do acesso.",
   },
   reset: {
     title: "Recuperar senha",
@@ -63,7 +63,9 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const redirectedFrom = safeInternalPath(searchParams.get("redirectedFrom"));
   const setupMissing = searchParams.get("setup") === "supabase";
-  const [mode, setMode] = useState<Mode>("login");
+  const [mode, setMode] = useState<Mode>(() =>
+    searchParams.get("mode") === "signup" ? "signup" : "login",
+  );
   const [pending, startTransition] = useTransition();
   const legalVersions = currentLegalAcceptanceVersions();
 
@@ -141,12 +143,10 @@ function LoginPageContent() {
   }
 
   const copy = headline[mode];
-  const signupAcceptedTerms =
+  const signupLegalReady =
     signupLegalAcceptance?.terms_of_use === legalVersions.terms_of_use &&
-    signupLegalAcceptance?.refund_policy === legalVersions.refund_policy;
-  const signupAcceptedPrivacy =
+    signupLegalAcceptance?.refund_policy === legalVersions.refund_policy &&
     signupLegalAcceptance?.privacy_policy === legalVersions.privacy_policy;
-  const signupLegalReady = signupAcceptedTerms && signupAcceptedPrivacy;
 
   return (
     <main className="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_1fr]">
@@ -286,42 +286,30 @@ function LoginPageContent() {
               />
               <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
                 <LegalCheckbox
-                  checked={signupAcceptedTerms}
+                  checked={signupLegalReady}
                   onChange={(checked) => {
                     signUpForm.setValue(
-                      "legalAcceptance.terms_of_use",
-                      checked ? legalVersions.terms_of_use : ("" as typeof legalVersions.terms_of_use),
-                      { shouldValidate: true },
-                    );
-                    signUpForm.setValue(
-                      "legalAcceptance.refund_policy",
-                      checked ? legalVersions.refund_policy : ("" as typeof legalVersions.refund_policy),
+                      "legalAcceptance",
+                      checked
+                        ? legalVersions
+                        : {
+                            terms_of_use: "" as typeof legalVersions.terms_of_use,
+                            privacy_policy: "" as typeof legalVersions.privacy_policy,
+                            refund_policy: "" as typeof legalVersions.refund_policy,
+                          },
                       { shouldValidate: true },
                     );
                   }}
                 >
                   Li e concordo com os{" "}
                   <LegalLink href="/termos">Termos de Uso</LegalLink> e com a{" "}
-                  <LegalLink href="/reembolso">Política de Reembolso</LegalLink>.
-                </LegalCheckbox>
-                <LegalCheckbox
-                  checked={signupAcceptedPrivacy}
-                  onChange={(checked) => {
-                    signUpForm.setValue(
-                      "legalAcceptance.privacy_policy",
-                      checked
-                        ? legalVersions.privacy_policy
-                        : ("" as typeof legalVersions.privacy_policy),
-                      { shouldValidate: true },
-                    );
-                  }}
-                >
-                  Declaro que li e estou ciente da{" "}
+                  <LegalLink href="/reembolso">Política de Reembolso</LegalLink>, e
+                  declaro que li e estou ciente da{" "}
                   <LegalLink href="/privacidade">Política de Privacidade</LegalLink>.
                 </LegalCheckbox>
                 {signUpForm.formState.errors.legalAcceptance ? (
                   <p className="text-xs font-semibold text-rose-600" role="alert">
-                    Marque os aceites obrigatórios para criar a conta.
+                    Marque o aceite obrigatório para criar a conta.
                   </p>
                 ) : null}
               </div>

@@ -31,6 +31,39 @@ const LANDING_ACCESS_UNTIL_LABEL = "01 de dezembro de 2026";
 const LANDING_ACCESS_COPY =
   "Pagamento único para acesso até 01 de dezembro de 2026.";
 
+// TODO: números fictícios para visualizar o layout — substituir por métricas reais antes do lançamento.
+const landingStats = [
+  { value: "3.400+", label: "questões no banco" },
+  { value: "180", label: "assuntos mapeados" },
+  { value: "1.200+", label: "estudantes na plataforma" },
+  { value: "+110", label: "pontos de evolução média" },
+];
+
+// TODO: depoimentos fictícios para visualizar o layout — substituir por relatos reais antes do lançamento.
+const testimonials = [
+  {
+    name: "Larissa M.",
+    context: "3º ano, quer Medicina na UFMG",
+    quote:
+      "Eu estudava muito e não saía do lugar. O Radar mostrou que eu perdia mais pontos em razão e proporção do que em funções — nunca teria priorizado isso sozinha.",
+    result: "+130 pontos em Matemática",
+  },
+  {
+    name: "Pedro H.",
+    context: "Estuda e trabalha meio período",
+    quote:
+      "Tenho duas horas por dia, no máximo. O plano semanal decide o que eu treino, então esse tempo rende de verdade em vez de virar revisão aleatória.",
+    result: "6 semanas de constância",
+  },
+  {
+    name: "Ana Beatriz S.",
+    context: "Segunda tentativa de ENEM",
+    quote:
+      "A correção apontando exatamente a competência em que eu travava mudou minha redação. Saí do bloqueio da conclusão em três envios.",
+    result: "Redação de 720 para 880",
+  },
+];
+
 const problemItems = [
   "Estudar assuntos aleatórios sem saber quais têm maior peso na prova.",
   "Resolver muitas questões sem uma estratégia de priorização.",
@@ -169,17 +202,13 @@ const radarDemo = [
 ];
 
 const planItems = [
-  `Acesso completo até ${LANDING_ACCESS_UNTIL_LABEL}`,
-  "Simulado diagnóstico",
-  "Banco de questões com fonte identificada",
+  "Simulado diagnóstico e simulados",
   "Radar ENEM",
+  "Banco de questões com fonte identificada",
   "Treino de alta prioridade",
-  "Simulados",
   "Plano semanal de estudos",
-  "Correção de redação com uso de créditos",
-  "Saldo e histórico de créditos",
-  "Painel de desempenho",
-  "Revisão de erros",
+  "Correção de redação",
+  "Painel de desempenho e revisão de erros",
   "Atualizações até a prova",
 ];
 
@@ -212,7 +241,7 @@ function buildFaqs() {
     {
       question: "O Pontua Enem funciona no celular e substitui um cursinho?",
       answer:
-        "Sim. As telas principais são responsivas para celular, tablet, notebook e desktop. O Pontua Enem não substitui necessariamente um cursinho, mas complementa a preparação com prioridades personalizadas, banco de questões, simulados, análise de desempenho, plano de estudos e correção de redação.",
+        "Funciona no celular, tablet e computador. Um cursinho ele não substitui necessariamente — complementa a preparação com prioridades personalizadas, banco de questões, simulados, análise de desempenho, plano de estudos e correção de redação.",
     },
     {
       question: "O Pontua Enem tem vínculo oficial com Inep ou MEC?",
@@ -249,10 +278,8 @@ export default async function HomePage() {
               className="animate-rise mt-6 max-w-lg text-lg leading-8 text-slate-600"
               style={{ "--rise-delay": "140ms" } as React.CSSProperties}
             >
-              O Pontua Enem analisa seu desempenho, identifica os assuntos em
-              que você mais perde pontos e transforma esses dados em uma rotina
-              semanal de estudos com banco de questões, simulados e correção de
-              redação.
+              O Pontua Enem analisa seu desempenho, mostra onde você perde
+              pontos e transforma isso em uma rotina semanal de estudos.
             </p>
             <div
               className="animate-rise mt-9 flex flex-col gap-3 sm:flex-row"
@@ -277,7 +304,6 @@ export default async function HomePage() {
               style={{ "--rise-delay": "280ms" } as React.CSSProperties}
             >
               {[
-                "Sem promessa de nota garantida — com método para evoluir.",
                 "Prioridades baseadas no seu desempenho real.",
                 LANDING_ACCESS_COPY,
                 "Redação digitada ou manuscrita, enviada por foto ou PDF.",
@@ -301,13 +327,22 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-slate-100 bg-white py-8">
-        <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
+      <section className="border-y border-slate-100 bg-white py-10">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <Reveal>
-            <p className="text-lg font-semibold leading-8 text-slate-950">
-              O Pontua Enem cruza seu desempenho com a frequência dos assuntos
-              no ENEM para indicar o que deve ser priorizado nos estudos.
-            </p>
+            <dl className="grid grid-cols-2 gap-8 text-center md:grid-cols-4">
+              {landingStats.map((stat) => (
+                <div key={stat.label}>
+                  <dt className="sr-only">{stat.label}</dt>
+                  <dd className="tnum font-display text-4xl font-semibold tracking-tight text-slate-950">
+                    {stat.value}
+                  </dd>
+                  <p className="mt-1 text-sm font-medium text-slate-500">
+                    {stat.label}
+                  </p>
+                </div>
+              ))}
+            </dl>
           </Reveal>
         </div>
       </section>
@@ -393,11 +428,6 @@ export default async function HomePage() {
                 seu desempenho para mostrar onde existe maior potencial de ganho
                 de pontos.
               </p>
-              <p className="mt-5 text-sm leading-6 text-slate-500">
-                As prioridades são estimativas educacionais criadas para
-                organizar seus estudos. Nenhuma plataforma pode prever com
-                exatidão o conteúdo da prova.
-              </p>
             </Reveal>
             <div className="grid gap-5 md:grid-cols-2">
               {radarDemo.map((group, groupIndex) => (
@@ -463,10 +493,8 @@ export default async function HomePage() {
                 Envie redações e acompanhe tudo no mesmo painel.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
-                Envie sua redação digitada ou manuscrita, por foto ou PDF, e
-                acompanhe a correção pela plataforma. O histórico fica integrado
-                ao seu plano semanal, ao banco de questões, ao Radar ENEM e ao
-                painel de desempenho.
+                Redação, plano semanal, questões e créditos ficam integrados no
+                mesmo lugar — sem planilha paralela para se organizar.
               </p>
             </Reveal>
 
@@ -569,8 +597,52 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Depoimentos */}
+      <section className="bg-white py-14 sm:py-20">
+        <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+          <Reveal className="max-w-2xl">
+            <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
+              Depoimentos
+            </p>
+            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+              Quem <span className="highlight">parou de estudar no escuro</span>.
+            </h2>
+          </Reveal>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {testimonials.map((testimonial, index) => (
+              <Reveal
+                key={testimonial.name}
+                delay={index * 80}
+                className="flex h-full flex-col rounded-xl bg-slate-50 p-6"
+              >
+                <span className="inline-flex w-fit items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
+                  {testimonial.result}
+                </span>
+                <blockquote className="mt-4 flex-1 text-base leading-7 text-slate-800">
+                  “{testimonial.quote}”
+                </blockquote>
+                <footer className="mt-5 flex items-center gap-3">
+                  <span
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-blue-700 ring-1 ring-inset ring-slate-200"
+                    aria-hidden="true"
+                  >
+                    {testimonial.name.charAt(0)}
+                  </span>
+                  <div>
+                    <p className="text-sm font-bold text-slate-950">
+                      {testimonial.name}
+                    </p>
+                    <p className="text-xs text-slate-500">{testimonial.context}</p>
+                  </div>
+                </footer>
+              </Reveal>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Preço */}
-      <section id="precos" className="scroll-mt-24 bg-white py-16 sm:py-24">
+      <section id="precos" className="scroll-mt-24 bg-paper py-16 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
@@ -579,15 +651,6 @@ export default async function HomePage() {
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
               Pagamento único. Acesso até {accessUntil}.
             </h2>
-            <p className="mt-4 text-base leading-7 text-slate-600">
-              Algumas funcionalidades de inteligência artificial utilizam
-              créditos. A quantidade necessária é sempre informada antes da
-              confirmação.
-            </p>
-            <p className="mt-3 text-base font-semibold leading-7 text-slate-800">
-              O acesso inclui 50 créditos. Créditos adicionais podem ser
-              adquiridos separadamente quando necessário.
-            </p>
           </Reveal>
           <Reveal
             delay={100}
@@ -596,27 +659,27 @@ export default async function HomePage() {
             <div className="grid md:grid-cols-[0.9fr_1.1fr]">
               <div className="flex flex-col justify-center bg-slate-950 p-6 text-white sm:p-10">
                 <p className="text-sm font-semibold text-blue-300">{PRODUCT_NAME}</p>
-                <p className="tnum mt-4 flex items-start font-display text-6xl font-semibold tracking-tight">
-                  <span>{formatCurrency(price)}</span>
-                  <sup
-                    className="ml-1 mt-1 text-2xl leading-none text-blue-300"
-                    aria-label="Consulte as condições do acesso"
-                  >
-                    *
-                  </sup>
+                <p className="tnum mt-4 font-display text-6xl font-semibold tracking-tight">
+                  {formatCurrency(price)}
                 </p>
-                <p className="mt-4 text-sm leading-6 text-slate-400">
-                  Inclui 50 créditos para recursos de inteligência artificial.
-                </p>
-                <p className="mt-6 rounded-lg border border-white/15 bg-white/10 p-4 text-sm leading-6 text-slate-100">
-                  <span className="font-semibold text-blue-200" aria-hidden="true">
-                    *
-                  </span>{" "}
-                  Pagamento único, sem mensalidade ou renovação automática. O
-                  acesso é válido até {accessUntil}. O plano inclui 50 créditos
-                  de inteligência artificial. Caso esses créditos terminem,
-                  créditos adicionais poderão ser adquiridos separadamente.
-                </p>
+                <ul className="mt-6 space-y-2.5">
+                  {[
+                    "Pagamento único — sem mensalidade nem renovação automática",
+                    `Acesso válido até ${accessUntil}`,
+                    "50 créditos de IA incluídos — recarga opcional",
+                  ].map((item) => (
+                    <li
+                      key={item}
+                      className="flex items-start gap-2.5 text-sm leading-6 text-slate-200"
+                    >
+                      <Check
+                        className="mt-1 h-4 w-4 shrink-0 text-blue-300"
+                        aria-hidden="true"
+                      />
+                      {item}
+                    </li>
+                  ))}
+                </ul>
                 <Link
                   href={cta.href}
                   className={buttonClasses({
@@ -645,19 +708,11 @@ export default async function HomePage() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-6 rounded-lg bg-blue-50 p-4 text-sm leading-6 text-blue-950">
-                  <p className="font-semibold">Como funcionam os créditos</p>
-                  <p className="mt-1">
-                    O acesso inclui 50 créditos para funcionalidades de
-                    inteligência artificial, como correção de redação,
-                    explicação de questões, análise de desempenho e plano de
-                    estudos inteligente. Cada funcionalidade utiliza uma
-                    quantidade específica de créditos, sempre informada antes da
-                    confirmação. O saldo e o histórico de uso ficam disponíveis
-                    na conta. Quando os créditos incluídos terminarem, créditos
-                    adicionais poderão ser adquiridos separadamente.
-                  </p>
-                </div>
+                <p className="mt-6 text-sm leading-6 text-slate-500">
+                  Os créditos são usados em recursos de inteligência artificial,
+                  como a correção de redação. O custo é informado antes de cada
+                  confirmação — detalhes nas perguntas frequentes.
+                </p>
               </div>
             </div>
           </Reveal>
@@ -674,7 +729,7 @@ export default async function HomePage() {
       </section>
 
       {/* FAQ */}
-      <section className="bg-paper py-14 sm:py-20">
+      <section className="bg-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">
           <Reveal className="text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
@@ -709,7 +764,7 @@ export default async function HomePage() {
             <span className="highlight text-slate-950">também precisa ter</span>.
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-400">
-            Comece pelo simulado diagnóstico e chegue ao ENEM {ENEM_YEAR}
+            Comece pelo simulado diagnóstico e chegue ao ENEM {ENEM_YEAR}{" "}
             sabendo exatamente onde concentrar cada hora de estudo.
           </p>
           <Link

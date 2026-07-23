@@ -147,6 +147,54 @@ export async function getDashboardIdentity() {
   };
 }
 
+export type PublicViewer = {
+  fullName: string;
+  email: string;
+  profilePhotoUrl: string;
+  hasPlatformAccess: boolean;
+};
+
+// Identidade leve para páginas públicas (header): não exige login nem acesso pago.
+export async function getPublicViewer(): Promise<PublicViewer | null> {
+  if (!isSupabaseConfigured()) {
+    return null;
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("*")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (error) {
+    logQueryError("profiles.public_viewer", error);
+  }
+
+  const profile = (data as Profile | null) ?? null;
+  const access = getAccessContext(profile);
+  const metadataFullName =
+    typeof user.user_metadata?.full_name === "string"
+      ? user.user_metadata.full_name
+      : "";
+
+  return {
+    fullName:
+      profile?.full_name?.trim() || metadataFullName.trim() || "Estudante Pontua Enem",
+    email: profile?.email || user.email || "",
+    profilePhotoUrl: getProfilePhotoUrl(profile),
+    hasPlatformAccess: access.hasPlatformAccess,
+  };
+}
+
 function getProfilePhotoUrl(profile: Profile | null) {
   const preferences = profile?.study_preferences;
   if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) {

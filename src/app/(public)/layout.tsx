@@ -2,6 +2,7 @@ import Link from "next/link";
 import { PublicHeader } from "@/components/marketing/public-header";
 import { Logo } from "@/components/ui/logo";
 import { RevealController } from "@/components/ui/reveal-controller";
+import { getPublicViewer } from "@/lib/db/queries";
 import { getProductCta } from "@/lib/services/billing";
 
 const footerLinks = [
@@ -18,11 +19,12 @@ export default async function PublicLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const cta = getProductCta();
+  const viewer = await getPublicViewer();
 
   return (
     <>
       <RevealController />
-      <PublicHeader cta={cta} />
+      <PublicHeader cta={cta} viewer={viewer} />
       {children}
       <footer className="border-t border-white/10 bg-slate-950 text-white">
         <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 md:grid-cols-[1fr_2fr] lg:px-8">

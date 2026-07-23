@@ -1,18 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
   BookOpen,
-  ChevronDown,
   ClipboardList,
   Coins,
   FileCheck2,
   LayoutDashboard,
   Loader2,
-  LogOut,
   Menu,
   PenLine,
   Target,
@@ -21,11 +18,11 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { AccountMenu } from "@/components/ui/account-menu";
 import { Logo } from "@/components/ui/logo";
 import { RevealController } from "@/components/ui/reveal-controller";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { signOutAction } from "@/lib/actions/auth";
 import { acceptCurrentLegalDocumentsAction } from "@/lib/actions/legal";
 import {
   currentLegalAcceptanceVersions,
@@ -76,12 +73,6 @@ export function DashboardShell({
   const [profilePhotoOverride, setProfilePhotoOverride] = useState<string | null>(null);
   useLockPageScroll(open);
   const currentProfilePhotoUrl = profilePhotoOverride ?? profilePhotoUrl;
-  const initials = fullName
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
 
   useEffect(() => {
     function handleProfilePhotoUpdated(event: Event) {
@@ -196,11 +187,14 @@ export function DashboardShell({
               Bons estudos, {fullName.split(" ")[0] || "aluno"}
             </p>
           </div>
-          <UserMenu
+          <AccountMenu
             fullName={fullName}
             email={email}
-            initials={initials}
             profilePhotoUrl={currentProfilePhotoUrl}
+            items={[
+              { label: "Meu perfil", href: "/dashboard/configuracoes", icon: UserRound },
+              { label: "Meu diagnóstico", href: "/dashboard/diagnostico", icon: ClipboardList },
+            ]}
           />
         </header>
         <main className="px-4 py-6 sm:px-6 lg:px-8">
@@ -212,19 +206,17 @@ export function DashboardShell({
 }
 
 function LegalReacceptanceModal({ documents }: { documents: LegalDocumentConfig[] }) {
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [accepted, setAccepted] = useState(false);
   const [pending, startTransition] = useTransition();
   const [open, setOpen] = useState(true);
   const primaryRef = useRef<HTMLButtonElement>(null);
-  const ready = acceptedTerms && acceptedPrivacy;
 
   useEffect(() => {
     primaryRef.current?.focus();
   }, []);
 
   function submitAcceptance() {
-    if (!ready) return;
+    if (!accepted) return;
 
     startTransition(async () => {
       const result = await acceptCurrentLegalDocumentsAction({
@@ -284,26 +276,18 @@ function LegalReacceptanceModal({ documents }: { documents: LegalDocumentConfig[
           ))}
         </ul>
 
-        <div className="mt-4 space-y-3">
+        <div className="mt-4">
           <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-700">
             <input
               type="checkbox"
-              checked={acceptedTerms}
-              onChange={(event) => setAcceptedTerms(event.target.checked)}
+              checked={accepted}
+              onChange={(event) => setAccepted(event.target.checked)}
               className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
             />
             <span>
-              Li e concordo com os Termos de Uso e com a Política de Reembolso.
+              Li e concordo com os Termos de Uso e com a Política de Reembolso, e
+              declaro que li e estou ciente da Política de Privacidade.
             </span>
-          </label>
-          <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-700">
-            <input
-              type="checkbox"
-              checked={acceptedPrivacy}
-              onChange={(event) => setAcceptedPrivacy(event.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
-            />
-            <span>Declaro que li e estou ciente da Política de Privacidade.</span>
           </label>
         </div>
 
@@ -312,7 +296,7 @@ function LegalReacceptanceModal({ documents }: { documents: LegalDocumentConfig[
             ref={primaryRef}
             type="button"
             onClick={submitAcceptance}
-            disabled={!ready || pending}
+            disabled={!accepted || pending}
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
             Continuar
@@ -323,130 +307,3 @@ function LegalReacceptanceModal({ documents }: { documents: LegalDocumentConfig[
   );
 }
 
-function UserMenu({
-  fullName,
-  email,
-  initials,
-  profilePhotoUrl,
-}: {
-  fullName: string;
-  email: string;
-  initials: string;
-  profilePhotoUrl: string;
-}) {
-  const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-
-    function handleClick(event: MouseEvent) {
-      if (!containerRef.current?.contains(event.target as Node)) {
-        setOpen(false);
-      }
-    }
-    function handleKey(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
-    }
-
-    document.addEventListener("mousedown", handleClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [open]);
-
-  return (
-    <div className="relative" ref={containerRef}>
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-haspopup="menu"
-        onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-      >
-        <Avatar initials={initials} profilePhotoUrl={profilePhotoUrl} />
-        <span className="hidden text-left sm:block">
-          <span className="block text-sm font-semibold leading-tight text-slate-950">
-            {fullName}
-          </span>
-        </span>
-        <ChevronDown
-          className={cn(
-            "h-4 w-4 text-slate-400 transition-transform duration-150",
-            open && "rotate-180",
-          )}
-          aria-hidden="true"
-        />
-      </button>
-
-      {open ? (
-        <div
-          role="menu"
-          className="animate-pop absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg shadow-slate-900/10"
-        >
-          <div className="border-b border-slate-100 px-4 py-3">
-            <p className="truncate text-sm font-semibold text-slate-950">{fullName}</p>
-            {email ? <p className="mt-0.5 truncate text-xs text-slate-500">{email}</p> : null}
-          </div>
-          <div className="p-1.5">
-            <Link
-              href="/dashboard/configuracoes"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
-            >
-              <UserRound className="h-4 w-4 text-slate-400" aria-hidden="true" />
-              Meu perfil
-            </Link>
-            <Link
-              href="/dashboard/diagnostico"
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
-            >
-              <ClipboardList className="h-4 w-4 text-slate-400" aria-hidden="true" />
-              Meu diagnóstico
-            </Link>
-            <form action={signOutAction}>
-              <button
-                type="submit"
-                role="menuitem"
-                className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium text-rose-600 transition-colors hover:bg-rose-50"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                Sair da conta
-              </button>
-            </form>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function Avatar({
-  initials,
-  profilePhotoUrl,
-}: {
-  initials: string;
-  profilePhotoUrl: string;
-}) {
-  return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-700 text-sm font-bold text-white">
-      {profilePhotoUrl ? (
-        <Image
-          src={profilePhotoUrl}
-          alt="Foto de perfil"
-          width={36}
-          height={36}
-          unoptimized
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        initials || "NE"
-      )}
-    </span>
-  );
-}

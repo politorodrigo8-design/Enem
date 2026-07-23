@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { Menu, X, ArrowRight, LogIn } from "lucide-react";
 import { useState } from "react";
+import { AccountMenu } from "@/components/ui/account-menu";
 import { buttonClasses } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
+import type { PublicViewer } from "@/lib/db/queries";
 
 const links = [
   { label: "Como funciona", href: "/#como-funciona" },
@@ -17,10 +19,14 @@ type PublicHeaderProps = {
     href: string;
     label: string;
   };
+  viewer: PublicViewer | null;
 };
 
-export function PublicHeader({ cta }: PublicHeaderProps) {
+export function PublicHeader({ cta, viewer }: PublicHeaderProps) {
   const [open, setOpen] = useState(false);
+  const primaryCta = viewer?.hasPlatformAccess
+    ? { href: "/dashboard", label: "Acessar painel" }
+    : cta;
 
   return (
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 md:backdrop-blur">
@@ -37,31 +43,48 @@ export function PublicHeader({ cta }: PublicHeaderProps) {
             </Link>
           ))}
         </nav>
-        <div className="hidden items-center gap-3 md:flex">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {viewer ? null : (
+            <Link
+              href="/login"
+              className={buttonClasses({
+                variant: "ghost",
+                size: "md",
+                className: "hidden md:inline-flex",
+              })}
+            >
+              <LogIn className="h-4 w-4" aria-hidden="true" />
+              Entrar
+            </Link>
+          )}
           <Link
-            href="/login"
-            className={buttonClasses({ variant: "ghost", size: "md" })}
+            href={primaryCta.href}
+            className={buttonClasses({
+              variant: "primary",
+              size: "md",
+              className: "hidden md:inline-flex",
+            })}
           >
-            <LogIn className="h-4 w-4" aria-hidden="true" />
-            Entrar
-          </Link>
-          <Link
-            href={cta.href}
-            className={buttonClasses({ variant: "primary", size: "md" })}
-          >
-            {cta.label}
+            {primaryCta.label}
             <ArrowRight className="h-4 w-4" aria-hidden="true" />
           </Link>
+          {viewer ? (
+            <AccountMenu
+              fullName={viewer.fullName}
+              email={viewer.email}
+              profilePhotoUrl={viewer.profilePhotoUrl}
+            />
+          ) : null}
+          <button
+            type="button"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 md:hidden"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            aria-label="Abrir menu"
+          >
+            {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
         </div>
-        <button
-          type="button"
-          className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 md:hidden"
-          onClick={() => setOpen((value) => !value)}
-          aria-expanded={open}
-          aria-label="Abrir menu"
-        >
-          {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </button>
       </div>
       {open ? (
         <div className="border-t border-slate-200 bg-white px-4 py-4 md:hidden">
@@ -76,20 +99,27 @@ export function PublicHeader({ cta }: PublicHeaderProps) {
                 {link.label}
               </Link>
             ))}
+            {viewer ? null : (
+              <Link
+                href="/login"
+                className={buttonClasses({ variant: "outline", size: "md", full: true, className: "mt-2" })}
+                onClick={() => setOpen(false)}
+              >
+                <LogIn className="h-4 w-4" aria-hidden="true" />
+                Entrar
+              </Link>
+            )}
             <Link
-              href="/login"
-              className={buttonClasses({ variant: "outline", size: "md", full: true, className: "mt-2" })}
+              href={primaryCta.href}
+              className={buttonClasses({
+                variant: "primary",
+                size: "md",
+                full: true,
+                className: viewer ? "mt-2" : undefined,
+              })}
               onClick={() => setOpen(false)}
             >
-              <LogIn className="h-4 w-4" aria-hidden="true" />
-              Entrar
-            </Link>
-            <Link
-              href={cta.href}
-              className={buttonClasses({ variant: "primary", size: "md", full: true })}
-              onClick={() => setOpen(false)}
-            >
-              {cta.label}
+              {primaryCta.label}
             </Link>
           </nav>
         </div>

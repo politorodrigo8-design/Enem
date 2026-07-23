@@ -7,6 +7,20 @@
       "runtimeArgs": ["NEXT_DIST_DIR=.next-claude", "npm", "run", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "nexoenem-dev-b",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["NEXT_DIST_DIR=.next-claude-b", "npm", "run", "dev"],
+      "port": 3001,
+      "autoPort": true
+    },
+    {
+      "name": "nexoenem-dev-c",
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["NEXT_DIST_DIR=.next-claude-c", "npm", "run", "dev"],
+      "port": 3002,
+      "autoPort": true
     }
   ]
 }

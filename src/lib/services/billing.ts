@@ -22,7 +22,7 @@ export const DEFAULT_PRODUCT = {
 } satisfies Partial<Product>;
 
 export function getProductCta() {
-  return { href: "/checkout", label: "Comprar acesso" };
+  return { href: "/checkout", label: "Garantir meu acesso" };
 }
 
 export function formatCurrency(cents: number) {
