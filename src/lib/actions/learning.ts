@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
 import { recalculateDiagnosisPriorities } from "@/lib/db/diagnosis";
-import { calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
+import { addDaysISO, calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
 import {
   getFallbackQuestionWithAnswer,
   isFallbackQuestionId,
@@ -1009,7 +1009,7 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     return {
       study_plan_id: plan.id,
       topic_id: topic.id,
-      scheduled_date: appDateISO(addDays(weekStart, offset)),
+      scheduled_date: addDaysISO(weekStart, offset),
       duration_minutes: duration,
       question_goal: questionGoal,
     };
@@ -1136,10 +1136,4 @@ function normalizeSimulationArea(value: string): SimulationArea | null {
       SIMULATION_AREA_ALIASES[area].includes(normalized),
     ) ?? null
   );
-}
-
-function addDays(value: string, days: number) {
-  const date = new Date(`${value}T00:00:00`);
-  date.setDate(date.getDate() + days);
-  return date;
 }

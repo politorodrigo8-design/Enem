@@ -7,6 +7,7 @@ import {
   BarChart3,
   BookOpen,
   ChevronDown,
+  ClipboardList,
   Coins,
   FileCheck2,
   LayoutDashboard,
@@ -273,6 +274,15 @@ function UserMenu({
             >
               <UserRound className="h-4 w-4 text-slate-400" aria-hidden="true" />
               Meu perfil
+            </Link>
+            <Link
+              href="/dashboard/diagnostico"
+              role="menuitem"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-950"
+            >
+              <ClipboardList className="h-4 w-4 text-slate-400" aria-hidden="true" />
+              Meu diagnóstico
             </Link>
             <form action={signOutAction}>
               <button

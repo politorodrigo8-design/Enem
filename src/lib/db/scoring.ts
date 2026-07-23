@@ -1,5 +1,5 @@
 import type { Topic, TopicPerformance } from "@/lib/db/types";
-import { formatAppDateTime } from "@/lib/dates";
+import { appDateISO, formatAppDateTime } from "@/lib/dates";
 
 const difficultyWeight: Record<string, number> = {
   Baixa: 1.5,
@@ -61,11 +61,19 @@ export function formatDateTime(value: string) {
   });
 }
 
+// Aritmética pura de data no fuso do app — nunca usar Date local/UTC direto
+// aqui: o servidor roda em UTC e deslocaria o dia perto da meia-noite.
 export function getWeekStart(date = new Date()) {
-  const weekStart = new Date(date);
-  const day = weekStart.getDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  weekStart.setDate(weekStart.getDate() + diff);
-  weekStart.setHours(0, 0, 0, 0);
-  return weekStart.toISOString().slice(0, 10);
+  const [year, month, day] = appDateISO(date).split("-").map(Number);
+  const utc = new Date(Date.UTC(year, month - 1, day));
+  const weekday = utc.getUTCDay();
+  const diff = weekday === 0 ? -6 : 1 - weekday;
+  utc.setUTCDate(utc.getUTCDate() + diff);
+  return utc.toISOString().slice(0, 10);
+}
+
+/** Soma dias a uma data yyyy-mm-dd sem passar por fuso horário. */
+export function addDaysISO(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }

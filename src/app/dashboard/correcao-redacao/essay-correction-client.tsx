@@ -301,7 +301,7 @@ export function EssayCorrectionClient({
                   value={studentNote}
                   onChange={(event) => setStudentNote(event.target.value)}
                   rows={3}
-                  placeholder="Ex.: A folha tem duas paginas."
+                  placeholder="Ex.: A folha tem duas páginas."
                   className="mt-2 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-3 text-sm leading-6 text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
@@ -507,13 +507,23 @@ export function EssayCorrectionClient({
                 </p>
               </div>
               <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
-                <p className="text-sm font-semibold text-slate-950">
-                  Correção de redação
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Como funciona
                 </p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Sua redação fica em acompanhamento na plataforma até a correção
-                  ser disponibilizada. O envio pode ser por arquivo ou texto digitado.
-                </p>
+                <ol className="mt-3 space-y-2.5">
+                  {[
+                    "Envie o texto digitado ou as fotos da folha.",
+                    "A redação entra em análise pela equipe de correção.",
+                    "A correção completa aparece no histórico abaixo.",
+                  ].map((step, index) => (
+                    <li key={step} className="flex gap-2.5 text-sm leading-6 text-slate-600">
+                      <span className="tnum mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-xs font-bold text-blue-700 ring-1 ring-inset ring-slate-200">
+                        {index + 1}
+                      </span>
+                      {step}
+                    </li>
+                  ))}
+                </ol>
               </div>
             </CardContent>
           </Card>

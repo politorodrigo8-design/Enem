@@ -7,6 +7,7 @@ import {
   BookmarkPlus,
   CheckCircle2,
   ImageIcon,
+  PlayCircle,
   Search,
   X,
   XCircle,
@@ -57,6 +58,30 @@ const defaultFilters = {
   year: "Todos",
   origin: "Todas",
 };
+
+type Filters = typeof defaultFilters;
+
+type SessionSnapshot = {
+  focusMode: FocusMode;
+  sessionSize: SessionSize;
+  filters: Filters;
+  questionIds: string[];
+};
+
+function sameFilters(a: Filters, b: Filters) {
+  return (
+    a.area === b.area &&
+    a.discipline === b.discipline &&
+    a.topic === b.topic &&
+    a.difficulty === b.difficulty &&
+    a.year === b.year &&
+    a.origin === b.origin
+  );
+}
+
+function sliceForSize(questions: QuestionRecord[], size: SessionSize) {
+  return size === "Todas" ? questions : questions.slice(0, Number(size));
+}
 
 export function QuestionBankClient({
   questions,
@@ -150,11 +175,56 @@ export function QuestionBankClient({
     [answerState, filters, focusMode, orderedQuestions, reviewState],
   );
 
+  // A sessão ativa é um retrato congelado: responder questões não a embaralha,
+  // e mexer nos controles só entra em vigor quando o aluno inicia a nova sessão.
+  const [session, setSession] = useState<SessionSnapshot>(() => ({
+    focusMode,
+    sessionSize,
+    filters,
+    questionIds: sliceForSize(
+      filterQuestions({
+        questions: orderedQuestions,
+        focusMode,
+        answerState,
+        reviewState,
+        filters,
+      }),
+      sessionSize,
+    ).map((item) => item.id),
+  }));
+
+  const questionById = useMemo(
+    () => new Map(orderedQuestions.map((item) => [item.id, item])),
+    [orderedQuestions],
+  );
   const sessionQuestions = useMemo(
     () =>
-      sessionSize === "Todas" ? filtered : filtered.slice(0, Number(sessionSize)),
-    [filtered, sessionSize],
+      session.questionIds
+        .map((id) => questionById.get(id))
+        .filter((item): item is QuestionRecord => Boolean(item)),
+    [questionById, session.questionIds],
   );
+
+  const selectionChanged =
+    focusMode !== session.focusMode ||
+    sessionSize !== session.sessionSize ||
+    (focusMode === "all" && !sameFilters(filters, session.filters));
+
+  function startNewSession() {
+    setSession({
+      focusMode,
+      sessionSize,
+      filters,
+      questionIds: sliceForSize(filtered, sessionSize).map((item) => item.id),
+    });
+    move(0);
+  }
+
+  function discardSelectionChange() {
+    setFocusMode(session.focusMode);
+    setSessionSize(session.sessionSize);
+    setFilters(session.filters);
+  }
   const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
   const question = sessionQuestions[currentIndex];
   const persistedResult = question ? answerState[question.id] : undefined;
@@ -193,7 +263,6 @@ export function QuestionBankClient({
   function changeFocus(mode: FocusMode) {
     setFocusMode(mode);
     if (mode !== "all") setFilters(defaultFilters);
-    move(0);
   }
 
   function updateFilter(key: keyof typeof defaultFilters, value: string) {
@@ -206,12 +275,26 @@ export function QuestionBankClient({
       if (key === "discipline") next.topic = "Todos";
       return next;
     });
-    move(0);
   }
 
   function clearTopicFocus() {
-    setFilters(defaultFilters);
     setFocusMode("recommended");
+    setFilters(defaultFilters);
+    setSession({
+      focusMode: "recommended",
+      sessionSize,
+      filters: defaultFilters,
+      questionIds: sliceForSize(
+        filterQuestions({
+          questions: orderedQuestions,
+          focusMode: "recommended",
+          answerState,
+          reviewState,
+          filters: defaultFilters,
+        }),
+        sessionSize,
+      ).map((item) => item.id),
+    });
     move(0);
     router.replace("/dashboard/praticar", { scroll: false });
   }
@@ -311,10 +394,7 @@ export function QuestionBankClient({
                 <button
                   key={size}
                   type="button"
-                  onClick={() => {
-                    setSessionSize(size);
-                    move(0);
-                  }}
+                  onClick={() => setSessionSize(size)}
                   className={cn(
                     "tnum rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors",
                     sessionSize === size
@@ -377,6 +457,30 @@ export function QuestionBankClient({
         ) : null}
       </section>
 
+      {selectionChanged ? (
+        <div className="animate-rise mb-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-semibold text-blue-950">
+            Seleção alterada —{" "}
+            <span className="tnum">
+              {sliceForSize(filtered, sessionSize).length}
+            </span>{" "}
+            {sliceForSize(filtered, sessionSize).length === 1
+              ? "questão pronta"
+              : "questões prontas"}{" "}
+            para a nova sessão.
+          </p>
+          <div className="flex shrink-0 flex-wrap gap-2">
+            <Button variant="outline" size="sm" onClick={discardSelectionChange}>
+              Voltar à sessão atual
+            </Button>
+            <Button size="sm" onClick={startNewSession} disabled={!filtered.length}>
+              <PlayCircle className="h-4 w-4" aria-hidden="true" />
+              Iniciar nova sessão
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {!question ? (
         <EmptyState
           icon={Search}
@@ -389,13 +493,27 @@ export function QuestionBankClient({
                 : "Nenhuma questão corresponde aos filtros escolhidos."
           }
           action={
-            <Button variant="outline" onClick={() => changeFocus("recommended")}>
-              Voltar às recomendadas
-            </Button>
+            selectionChanged && filtered.length ? (
+              <Button onClick={startNewSession}>
+                <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                Iniciar nova sessão
+              </Button>
+            ) : (
+              <Button variant="outline" onClick={() => changeFocus("recommended")}>
+                Voltar às recomendadas
+              </Button>
+            )
           }
         />
       ) : (
-        <div className="grid gap-6 xl:grid-cols-[1fr_360px]">
+        <div
+          className={cn(
+            "grid gap-6 xl:grid-cols-[1fr_360px]",
+            selectionChanged &&
+              "pointer-events-none select-none opacity-40 transition-opacity",
+          )}
+          aria-hidden={selectionChanged || undefined}
+        >
           <Card>
             <CardHeader>
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">

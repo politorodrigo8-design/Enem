@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { RefreshCw } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Reveal } from "@/components/ui/reveal";
 import { buttonClasses } from "@/components/ui/button";
@@ -12,7 +12,11 @@ import {
 } from "@/lib/db/queries";
 import { prioritizeTopics } from "@/lib/study/priorities";
 import { PerformanceView } from "./performance-view";
-import { PriorityTopics, type PriorityTopicItem } from "./priority-topics";
+import {
+  AllTopics,
+  PriorityTopics,
+  type PriorityTopicItem,
+} from "./priority-topics";
 
 export default async function PerformancePage() {
   const [topics, profile, questions, areaMetrics] = await Promise.all([
@@ -50,8 +54,8 @@ export default async function PerformancePage() {
               href="/dashboard/diagnostico"
               className={buttonClasses({ variant: "outline" })}
             >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              Atualizar diagnóstico
+              <ClipboardList className="h-4 w-4" aria-hidden="true" />
+              Meu diagnóstico
             </Link>
             <Link
               href="/dashboard/desempenho/metodologia"
@@ -72,6 +76,12 @@ export default async function PerformancePage() {
       <section className="mt-6">
         <Reveal delay={80}>
           <PriorityTopics items={priorityItems} />
+        </Reveal>
+      </section>
+
+      <section className="mt-6">
+        <Reveal delay={120}>
+          <AllTopics items={priorityItems} />
         </Reveal>
       </section>
     </div>

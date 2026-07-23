@@ -3,11 +3,7 @@ import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Notice } from "@/components/ui/notice";
 import { getEssayCorrectionData } from "@/lib/db/queries";
-import {
-  ESSAY_ACCEPTED_FILE_LABEL,
-  ESSAY_CREDIT_COST_LABEL,
-  ESSAY_UPLOAD_LIMIT_LABEL,
-} from "@/lib/product-config";
+import { ESSAY_CREDIT_COST_LABEL } from "@/lib/product-config";
 import { EssayCorrectionClient } from "./essay-correction-client";
 
 export const dynamic = "force-dynamic";
@@ -18,8 +14,8 @@ export default async function EssayCorrectionPage() {
   return (
     <div>
       <DashboardPageHeader
-        title="Correção de redação"
-        description="Digite online ou anexe fotos, PNG, JPG, JPEG ou PDF para acompanhar a correção pela plataforma."
+        title="Redação"
+        description="Escreva ou fotografe sua redação e receba a correção pelas cinco competências do ENEM."
         action={
           <Badge tone="blue" className="gap-1.5">
             <FileText className="h-3.5 w-3.5" aria-hidden="true" />
@@ -29,10 +25,9 @@ export default async function EssayCorrectionPage() {
       />
 
       <Notice tone="info" icon={Info} className="mb-6">
-        Cada submissão confirmada consome {ESSAY_CREDIT_COST_LABEL}. Arquivos
-        aceitos: {ESSAY_ACCEPTED_FILE_LABEL}, com {ESSAY_UPLOAD_LIMIT_LABEL}.
-        A correção fica disponível pelo histórico quando for concluída; não é
-        automática nem instantânea.
+        Cada envio consome {ESSAY_CREDIT_COST_LABEL} e é corrigido por revisão
+        dedicada — o resultado chega no histórico desta página, não é
+        instantâneo.
       </Notice>
 
       <EssayCorrectionClient

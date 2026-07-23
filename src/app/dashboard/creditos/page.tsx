@@ -1,18 +1,24 @@
 import Link from "next/link";
-import { ArrowRight, Coins, FileText, History, PenLine } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  CalendarCheck,
+  Coins,
+  History,
+  PenLine,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { CreditPackageCheckoutButton } from "@/components/dashboard/credit-package-checkout-button";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
-import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
 import { creditPackageProducts } from "@/lib/credits/packages";
 import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
 import { getCreditsData } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
-import { ESSAY_CREDIT_COST_LABEL } from "@/lib/product-config";
 import { formatAppDateTime } from "@/lib/dates";
 import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
 
@@ -27,10 +33,10 @@ const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
   simulation_reward: "Simulado finalizado",
   study_plan_reward: "Plano concluído",
   purchase: "Compra de créditos",
-  ai_question_explanation: "Explicação de questão com IA",
-  ai_performance_analysis: "Análise de desempenho com IA",
-  ai_study_plan: "Plano inteligente com IA",
-  ai_credit_refund: "Estorno de IA",
+  ai_question_explanation: "Explicação de questão",
+  ai_performance_analysis: "Análise de desempenho",
+  ai_study_plan: "Plano inteligente",
+  ai_credit_refund: "Estorno automático",
   weekly_essay_topic: "Proposta de redação semanal",
 };
 
@@ -43,7 +49,10 @@ const essayStatusLabels: Record<EssaySubmission["status"], string> = {
   upload_failed: "Falha no envio",
 };
 
-const essayStatusTones: Record<EssaySubmission["status"], "blue" | "green" | "red" | "slate" | "amber"> = {
+const essayStatusTones: Record<
+  EssaySubmission["status"],
+  "blue" | "green" | "red" | "slate" | "amber"
+> = {
   uploading: "amber",
   pending: "blue",
   in_review: "blue",
@@ -52,51 +61,49 @@ const essayStatusTones: Record<EssaySubmission["status"], "blue" | "green" | "re
   upload_failed: "red",
 };
 
-const creditTools = [
+type CreditUse = {
+  title: string;
+  description: string;
+  cost: number;
+  href: string;
+  icon: LucideIcon;
+};
+
+const creditUses: CreditUse[] = [
   {
     title: "Correção de redação",
-    description: "Envio e acompanhamento da correção completa.",
-    cost: ESSAY_CREDIT_COST_LABEL,
-    status: "Disponível",
+    description: "Envio com correção completa pelas cinco competências.",
+    cost: ESSAY_CREDIT_COST,
     href: "/dashboard/correcao-redacao",
-    cta: "Enviar redação",
-    available: true,
-  },
-  {
-    title: "Proposta semanal de redação",
-    description: "Libere o comando completo, textos motivadores, eixos e repertórios para treinar.",
-    cost: `Custo: ${WEEKLY_ESSAY_TOPIC_UNLOCK_COST} crédito`,
-    status: "Disponível",
-    href: "/dashboard/correcao-redacao",
-    cta: "Ver proposta",
-    available: true,
-  },
-  {
-    title: "Explicar questão",
-    description: "Tirar dúvida rápida sobre enunciado, alternativa ou resolução.",
-    cost: "Custo: 1 crédito",
-    status: "Disponível",
-    href: "/dashboard/praticar?tab=banco",
-    cta: "Ver no treino",
-    available: true,
+    icon: PenLine,
   },
   {
     title: "Análise de desempenho",
-    description: "Entenda seus erros recentes, identifique padrões e veja quais conteúdos devem ser priorizados nos próximos estudos.",
-    cost: "Custo: 2 créditos",
-    status: "Disponível",
+    description: "Padrões dos seus erros e o que priorizar em seguida.",
+    cost: 2,
     href: "/dashboard/desempenho",
-    cta: "Ver desempenho",
-    available: true,
+    icon: BarChart3,
   },
   {
     title: "Plano inteligente",
-    description: "Ajuste sua semana com base no Radar ENEM, nos erros recentes e na sua rotina de estudos.",
-    cost: "Custo: 2 créditos",
-    status: "Disponível",
+    description: "Reorganiza sua semana com base no seu desempenho.",
+    cost: 2,
     href: "/dashboard#plano-semana",
-    cta: "Ver no plano",
-    available: true,
+    icon: CalendarCheck,
+  },
+  {
+    title: "Explicação de questão",
+    description: "Resolução passo a passo de qualquer questão do banco.",
+    cost: 1,
+    href: "/dashboard/praticar",
+    icon: BookOpen,
+  },
+  {
+    title: "Proposta de redação semanal",
+    description: "Comando completo, textos motivadores e repertórios.",
+    cost: WEEKLY_ESSAY_TOPIC_UNLOCK_COST,
+    href: "/dashboard/correcao-redacao",
+    icon: PenLine,
   },
 ];
 
@@ -113,121 +120,92 @@ export default async function CreditsPage() {
     <div>
       <DashboardPageHeader
         title="Créditos"
-        description="Acompanhe saldo, consumo e histórico das funcionalidades que utilizam créditos."
+        description="Seu saldo do mês e o que dá para fazer com ele."
       />
 
-      <Notice tone="info" className="mb-6">
-        O saldo e o histórico vêm do banco. Envio de redação confirmado consome{" "}
-        {ESSAY_CREDIT_COST_LABEL}; créditos adicionais podem ser comprados nesta página.
-      </Notice>
-
-      <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
+      <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <Reveal delay={0}>
-          <Card>
-            <CardContent>
+          <Card className="h-full">
+            <CardContent className="flex h-full flex-col p-5 sm:p-6">
               <div className="flex items-center justify-between gap-3">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Saldo atual
                 </p>
                 <Coins className="h-4.5 w-4.5 text-slate-300" aria-hidden="true" />
               </div>
-              <p className="tnum mt-3 text-3xl font-bold tracking-tight text-slate-950">
-                {data.account.balance}{" "}
-                <span className="text-lg font-semibold text-slate-500">
-                  de {data.account.monthly_allowance}
+              <p className="tnum mt-3 text-5xl font-bold tracking-tight text-slate-950">
+                {data.account.balance}
+                <span className="ml-2 text-lg font-semibold text-slate-500">
+                  de {data.account.monthly_allowance} créditos
                 </span>
               </p>
-              <p className="mt-1 text-xs leading-5 text-slate-500">
-                {used} créditos consumidos no ciclo atual
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Todo mês você recebe {data.account.monthly_allowance} créditos.
+                Neste ciclo, {used} {used === 1 ? "foi usado" : "foram usados"}.
               </p>
-              <Progress
-                className="mt-5"
-                value={balancePercentage}
-                label="Disponível na conta"
-                tone={lowCredits ? "red" : "green"}
-              />
-              {lowCredits ? (
-                <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium leading-6 text-amber-800 ring-1 ring-inset ring-amber-200">
-                  Saldo abaixo do custo atual de uma submissão de redação.
-                </p>
-              ) : null}
+              <div className="mt-auto pt-5">
+                <Progress
+                  value={balancePercentage}
+                  label="Disponível na conta"
+                  tone={lowCredits ? "red" : "green"}
+                />
+                {lowCredits ? (
+                  <p className="mt-4 rounded-lg bg-amber-50 px-3 py-2 text-sm font-medium leading-6 text-amber-800 ring-1 ring-inset ring-amber-200">
+                    Saldo abaixo do custo de uma correção de redação (
+                    {ESSAY_CREDIT_COST} créditos). Os pacotes abaixo completam o
+                    saldo na hora.
+                  </p>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
         </Reveal>
 
         <Reveal delay={80}>
-          <Card>
+          <Card className="h-full">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-4.5 w-4.5 text-blue-700" aria-hidden="true" />
-                Uso com redação
-              </CardTitle>
+              <CardTitle>O que os créditos pagam</CardTitle>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                O custo aparece sempre antes de confirmar; se algo falhar, o
+                crédito volta sozinho.
+              </p>
             </CardHeader>
-            <CardContent className="pt-3">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div>
-                  <Badge tone="blue">Disponível</Badge>
-                  <h2 className="mt-3 text-xl font-bold tracking-tight text-slate-950">
-                    Correção de redação
-                  </h2>
-                  <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-                    Envie texto digitado, fotos ou PDF e acompanhe o status pela
-                    plataforma. O custo é mostrado antes da confirmação.
-                  </p>
-                </div>
-                <p className="tnum shrink-0 rounded-lg bg-slate-50 px-3 py-2 text-sm font-bold text-slate-950 ring-1 ring-inset ring-slate-200">
-                  {ESSAY_CREDIT_COST_LABEL}
-                </p>
-              </div>
-              <Link href="/dashboard/correcao-redacao" className={buttonClasses({ className: "mt-5" })}>
-                Enviar redação
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
-              </Link>
+            <CardContent className="pt-1">
+              <ul className="divide-y divide-slate-100">
+                {creditUses.map((use) => (
+                  <li key={use.title}>
+                    <Link
+                      href={use.href}
+                      className="group flex items-center gap-4 py-3 transition-colors hover:bg-slate-50 sm:-mx-2 sm:rounded-lg sm:px-2"
+                    >
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                        <use.icon className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-sm font-semibold text-slate-950">
+                          {use.title}
+                        </span>
+                        <span className="mt-0.5 block truncate text-xs leading-5 text-slate-500">
+                          {use.description}
+                        </span>
+                      </span>
+                      <span className="tnum shrink-0 rounded-md bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-200">
+                        {use.cost} {use.cost === 1 ? "crédito" : "créditos"}
+                      </span>
+                      <ArrowRight
+                        className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-blue-700"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </CardContent>
           </Card>
         </Reveal>
       </div>
 
-      <Reveal delay={100}>
-        <section className="mt-8">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-lg font-bold tracking-tight text-slate-950">
-              Usos dos créditos
-            </h2>
-            <Badge tone="blue">IA operacional</Badge>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-            {creditTools.map((tool) => (
-              <Card key={tool.title} className="h-full">
-                <CardContent className="flex h-full flex-col">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                      <Coins className="h-4.5 w-4.5" aria-hidden="true" />
-                    </div>
-                    <Badge tone={tool.available ? "green" : "slate"}>{tool.status}</Badge>
-                  </div>
-                  <h3 className="mt-4 text-base font-bold tracking-tight text-slate-950">
-                    {tool.title}
-                  </h3>
-                  <p className="mt-2 flex-1 text-sm leading-6 text-slate-600">
-                    {tool.description}
-                  </p>
-                  <p className="tnum mt-4 text-sm font-bold text-slate-950">{tool.cost}</p>
-                  <Link
-                    href={tool.href}
-                    className={buttonClasses({ variant: "outline", className: "mt-4" })}
-                  >
-                    {tool.cta}
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      </Reveal>
-
-      <div className="mt-8 grid gap-6 xl:grid-cols-[1fr_0.9fr]">
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Reveal delay={120}>
           <Card id="historico">
             <CardHeader>
@@ -238,24 +216,29 @@ export default async function CreditsPage() {
             </CardHeader>
             <CardContent className="pt-3">
               <ul className="divide-y divide-slate-100">
-                {ledger.length ? ledger.map((item) => (
-                  <li key={`${item.label}-${item.date}`} className="flex items-center gap-3 py-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-900">
-                        {item.label}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">{item.date}</p>
-                    </div>
-                    <p
-                      className={`tnum text-sm font-bold ${
-                        item.value > 0 ? "text-emerald-700" : "text-rose-600"
-                      }`}
+                {ledger.length ? (
+                  ledger.map((item, index) => (
+                    <li
+                      key={`${item.label}-${item.date}-${index}`}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
                     >
-                      {item.value > 0 ? "+" : ""}
-                      {item.value}
-                    </p>
-                  </li>
-                )) : (
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {item.label}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">{item.date}</p>
+                      </div>
+                      <p
+                        className={`tnum text-sm font-bold ${
+                          item.value > 0 ? "text-emerald-700" : "text-rose-600"
+                        }`}
+                      >
+                        {item.value > 0 ? "+" : ""}
+                        {item.value}
+                      </p>
+                    </li>
+                  ))
+                ) : (
                   <li className="py-3 text-sm leading-6 text-slate-500">
                     Nenhuma movimentação de créditos registrada ainda.
                   </li>
@@ -266,7 +249,7 @@ export default async function CreditsPage() {
         </Reveal>
 
         <Reveal delay={160}>
-          <Card>
+          <Card className="h-fit">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <PenLine className="h-4.5 w-4.5 text-blue-700" aria-hidden="true" />
@@ -277,13 +260,17 @@ export default async function CreditsPage() {
               {data.recentEssays.length ? (
                 <ul className="divide-y divide-slate-100">
                   {data.recentEssays.map((essay) => (
-                    <li key={essay.id} className="flex items-center gap-3 py-3">
+                    <li
+                      key={essay.id}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-semibold text-slate-900">
                           {essay.theme || "Redação sem tema informado"}
                         </p>
                         <p className="mt-0.5 text-xs text-slate-500">
-                          {formatDate(essay.submitted_at)} · {essay.credit_cost} créditos
+                          {formatDate(essay.submitted_at)} · {essay.credit_cost}{" "}
+                          créditos
                         </p>
                       </div>
                       <Badge tone={essayStatusTones[essay.status]}>
@@ -294,7 +281,8 @@ export default async function CreditsPage() {
                 </ul>
               ) : (
                 <p className="text-sm leading-6 text-slate-500">
-                  Redações enviadas aparecerão aqui com status e créditos utilizados.
+                  Redações enviadas aparecerão aqui com status e créditos
+                  utilizados.
                 </p>
               )}
             </CardContent>
@@ -303,17 +291,15 @@ export default async function CreditsPage() {
       </div>
 
       <Reveal delay={200}>
-        <section className="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#eef6ff_52%,#f8fafc_100%)] p-4 shadow-sm shadow-slate-900/5 sm:p-5">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h2 className="text-lg font-bold tracking-tight text-slate-950">
-                Créditos adicionais
-              </h2>
-              <p className="mt-1 text-sm leading-6 text-slate-600">
-                Complete o saldo quando precisar de mais correções, análises ou revisões.
-              </p>
-            </div>
-            <Badge tone="green" className="shrink-0">Disponível</Badge>
+        <section className="mt-10">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold tracking-tight text-slate-950">
+              Precisa de mais créditos?
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Os pacotes completam seu saldo na hora — sem assinatura, sem
+              renovação automática.
+            </p>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {creditPackageProducts.map((pack) => (
@@ -321,61 +307,38 @@ export default async function CreditsPage() {
                 key={pack.id}
                 className={
                   pack.highlight
-                    ? "relative h-full border-blue-300 shadow-md shadow-blue-900/10 ring-1 ring-inset ring-blue-100"
-                    : "h-full border-white/80 bg-white/90 shadow-sm shadow-slate-900/5"
+                    ? "relative h-full border-blue-300 ring-1 ring-inset ring-blue-100"
+                    : "h-full"
                 }
               >
-                <CardContent className="flex h-full flex-col p-4 sm:p-5">
+                <CardContent className="flex h-full flex-col p-5">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3
-                        className={`text-base font-bold tracking-tight ${
-                          pack.highlight ? "text-blue-950" : "text-slate-950"
-                        }`}
-                      >
-                        {pack.title}
-                      </h3>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">
-                        {pack.description}
-                      </p>
-                    </div>
+                    <h3 className="text-base font-bold tracking-tight text-slate-950">
+                      {pack.title}
+                    </h3>
                     {pack.highlight ? (
                       <span className="shrink-0 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
                         Mais escolhido
                       </span>
                     ) : null}
                   </div>
-                  <div
-                    className={`mt-5 rounded-lg p-4 ring-1 ring-inset ${
-                      pack.highlight
-                        ? "bg-blue-50 ring-blue-200"
-                        : "bg-slate-50 ring-slate-200"
-                    }`}
-                  >
-                    <p
-                      className={`tnum text-3xl font-bold tracking-tight ${
-                        pack.highlight ? "text-blue-950" : "text-slate-950"
-                      }`}
-                    >
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {pack.description}
+                  </p>
+                  <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-slate-100 pt-5">
+                    <p className="tnum text-3xl font-bold tracking-tight text-slate-950">
                       {pack.credits}
-                      <span
-                        className={`ml-1.5 text-base font-semibold ${
-                          pack.highlight ? "text-blue-700" : "text-slate-500"
-                        }`}
-                      >
+                      <span className="ml-1.5 text-base font-semibold text-slate-500">
                         créditos
                       </span>
                     </p>
-                    <div className="mt-3 flex items-end justify-between gap-3">
+                    <div className="text-right">
                       <p className="tnum text-xl font-bold text-blue-800">
                         {pack.price}
                       </p>
-                      <p
-                        className={`tnum text-xs font-semibold ${
-                          pack.highlight ? "text-blue-700" : "text-slate-500"
-                        }`}
-                      >
-                        {formatCreditUnitPrice(pack.priceCents, pack.credits)} / crédito
+                      <p className="tnum text-xs font-semibold text-slate-500">
+                        {formatCreditUnitPrice(pack.priceCents, pack.credits)} por
+                        crédito
                       </p>
                     </div>
                   </div>
@@ -391,7 +354,7 @@ export default async function CreditsPage() {
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-500">
             Pagamento processado pelo Mercado Pago. O saldo é creditado
-            automaticamente após confirmação do pagamento.
+            automaticamente após a confirmação.
           </p>
         </section>
       </Reveal>

@@ -10,7 +10,7 @@ import {
   AI_QUESTION_EXPLANATION_CREDIT_COST,
   AI_STUDY_PLAN_CREDIT_COST,
 } from "@/lib/ai/credits";
-import { getWeekStart } from "@/lib/db/scoring";
+import { addDaysISO, getWeekStart } from "@/lib/db/scoring";
 import type {
   CreditLedgerEntry,
   Profile,
@@ -572,29 +572,49 @@ export async function generateSmartStudyPlanAction(
   });
   if (!reservation.ok) return reservation;
 
-  let ai: Awaited<ReturnType<typeof generateGroqText>>;
-  let studyPlan: SmartStudyPlanResult;
-  try {
-    ai = await generateGroqText({
-      maxCompletionTokens: 2_200,
-      temperature: 0.4,
-      messages: [
-        {
-          role: "system",
-          content: buildStructuredSystemPrompt(
-            "Você é um planejador de estudos do ENEM. Ajuste a semana com foco realista, respeitando rotina, datas, carga disponível e prioridades informadas.",
-          ),
-        },
-        {
-          role: "user",
-          content: buildStudyPlanPrompt(planContext, importedPriorities),
-        },
-      ],
-    });
-    studyPlan = validateStudyPlan(ai.content, planContext, importedPriorities);
-  } catch (error) {
-    logServerError("ai.studyPlan", error, { userId: context.user.id });
-    await refundAiCreditReservation(context, reservation.ledger.id, error);
+  // Uma resposta fora do formato não pode virar erro para o aluno: damos ao
+  // modelo uma segunda chance com o motivo exato da recusa anterior.
+  let ai: Awaited<ReturnType<typeof generateGroqText>> | null = null;
+  let studyPlan: SmartStudyPlanResult | null = null;
+  let lastError: unknown = null;
+  for (let attempt = 0; attempt < 2 && !studyPlan; attempt += 1) {
+    try {
+      ai = await generateGroqText({
+        maxCompletionTokens: 2_200,
+        temperature: attempt === 0 ? 0.4 : 0.2,
+        messages: [
+          {
+            role: "system",
+            content: buildStructuredSystemPrompt(
+              "Você é um planejador de estudos do ENEM. Ajuste a semana com foco realista, respeitando rotina, datas, carga disponível e prioridades informadas.",
+            ),
+          },
+          {
+            role: "user",
+            content: buildStudyPlanPrompt(planContext, importedPriorities),
+          },
+          ...(attempt > 0 && lastError instanceof Error
+            ? [
+                {
+                  role: "user" as const,
+                  content: `A resposta anterior foi rejeitada pela validação (${lastError.message}). Gere novamente seguindo à risca as datas permitidas, o schema e os limites informados.`,
+                },
+              ]
+            : []),
+        ],
+      });
+      studyPlan = validateStudyPlan(ai.content, planContext, importedPriorities);
+    } catch (error) {
+      lastError = error;
+      logServerError("ai.studyPlan", error, {
+        userId: context.user.id,
+        attempt,
+      });
+    }
+  }
+
+  if (!studyPlan || !ai) {
+    await refundAiCreditReservation(context, reservation.ledger.id, lastError);
     return {
       ok: false,
       message: "Não foi possível otimizar o plano agora. Seu crédito não foi consumido.",
@@ -882,6 +902,8 @@ type StudyPlanContextForAi = {
   planId: string | null;
   weekStart: string;
   allowedStartDate: string;
+  /** Datas exatas (yyyy-mm-dd) em que o aluno pode estudar nesta semana. */
+  allowedDates: Array<{ date: string; weekday: string }>;
   weeklyHours: number;
   availableDays: string;
   targetCourse: string;
@@ -996,14 +1018,29 @@ async function getStudyPlanContext(
     };
   });
 
+  const allowedStartDate = todayInSaoPaulo();
+  const allowedDates = buildAllowedPlanDates(
+    weekStart,
+    allowedStartDate,
+    profile.available_days,
+  );
+  if (!allowedDates.length) {
+    return {
+      ok: false,
+      message:
+        "Seus dias de estudo desta semana já passaram. O plano inteligente volta a funcionar na próxima semana — ou ajuste seus dias disponíveis no perfil.",
+    };
+  }
+
   return {
     ok: true,
     planId: plan?.id ?? null,
     weekStart,
-    allowedStartDate: todayInSaoPaulo(),
+    allowedStartDate,
+    allowedDates,
     weeklyHours: profile.weekly_hours,
     availableDays: profile.available_days,
-    targetCourse: profile?.target_course || "Nao informado",
+    targetCourse: profile?.target_course || "Não informado",
     targetScore: profile?.target_score ?? null,
     tasks:
       plan?.study_plan_items.map((item) => ({
@@ -1017,6 +1054,25 @@ async function getStudyPlanContext(
       })) ?? [],
     weakTopics,
   };
+}
+
+// Datas exatas em que o aluno pode estudar nesta semana — a IA nunca faz
+// aritmética de calendário; ela só escolhe entre estas datas prontas.
+function buildAllowedPlanDates(
+  weekStart: string,
+  allowedStartDate: string,
+  availableDays: string,
+) {
+  const allowedWeekdays = parseAvailableWeekdays(availableDays);
+  const dates: Array<{ date: string; weekday: string }> = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const date = addDaysISO(weekStart, offset);
+    if (date < allowedStartDate) continue;
+    const weekday = weekdayName(date);
+    if (allowedWeekdays.size && !allowedWeekdays.has(weekday)) continue;
+    dates.push({ date, weekday });
+  }
+  return dates;
 }
 
 function buildQuestionExplanationPrompt(question: AiQuestion, selectedOption?: string) {
@@ -1106,13 +1162,15 @@ function buildStudyPlanPrompt(
         .join("\n")
     : "Sem desempenho pessoal suficiente; usar recorrencia e equilibrio entre areas.";
 
+  const allowedDates = context.allowedDates
+    .map((item) => `${item.date} (${item.weekday})`)
+    .join(", ");
+
   return [
     "Ajuste o plano semanal deste aluno.",
     "Retorne somente JSON válido, sem Markdown, sem comentários e sem texto fora do JSON.",
-    `Semana inicial: ${context.weekStart}`,
-    `Data mínima permitida para sessões: ${context.allowedStartDate}`,
-    `Horas semanais: ${context.weeklyHours}`,
-    `Dias disponíveis: ${context.availableDays}`,
+    `Datas permitidas para sessões — use SOMENTE estas no campo date, sem inventar outras: ${allowedDates}`,
+    `Horas semanais disponíveis no total: ${context.weeklyHours}`,
     `Curso alvo: ${context.targetCourse}`,
     `Nota alvo: ${context.targetScore ?? "Não informada"}`,
     "",
@@ -1126,8 +1184,8 @@ function buildStudyPlanPrompt(
     importedPriorities.length ? JSON.stringify(importedPriorities, null, 2) : "Nenhuma.",
     "",
     "Schema esperado: period, summary, days, weeklyGoals e recommendationReason. Não inclua totalHours livre.",
-    "Respeite dias disponíveis, carga total, data mínima e prioridades. Não crie sessão em data passada, horário indisponível ou com duração irreal.",
-    "Não use 'Raciocínio' como título, nome de provedor, API, modelo, prompt ou detalhes internos.",
+    "A soma de durationMinutes de todas as sessões deve caber nas horas semanais.",
+    "Não use 'Raciocínio' como título, nome de provedor, modelo, prompt ou detalhes internos.",
   ].join("\n");
 }
 
@@ -1335,8 +1393,8 @@ function validateStudyPlan(
 ): SmartStudyPlanResult {
   const parsed = studyPlanResultSchema.parse(parseJsonObject(content));
   assertNoTechnicalText(parsed);
-  const allowedStart = context.allowedStartDate;
-  const allowedDays = parseAvailableWeekdays(context.availableDays);
+  // As datas válidas já vêm prontas do servidor; a IA só escolhe entre elas.
+  const allowedDates = new Set(context.allowedDates.map((item) => item.date));
   const seenSessions = new Set<string>();
   let lastDate = "";
   let totalMinutes = 0;
@@ -1344,12 +1402,9 @@ function validateStudyPlan(
   let totalQuestions = 0;
 
   for (const day of parsed.days) {
-    if (day.date < allowedStart) throw new Error("past_plan_date");
+    if (!allowedDates.has(day.date)) throw new Error("unavailable_plan_day");
     if (lastDate && day.date < lastDate) throw new Error("unordered_plan_dates");
     lastDate = day.date;
-    if (allowedDays.size && !allowedDays.has(weekdayName(day.date))) {
-      throw new Error("unavailable_plan_day");
-    }
 
     for (const session of day.sessions) {
       const key = [
@@ -1478,7 +1533,13 @@ function parseJsonObject(content: string): unknown {
 
 function assertNoTechnicalText(value: unknown) {
   const text = collectStrings(value).join(" \n ");
-  if (/(groq|llama|endpoint|api|prompt|provedor de ia|modelo de ia|banco de dados|resolução editorial|resolucao editorial)/i.test(text)) {
+  // Word boundaries são obrigatórios: sem eles, "rapidez"/"capital" casam com
+  // "api" e derrubam respostas perfeitamente válidas.
+  if (
+    /\b(groq|llama|endpoint|api|prompt|provedor de ia|modelo de ia|banco de dados|resolução editorial|resolucao editorial)\b/i.test(
+      text,
+    )
+  ) {
     throw new Error("technical_text_in_ai_output");
   }
 }
