@@ -237,6 +237,101 @@ export async function submitQuestionAnswerAction(input: {
   };
 }
 
+export async function finishPracticeSessionAction(input: {
+  questionIds: string[];
+  startedAt: string;
+  source?: "question_bank" | "review" | "high_priority";
+}): Promise<
+  ActionResult & {
+    answered?: number;
+    correct?: number;
+    wrong?: number;
+  }
+> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
+
+  const { supabase, user } = context;
+  const questionIds = Array.from(
+    new Set(
+      input.questionIds
+        .filter((questionId) => !isFallbackQuestionId(questionId))
+        .filter(Boolean),
+    ),
+  );
+  if (!questionIds.length) {
+    return { ok: false, message: "Responda pelo menos uma questão da sessão antes de finalizar." };
+  }
+
+  const startedAt = new Date(input.startedAt);
+  const since = Number.isNaN(startedAt.getTime())
+    ? new Date(Date.now() - 6 * 60 * 60 * 1000)
+    : startedAt;
+
+  const { data: answers, error } = await supabase
+    .from("user_question_answers")
+    .select("question_id, is_correct, answered_at")
+    .eq("user_id", user.id)
+    .in("question_id", questionIds)
+    .gte("answered_at", since.toISOString());
+
+  if (error) return learningError("learning.finishPracticeSession.answers", error);
+
+  const latestByQuestion = new Map<
+    string,
+    { question_id: string; is_correct: boolean; answered_at: string }
+  >();
+  for (const answer of answers ?? []) {
+    const current = latestByQuestion.get(answer.question_id);
+    if (
+      !current ||
+      new Date(answer.answered_at).getTime() > new Date(current.answered_at).getTime()
+    ) {
+      latestByQuestion.set(answer.question_id, answer);
+    }
+  }
+
+  const finalizedAnswers = Array.from(latestByQuestion.values());
+  const answered = finalizedAnswers.length;
+  const correct = finalizedAnswers.filter((answer) => answer.is_correct).length;
+  const wrong = answered - correct;
+
+  await recordProductEvent({
+    supabase,
+    userId: user.id,
+    eventName: "practice_session_completed",
+    route:
+      input.source === "high_priority"
+        ? "/dashboard/praticar?tab=banco&focus=priority"
+        : input.source === "review"
+          ? "/dashboard/praticar?tab=revisao"
+          : "/dashboard/praticar?tab=banco",
+    metadata: {
+      question_count: questionIds.length,
+      answered,
+      correct_answers: correct,
+      wrong_answers: wrong,
+      source: input.source ?? "question_bank",
+    },
+  });
+
+  revalidatePath("/dashboard/praticar");
+  revalidatePath("/dashboard/revisao");
+  revalidatePath("/dashboard/desempenho");
+  revalidatePath("/dashboard", "layout");
+
+  return {
+    ok: true,
+    message:
+      wrong > 0
+        ? "Sessão finalizada. Seus erros já estão na revisão."
+        : "Sessão finalizada. Seu desempenho foi atualizado.",
+    answered,
+    correct,
+    wrong,
+  };
+}
+
 export async function addQuestionReviewAction(questionId: string): Promise<ActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };

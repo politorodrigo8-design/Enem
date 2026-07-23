@@ -24,6 +24,7 @@ import { PremiumGate } from "@/components/dashboard/premium-gate";
 import { QuestionExplanationCreditAction } from "@/components/dashboard/ai-credit-actions";
 import {
   submitQuestionAnswerAction,
+  finishPracticeSessionAction,
   toggleQuestionReviewAction,
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
@@ -66,7 +67,18 @@ type SessionSnapshot = {
   sessionSize: SessionSize;
   filters: Filters;
   questionIds: string[];
+  startedAt: string;
 };
+
+type AnswerState = Record<
+  string,
+  {
+    selectedOption: string;
+    isCorrect: boolean;
+    explanation: string;
+    correctOption: string;
+  }
+>;
 
 function sameFilters(a: Filters, b: Filters) {
   return (
@@ -119,7 +131,7 @@ export function QuestionBankClient({
     explanation: string;
     correctOption: string;
   } | null>(null);
-  const [answerState, setAnswerState] = useState(() =>
+  const [answerState, setAnswerState] = useState<AnswerState>(() =>
     Object.fromEntries(
       questions.flatMap((question) => {
         const answer = latestAnswer(question);
@@ -150,6 +162,10 @@ export function QuestionBankClient({
     ),
   );
   const [pending, startTransition] = useTransition();
+  const [sessionSubmissions, setSessionSubmissions] = useState<Record<string, true>>(
+    {},
+  );
+  const [sessionFinished, setSessionFinished] = useState(false);
 
   const orderedQuestions = useMemo(() => {
     if (!initialQuestionId) return questions;
@@ -181,6 +197,7 @@ export function QuestionBankClient({
     focusMode,
     sessionSize,
     filters,
+    startedAt: new Date().toISOString(),
     questionIds: sliceForSize(
       filterQuestions({
         questions: orderedQuestions,
@@ -211,12 +228,20 @@ export function QuestionBankClient({
     (focusMode === "all" && !sameFilters(filters, session.filters));
 
   function startNewSession() {
+    if (!sessionFinished && Object.keys(sessionSubmissions).length > 0) {
+      toast.error("Finalize a sessão atual antes de iniciar outra.");
+      return;
+    }
+
     setSession({
       focusMode,
       sessionSize,
       filters,
+      startedAt: new Date().toISOString(),
       questionIds: sliceForSize(filtered, sessionSize).map((item) => item.id),
     });
+    setSessionSubmissions({});
+    setSessionFinished(false);
     move(0);
   }
 
@@ -248,6 +273,15 @@ export function QuestionBankClient({
   const answeredInSession = sessionQuestions.filter((item) =>
     Boolean(answerState[item.id]),
   ).length;
+  const sessionSubmittedQuestions = sessionQuestions.filter(
+    (item) => sessionSubmissions[item.id],
+  );
+  const sessionSubmittedCount = sessionSubmittedQuestions.length;
+  const sessionSubmittedCorrect = sessionSubmittedQuestions.filter(
+    (item) => answerState[item.id]?.isCorrect,
+  ).length;
+  const sessionSubmittedWrong = sessionSubmittedCount - sessionSubmittedCorrect;
+  const hasUnfinishedSubmissions = sessionSubmittedCount > 0 && !sessionFinished;
 
   const filterOptions = useMemo(
     () => buildFilterOptions(orderedQuestions, filters),
@@ -284,6 +318,7 @@ export function QuestionBankClient({
       focusMode: "recommended",
       sessionSize,
       filters: defaultFilters,
+      startedAt: new Date().toISOString(),
       questionIds: sliceForSize(
         filterQuestions({
           questions: orderedQuestions,
@@ -295,6 +330,8 @@ export function QuestionBankClient({
         sessionSize,
       ).map((item) => item.id),
     });
+    setSessionSubmissions({});
+    setSessionFinished(false);
     move(0);
     router.replace("/dashboard/praticar", { scroll: false });
   }
@@ -320,12 +357,34 @@ export function QuestionBankClient({
             correctOption: response.correctOption ?? "",
           },
         }));
+        setSessionSubmissions((current) => ({ ...current, [question.id]: true }));
+        setSessionFinished(false);
         setResult({
           questionId: question.id,
           isCorrect: Boolean(response.isCorrect),
           explanation: response.explanation ?? "",
           correctOption: response.correctOption ?? "",
         });
+      }
+    });
+  }
+
+  function finishSession() {
+    if (!sessionSubmittedCount) {
+      toast.error("Responda pelo menos uma questão desta sessão antes de finalizar.");
+      return;
+    }
+
+    startTransition(async () => {
+      const response = await finishPracticeSessionAction({
+        questionIds: sessionSubmittedQuestions.map((item) => item.id),
+        startedAt: session.startedAt,
+        source: answerSource,
+      });
+      toast[response.ok ? "success" : "error"](response.message);
+      if (response.ok) {
+        setSessionFinished(true);
+        router.refresh();
       }
     });
   }
@@ -473,13 +532,77 @@ export function QuestionBankClient({
             <Button variant="outline" size="sm" onClick={discardSelectionChange}>
               Voltar à sessão atual
             </Button>
-            <Button size="sm" onClick={startNewSession} disabled={!filtered.length}>
+            {hasUnfinishedSubmissions ? (
+              <Button size="sm" onClick={finishSession} disabled={pending}>
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Finalizar sessão
+              </Button>
+            ) : null}
+            <Button
+              size="sm"
+              onClick={startNewSession}
+              disabled={!filtered.length || hasUnfinishedSubmissions}
+            >
               <PlayCircle className="h-4 w-4" aria-hidden="true" />
               Iniciar nova sessão
             </Button>
           </div>
         </div>
       ) : null}
+
+      <section
+        className={cn(
+          "mb-6 rounded-lg border p-4 shadow-sm shadow-slate-900/5",
+          sessionFinished
+            ? "border-emerald-200 bg-emerald-50"
+            : hasUnfinishedSubmissions
+              ? "border-blue-200 bg-blue-50"
+              : "border-slate-200 bg-white",
+        )}
+      >
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-sm font-bold text-slate-950">
+              {sessionFinished
+                ? "Sessão finalizada"
+                : hasUnfinishedSubmissions
+                  ? "Sessão aguardando finalização"
+                  : "Sessão em andamento"}
+            </p>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              As respostas novas entram no desempenho e na revisão de erros
+              quando você finaliza.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <SessionMetric
+                label="Progresso"
+                value={`${answeredInSession}/${sessionQuestions.length}`}
+              />
+              <SessionMetric
+                label="Acertos"
+                value={String(sessionSubmittedCorrect)}
+              />
+              <SessionMetric label="Erros" value={String(sessionSubmittedWrong)} />
+            </div>
+            {sessionFinished ? (
+              <Button onClick={startNewSession} disabled={!filtered.length}>
+                <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                Iniciar nova sessão
+              </Button>
+            ) : (
+              <Button
+                onClick={finishSession}
+                disabled={!sessionSubmittedCount || pending}
+              >
+                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+                Finalizar e salvar sessão
+              </Button>
+            )}
+          </div>
+        </div>
+      </section>
 
       {!question ? (
         <EmptyState
@@ -785,6 +908,17 @@ export function QuestionBankClient({
         </div>
       )}
     </>
+  );
+}
+
+function SessionMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-20 rounded-lg border border-white/70 bg-white/75 px-3 py-2">
+      <p className="tnum text-base font-bold text-slate-950">{value}</p>
+      <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+        {label}
+      </p>
+    </div>
   );
 }
 

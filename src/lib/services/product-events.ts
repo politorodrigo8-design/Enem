@@ -15,6 +15,7 @@ export const productEventNames = [
   "diagnosis_started",
   "diagnosis_completed",
   "question_answered",
+  "practice_session_completed",
   "high_priority_training_started",
   "high_priority_question_completed",
   "simulation_started",
