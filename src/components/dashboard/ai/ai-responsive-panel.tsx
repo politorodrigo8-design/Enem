@@ -29,6 +29,7 @@ export function AiResponsivePanel({
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   useLockPageScroll(open);
 
   useEffect(() => {
@@ -61,6 +62,16 @@ export function AiResponsivePanel({
       opener?.focus();
     };
   }, [busy, onClose, open, openerRef]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      contentRef.current?.scrollTo({ top: 0, left: 0, behavior: "auto" });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [busy, open, title]);
 
   if (!open) return null;
 
@@ -106,7 +117,10 @@ export function AiResponsivePanel({
             </Button>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+        <div
+          ref={contentRef}
+          className="min-h-0 flex-1 scroll-pt-5 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6"
+        >
           {children}
         </div>
       </div>

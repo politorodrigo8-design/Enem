@@ -100,7 +100,6 @@ export function QuestionBankClient({
   const [origin, setOrigin] = useState("Todas");
   const [board, setBoard] = useState("Todas");
   const [status, setStatus] = useState("Todas");
-  const [search, setSearch] = useState("");
   const defaultFocusMode =
     answerSource === "question_bank"
       ? initialTopicName === "Todos"
@@ -116,6 +115,9 @@ export function QuestionBankClient({
   const [focusMode, setFocusMode] = useState<FocusMode>(startingFocusMode);
   const [draftFocusMode, setDraftFocusMode] =
     useState<FocusMode>(startingFocusMode);
+  const [sessionConfirmed, setSessionConfirmed] = useState(
+    answerSource === "high_priority" || Boolean(initialQuestionId),
+  );
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<{
@@ -210,63 +212,51 @@ export function QuestionBankClient({
     [orderedQuestions],
   );
 
-  const filtered = useMemo(() => {
-    const advancedFiltersEnabled = focusMode === "all";
-
-    return orderedQuestions.filter((question) => {
-      const answered = Boolean(answerState[question.id]);
-      const reviewed = Boolean(reviewState[question.id]);
-      const highPriority = isHighPriority(question);
-      const matchesStatus =
-        status === "Todas" ||
-        (status === "Respondida" && answered) ||
-        (status === "Não respondida" && !answered);
-      const matchesFocus =
-        focusMode === "all" ||
-        (focusMode === "priority" && highPriority) ||
-        (focusMode === "unanswered" && !answered) ||
-        (focusMode === "review" && reviewed) ||
-        (focusMode === "recommended" && (highPriority || !answered));
-      const matchesSearch =
-        !search ||
-        [
-          question.statement,
-          question.topics.name,
-          question.subjects.name,
-          question.subjects.area,
-          question.source,
-          question.exam_name,
-          question.exam_color,
-          question.official_source,
-          question.question_number ? `questao ${question.question_number}` : "",
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase()
-          .includes(search.toLowerCase());
-      const matchesAdvancedFilters =
-        !advancedFiltersEnabled ||
-        ((area === "Todas" || question.subjects.area === area) &&
-          (discipline === "Todas" || question.subjects.name === discipline) &&
-          (topic === "Todos" || question.topics.name === topic) &&
-          (difficulty === "Todas" || question.difficulty === difficulty) &&
-          (year === "Todos" || String(question.year) === year) &&
-          (origin === "Todas" || questionOrigin(question) === origin) &&
-          (board === "Todas" || questionBoard(question) === board) &&
-          (status === "Favoritas" ? reviewed : matchesStatus) &&
-          matchesSearch);
-
-      return (
-        matchesFocus &&
-        matchesAdvancedFilters
-      );
-    });
-  }, [answerState, area, board, difficulty, discipline, focusMode, orderedQuestions, origin, reviewState, search, status, topic, year]);
+  const filtered = useMemo(
+    () =>
+      filterQuestionsForFocus({
+        questions: orderedQuestions,
+        focusMode,
+        answerState,
+        reviewState,
+        area,
+        discipline,
+        topic,
+        difficulty,
+        year,
+        origin,
+        board,
+        status,
+      }),
+    [answerState, area, board, difficulty, discipline, focusMode, orderedQuestions, origin, reviewState, status, topic, year],
+  );
+  const draftFiltered = useMemo(
+    () =>
+      filterQuestionsForFocus({
+        questions: orderedQuestions,
+        focusMode: draftFocusMode,
+        answerState,
+        reviewState,
+        area,
+        discipline,
+        topic,
+        difficulty,
+        year,
+        origin,
+        board,
+        status,
+      }),
+    [answerState, area, board, difficulty, discipline, draftFocusMode, orderedQuestions, origin, reviewState, status, topic, year],
+  );
 
   const sessionQuestions = useMemo(() => {
     if (sessionSize === "Todas") return filtered;
     return filtered.slice(0, Number(sessionSize));
   }, [filtered, sessionSize]);
+  const draftSessionQuestions = useMemo(() => {
+    if (draftSessionSize === "Todas") return draftFiltered;
+    return draftFiltered.slice(0, Number(draftSessionSize));
+  }, [draftFiltered, draftSessionSize]);
   const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
   const question = sessionQuestions[currentIndex];
   const totalPages = Math.max(1, Math.ceil(sessionQuestions.length / pageSize));
@@ -288,9 +278,13 @@ export function QuestionBankClient({
   const accessBlocked = !access.hasPlatformAccess;
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question?.question_media ?? [];
-  const filtersEnabled = focusMode === "all";
+  const filtersEnabled = draftFocusMode === "all";
   const hasPendingSessionChange =
     draftFocusMode !== focusMode || draftSessionSize !== sessionSize;
+  const sessionVisible = sessionConfirmed && !hasPendingSessionChange;
+  const canConfirmSession = !sessionConfirmed || hasPendingSessionChange;
+  const draftFocusLabel =
+    focusModes.find((mode) => mode.id === draftFocusMode)?.label ?? "sessão";
 
   function move(nextIndex: number) {
     setIndex(nextIndex);
@@ -333,6 +327,7 @@ export function QuestionBankClient({
     const nextFocusMode = answerSource === "question_bank" ? "recommended" : "priority";
     setFocusMode(nextFocusMode);
     setDraftFocusMode(nextFocusMode);
+    setSessionConfirmed(answerSource === "high_priority" || Boolean(initialQuestionId));
     setArea("Todas");
     setDiscipline("Todas");
     setTopic("Todos");
@@ -341,7 +336,6 @@ export function QuestionBankClient({
     setOrigin("Todas");
     setBoard("Todas");
     setStatus("Todas");
-    setSearch("");
     setSessionSize("15");
     setDraftSessionSize("15");
     setFiltersOpen(false);
@@ -351,6 +345,7 @@ export function QuestionBankClient({
   function applySessionSettings() {
     setFocusMode(draftFocusMode);
     setSessionSize(draftSessionSize);
+    setSessionConfirmed(true);
     if (draftFocusMode !== "all") {
       setArea("Todas");
       setDiscipline("Todas");
@@ -360,7 +355,6 @@ export function QuestionBankClient({
       setOrigin("Todas");
       setBoard("Todas");
       setStatus("Todas");
-      setSearch("");
       setFiltersOpen(false);
     }
     move(0);
@@ -401,9 +395,13 @@ export function QuestionBankClient({
             </p>
           </div>
           <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 ring-1 ring-inset ring-blue-100">
-            Questão {question ? currentIndex + 1 : 0} de {sessionQuestions.length}
+            {sessionVisible
+              ? `Questão ${question ? currentIndex + 1 : 0} de ${sessionQuestions.length}`
+              : `${draftSessionQuestions.length} questões na próxima sessão`}
             <span className="block text-xs font-medium text-blue-700">
-              {filtered.length} disponíveis neste foco
+              {sessionVisible
+                ? `${filtered.length} disponíveis neste foco`
+                : `${draftFiltered.length} disponíveis em ${draftFocusLabel}`}
             </span>
           </div>
         </div>
@@ -452,7 +450,7 @@ export function QuestionBankClient({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={applySessionSettings} disabled={!hasPendingSessionChange}>
+            <Button onClick={applySessionSettings} disabled={!canConfirmSession}>
               <Check className="h-4 w-4" aria-hidden="true" />
               Confirmar sessão
             </Button>
@@ -474,7 +472,6 @@ export function QuestionBankClient({
               origin,
               board,
               status,
-              search,
               focusMode,
               sessionSize,
             }) ? (
@@ -502,7 +499,8 @@ export function QuestionBankClient({
             Filtros e sessão
           </span>
           <span className="text-xs font-medium text-slate-500">
-            {sessionQuestions.length} na sessão - {filtered.length} no filtro
+            {sessionVisible ? sessionQuestions.length : draftSessionQuestions.length} na sessão -{" "}
+            {sessionVisible ? filtered.length : draftFiltered.length} no filtro
           </span>
         </summary>
         <div className="border-t border-slate-100 p-4">
@@ -523,29 +521,24 @@ export function QuestionBankClient({
                 setDraftSessionSize(value as (typeof sessionSizes)[number]);
               }}
             />
-            <label className="block md:col-span-2">
-              <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Busca
-              </span>
-              <div className="mt-1.5 flex h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 transition-colors focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 hover:border-slate-300">
-                <Search className="h-4 w-4 text-slate-400" aria-hidden="true" />
-                <input
-                  value={search}
-                  onChange={(event) => {
-                    setSearch(event.target.value);
-                    move(0);
-                  }}
-                  className="w-full bg-transparent text-sm text-slate-900 outline-none"
-                  placeholder="Buscar enunciado, tópico, fonte, ano ou número"
-                />
-              </div>
-            </label>
           </div>
         </div>
       </details>
       ) : null}
 
-      {!question ? (
+      {!sessionVisible ? (
+        <EmptyState
+          icon={PlayCircle}
+          title="Confirme a sessão para ver as questões"
+          description={`A seleção atual está preparada para ${draftFocusLabel.toLowerCase()}. As questões aparecem aqui depois que você confirmar a sessão.`}
+          action={
+            <Button onClick={applySessionSettings}>
+              <Check className="h-4 w-4" aria-hidden="true" />
+              Confirmar sessão
+            </Button>
+          }
+        />
+      ) : !question ? (
         <EmptyState
           icon={Search}
           title="Nenhuma questão encontrada"
@@ -931,6 +924,64 @@ function uniqueOptions(first: string, values: string[]) {
   return [first, ...Array.from(new Set(values.filter(Boolean)))];
 }
 
+function filterQuestionsForFocus({
+  questions,
+  focusMode,
+  answerState,
+  reviewState,
+  area,
+  discipline,
+  topic,
+  difficulty,
+  year,
+  origin,
+  board,
+  status,
+}: {
+  questions: QuestionRecord[];
+  focusMode: FocusMode;
+  answerState: Record<string, unknown>;
+  reviewState: Record<string, unknown>;
+  area: string;
+  discipline: string;
+  topic: string;
+  difficulty: string;
+  year: string;
+  origin: string;
+  board: string;
+  status: string;
+}) {
+  const advancedFiltersEnabled = focusMode === "all";
+
+  return questions.filter((question) => {
+    const answered = Boolean(answerState[question.id]);
+    const reviewed = Boolean(reviewState[question.id]);
+    const highPriority = isHighPriority(question);
+    const matchesStatus =
+      status === "Todas" ||
+      (status === "Respondida" && answered) ||
+      (status === "Não respondida" && !answered);
+    const matchesFocus =
+      focusMode === "all" ||
+      (focusMode === "priority" && highPriority) ||
+      (focusMode === "unanswered" && !answered) ||
+      (focusMode === "review" && reviewed) ||
+      (focusMode === "recommended" && (highPriority || !answered));
+    const matchesAdvancedFilters =
+      !advancedFiltersEnabled ||
+      ((area === "Todas" || question.subjects.area === area) &&
+        (discipline === "Todas" || question.subjects.name === discipline) &&
+        (topic === "Todos" || question.topics.name === topic) &&
+        (difficulty === "Todas" || question.difficulty === difficulty) &&
+        (year === "Todos" || String(question.year) === year) &&
+        (origin === "Todas" || questionOrigin(question) === origin) &&
+        (board === "Todas" || questionBoard(question) === board) &&
+        (status === "Favoritas" ? reviewed : matchesStatus));
+
+    return matchesFocus && matchesAdvancedFilters;
+  });
+}
+
 function isHighPriority(question: QuestionRecord) {
   return (
     priorityDisplay(question).includes("máxima") ||
@@ -948,7 +999,6 @@ function hasCustomFilters({
   origin,
   board,
   status,
-  search,
   focusMode,
   sessionSize,
 }: {
@@ -960,7 +1010,6 @@ function hasCustomFilters({
   origin: string;
   board: string;
   status: string;
-  search: string;
   focusMode: FocusMode;
   sessionSize: (typeof sessionSizes)[number];
 }) {
@@ -974,8 +1023,7 @@ function hasCustomFilters({
     year !== "Todos" ||
     origin !== "Todas" ||
     board !== "Todas" ||
-    status !== "Todas" ||
-    Boolean(search.trim())
+    status !== "Todas"
   );
 }
 

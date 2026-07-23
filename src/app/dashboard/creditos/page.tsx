@@ -303,47 +303,87 @@ export default async function CreditsPage() {
       </div>
 
       <Reveal delay={200}>
-        <section className="mt-8">
-          <div className="mb-4 flex items-center justify-between gap-4">
-            <h2 className="text-lg font-bold tracking-tight text-slate-950">
-              Créditos adicionais
-            </h2>
-            <Badge tone="green">Disponível</Badge>
+        <section className="mt-8 overflow-hidden rounded-xl border border-slate-200 bg-[linear-gradient(135deg,#f8fafc_0%,#eef6ff_52%,#f8fafc_100%)] p-4 shadow-sm shadow-slate-900/5 sm:p-5">
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="text-lg font-bold tracking-tight text-slate-950">
+                Créditos adicionais
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Complete o saldo quando precisar de mais correções, análises ou revisões.
+              </p>
+            </div>
+            <Badge tone="green" className="shrink-0">Disponível</Badge>
           </div>
           <div className="grid gap-4 lg:grid-cols-3">
             {creditPackageProducts.map((pack) => (
               <Card
                 key={pack.id}
-                className={pack.highlight ? "border-blue-200 shadow-blue-900/10" : ""}
+                className={
+                  pack.highlight
+                    ? "relative h-full border-blue-300 shadow-md shadow-blue-900/10 ring-1 ring-inset ring-blue-100"
+                    : "h-full border-white/80 bg-white/90 shadow-sm shadow-slate-900/5"
+                }
               >
-                <CardContent className="flex h-full flex-col">
+                <CardContent className="flex h-full flex-col p-4 sm:p-5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="text-base font-bold tracking-tight text-slate-950">
+                      <h3
+                        className={`text-base font-bold tracking-tight ${
+                          pack.highlight ? "text-blue-950" : "text-slate-950"
+                        }`}
+                      >
                         {pack.title}
                       </h3>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
                         {pack.description}
                       </p>
                     </div>
-                    {pack.highlight ? <Badge tone="blue">Mais escolhido</Badge> : null}
+                    {pack.highlight ? (
+                      <span className="shrink-0 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
+                        Mais escolhido
+                      </span>
+                    ) : null}
                   </div>
-                  <div className="mt-5 rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
-                    <p className="tnum text-3xl font-bold tracking-tight text-slate-950">
+                  <div
+                    className={`mt-5 rounded-lg p-4 ring-1 ring-inset ${
+                      pack.highlight
+                        ? "bg-blue-50 ring-blue-200"
+                        : "bg-slate-50 ring-slate-200"
+                    }`}
+                  >
+                    <p
+                      className={`tnum text-3xl font-bold tracking-tight ${
+                        pack.highlight ? "text-blue-950" : "text-slate-950"
+                      }`}
+                    >
                       {pack.credits}
-                      <span className="ml-1.5 text-base font-semibold text-slate-500">
+                      <span
+                        className={`ml-1.5 text-base font-semibold ${
+                          pack.highlight ? "text-blue-700" : "text-slate-500"
+                        }`}
+                      >
                         créditos
                       </span>
                     </p>
                     <div className="mt-3 flex items-end justify-between gap-3">
-                      <p className="tnum text-xl font-bold text-blue-800">{pack.price}</p>
-                      <p className="tnum text-xs font-semibold text-slate-500">
+                      <p className="tnum text-xl font-bold text-blue-800">
+                        {pack.price}
+                      </p>
+                      <p
+                        className={`tnum text-xs font-semibold ${
+                          pack.highlight ? "text-blue-700" : "text-slate-500"
+                        }`}
+                      >
                         {formatCreditUnitPrice(pack.priceCents, pack.credits)} / crédito
                       </p>
                     </div>
                   </div>
                   <div className="mt-5">
-                    <CreditPackageCheckoutButton productSlug={pack.productSlug} />
+                    <CreditPackageCheckoutButton
+                      productSlug={pack.productSlug}
+                      variant={pack.highlight ? "primary" : "outline"}
+                    />
                   </div>
                 </CardContent>
               </Card>

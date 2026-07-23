@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 export function CreditPackageCheckoutButton({
   productSlug,
   disabled = false,
+  variant = "outline",
 }: {
   productSlug: string;
   disabled?: boolean;
+  variant?: "primary" | "outline";
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -45,7 +47,7 @@ export function CreditPackageCheckoutButton({
     <div>
       <Button
         type="button"
-        variant="outline"
+        variant={variant}
         full
         disabled={isDisabled}
         onClick={startCheckout}

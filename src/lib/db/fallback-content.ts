@@ -11,6 +11,7 @@ import type {
   SimulationWithQuestions,
   TopicWithSubject,
 } from "@/lib/db/types";
+import { calculateSimulationDurationMinutes } from "@/lib/simulations/rules";
 
 type FallbackImportRow = {
   statement: string;
@@ -390,7 +391,7 @@ function buildFallbackSimulations(
       description:
         "Amostra balanceada com questões oficiais das quatro áreas para localizar gargalos rapidamente.",
       difficulty: "Média",
-      duration: 72,
+      duration: calculateSimulationDurationMinutes(24),
       count: 24,
       questions: pickBalanced(byNewest, 24),
     },
@@ -400,7 +401,7 @@ function buildFallbackSimulations(
       description:
         "Treino cronometrado de matemática com foco em tópicos recorrentes e questões oficiais.",
       difficulty: "Alta",
-      duration: 60,
+      duration: calculateSimulationDurationMinutes(20),
       count: 20,
       questions: pickBalanced(
         byNewest.filter((question) => question.subjects.area === "Matemática"),
@@ -413,7 +414,7 @@ function buildFallbackSimulations(
       description:
         "Biologia, Física e Química em uma sequência curta para revisar cobrança contextualizada.",
       difficulty: "Alta",
-      duration: 60,
+      duration: calculateSimulationDurationMinutes(20),
       count: 20,
       questions: pickBalanced(
         byNewest.filter(
@@ -428,7 +429,7 @@ function buildFallbackSimulations(
       description:
         "Leitura, interpretação e análise social com itens oficiais de Dia 1.",
       difficulty: "Média",
-      duration: 72,
+      duration: calculateSimulationDurationMinutes(24),
       count: 24,
       questions: pickBalanced(
         byNewest.filter((question) =>
@@ -439,12 +440,12 @@ function buildFallbackSimulations(
     },
     {
       id: "reta-final-recorrencia",
-      title: "Reta final por recorrência",
+      title: "Simulado completo ENEM",
       description:
-        "Questões de maior prioridade editorial para um treino de revisão amplo.",
+        "Bloco objetivo completo com 90 questões, calibrado pelo ritmo oficial do Dia 2.",
       difficulty: "Alta",
-      duration: 90,
-      count: 30,
+      duration: calculateSimulationDurationMinutes(90),
+      count: 90,
       questions: pickBalanced(
         byNewest
           .slice()
@@ -453,7 +454,7 @@ function buildFallbackSimulations(
               Number(b.priority_score ?? 0) - Number(a.priority_score ?? 0) ||
               Number(b.year) - Number(a.year),
           ),
-        30,
+        90,
       ),
     },
   ];

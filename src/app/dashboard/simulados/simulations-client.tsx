@@ -36,6 +36,11 @@ import {
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord, SimulationWithQuestions } from "@/lib/db/types";
+import {
+  calculateSimulationDurationMinutes,
+  ENEM_OBJECTIVE_MINUTES_PER_DAY,
+  ENEM_OBJECTIVE_QUESTIONS_PER_DAY,
+} from "@/lib/simulations/rules";
 import { statusTone } from "@/lib/utils";
 
 export function SimulationsClient({
@@ -531,24 +536,32 @@ const BUILDER_AREAS = [
 
 const SIMULATION_PRESETS = [
   {
-    label: "Rápido",
-    title: "Treino rápido misto",
+    label: "Completo misto",
+    title: "Simulado completo misto ENEM",
     areas: ["Linguagens", "Ciencias Humanas", "Matematica", "Ciencias da Natureza"],
-    questionCount: 5,
+    questionCount: 90,
   },
   {
-    label: "Leitura e Humanas",
-    title: "Treino compacto - Linguagens e Humanas",
+    label: "Linguagens + Humanas",
+    title: "Simulado Linguagens e Humanas",
     areas: ["Linguagens", "Ciencias Humanas"],
-    questionCount: 6,
+    questionCount: 90,
   },
   {
-    label: "Matemática e Natureza",
-    title: "Treino compacto - Matemática e Natureza",
+    label: "Matemática + Natureza",
+    title: "Simulado Matemática e Natureza",
     areas: ["Matematica", "Ciencias da Natureza"],
-    questionCount: 6,
+    questionCount: 90,
+  },
+  {
+    label: "Meio simulado",
+    title: "Meio simulado ENEM",
+    areas: ["Linguagens", "Ciencias Humanas", "Matematica", "Ciencias da Natureza"],
+    questionCount: 45,
   },
 ] as const;
+
+const SIMULATION_QUESTION_OPTIONS = [15, 30, 45, 60, 90] as const;
 
 function SimulationBuilder({ locked, pending }: { locked: boolean; pending: boolean }) {
   const router = useRouter();
@@ -558,7 +571,7 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
     "Matematica",
     "Ciencias da Natureza",
   ]);
-  const [questionCount, setQuestionCount] = useState(10);
+  const [questionCount, setQuestionCount] = useState(30);
   const [difficulty, setDifficulty] = useState<"" | "Baixa" | "Média" | "Alta">("");
   const [prioritizeWeaknesses, setPrioritizeWeaknesses] = useState(true);
   const [foreignLanguage, setForeignLanguage] = useState<"en" | "es">("en");
@@ -616,7 +629,8 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
             </h2>
             <p className="mt-1 text-sm leading-6 text-slate-600">
               Escolha as áreas e a quantidade; as questões vêm do banco oficial, com
-              opção de priorizar os assuntos em que você mais erra.
+              tempo calculado pela base do ENEM: {ENEM_OBJECTIVE_QUESTIONS_PER_DAY} questões
+              em {ENEM_OBJECTIVE_MINUTES_PER_DAY} minutos.
             </p>
           </div>
         </div>
@@ -631,7 +645,8 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
               disabled={locked || building || pending}
             >
               <Target className="h-4 w-4" aria-hidden="true" />
-              {preset.label} - {preset.questionCount} questões
+              {preset.label} - {preset.questionCount} questões (~
+              {calculateSimulationDurationMinutes(preset.questionCount)} min)
             </Button>
           ))}
         </div>
@@ -667,9 +682,9 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
               value={questionCount}
               onChange={(event) => setQuestionCount(Number(event.target.value))}
             >
-              {[5, 10, 15, 20, 30].map((count) => (
+              {SIMULATION_QUESTION_OPTIONS.map((count) => (
                 <option key={count} value={count}>
-                  {count} questões (~{count * 3} min)
+                  {count} questões (~{calculateSimulationDurationMinutes(count)} min)
                 </option>
               ))}
             </select>

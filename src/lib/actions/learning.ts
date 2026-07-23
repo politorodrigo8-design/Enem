@@ -25,6 +25,7 @@ import {
   nextReviewToggle,
 } from "@/lib/questions/rules.mjs";
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
+import { calculateSimulationDurationMinutes } from "@/lib/simulations/rules";
 
 type UserContext =
   | { error: string }
@@ -672,7 +673,7 @@ export async function generateSimulationAction(
     .insert({
       title,
       description: `Gerado a partir do banco de questões (${areas.join(", ")}).`,
-      duration_minutes: questionCount * 3,
+      duration_minutes: calculateSimulationDurationMinutes(questionCount),
       difficulty: criteria.difficulty ?? "Média",
       status: "Disponível",
       created_by: user.id,
