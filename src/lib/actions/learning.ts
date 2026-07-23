@@ -25,6 +25,10 @@ import {
   buildQuestionAnswerRecord,
   nextReviewToggle,
 } from "@/lib/questions/rules.mjs";
+import {
+  buildShortQuestionFeedback,
+  normalizePracticeQuestionIds,
+} from "@/lib/practice-session/rules.mjs";
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
 import { calculateSimulationDurationMinutes } from "@/lib/simulations/rules";
 
@@ -35,6 +39,24 @@ type UserContext =
 type SimulationAnswerQuestion = Parameters<typeof isStudentReadyQuestion>[0] & {
   correct_option: string;
 };
+
+type PracticeSessionInput = {
+  id?: string;
+  focusMode: string;
+  sessionSize: string;
+  filters: Record<string, string>;
+  questionIds: string[];
+  currentIndex: number;
+  startedAt: string;
+};
+
+type PracticeSessionMutationResult =
+  | { ok: true; id: string | null }
+  | { ok: false; message: string };
+
+type PracticeSessionStatsResult =
+  | { ok: true; answered: number; correct: number; wrong: number }
+  | { ok: false; message: string };
 
 async function getUserContext(): Promise<UserContext> {
   if (!isSupabaseConfigured()) {
@@ -74,6 +96,22 @@ async function getUserContext(): Promise<UserContext> {
 function learningError(scope: string, error: unknown, fallback = "Não foi possível salvar agora.") {
   logServerError(scope, error);
   return { ok: false, message: publicDatabaseErrorMessage(error, fallback) };
+}
+
+function practiceSessionMutationError(
+  scope: string,
+  error: unknown,
+): PracticeSessionMutationResult {
+  const result = learningError(scope, error);
+  return { ok: false, message: result.message };
+}
+
+function practiceSessionStatsError(
+  scope: string,
+  error: unknown,
+): PracticeSessionStatsResult {
+  const result = learningError(scope, error);
+  return { ok: false, message: result.message };
 }
 
 export async function saveDiagnosisAction(
@@ -130,8 +168,14 @@ export async function submitQuestionAnswerAction(input: {
   selectedOption: string;
   responseTimeSeconds?: number;
   source?: "question_bank" | "review" | "high_priority";
+  practiceSession?: PracticeSessionInput;
 }): Promise<
-  ActionResult & { isCorrect?: boolean; explanation?: string; correctOption?: string }
+  ActionResult & {
+    isCorrect?: boolean;
+    explanation?: string;
+    correctOption?: string;
+    practiceSessionId?: string;
+  }
 > {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
@@ -173,7 +217,11 @@ export async function submitQuestionAnswerAction(input: {
       ok: true,
       message: result.isCorrect ? "Resposta correta." : "Resposta registrada para revisão.",
       isCorrect: result.isCorrect,
-      explanation: result.explanation,
+      explanation: buildShortQuestionFeedback({
+        isCorrect: result.isCorrect,
+        correctOption: question.correct_option,
+        explanation: result.explanation,
+      }),
       correctOption: question.correct_option,
     };
   }
@@ -204,9 +252,57 @@ export async function submitQuestionAnswerAction(input: {
     selectedOption: input.selectedOption,
     responseTimeSeconds: input.responseTimeSeconds,
   });
-  const { error } = await supabase.from("user_question_answers").insert(row);
+
+  const practiceSessionResult =
+    input.practiceSession && input.source !== "review"
+      ? await ensurePracticeSession({
+          supabase,
+          userId: user.id,
+          source: input.source ?? "question_bank",
+          snapshot: input.practiceSession,
+        })
+      : { ok: true as const, id: null };
+  if (!practiceSessionResult.ok) return practiceSessionResult;
+
+  const answerRow = {
+    ...row,
+    practice_session_id: practiceSessionResult.id,
+  };
+  let error: unknown = null;
+  if (practiceSessionResult.id) {
+    const { data: existing, error: existingError } = await supabase
+      .from("user_question_answers")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("practice_session_id", practiceSessionResult.id)
+      .eq("question_id", question.id)
+      .maybeSingle();
+
+    if (existingError) {
+      error = existingError;
+    } else if (existing) {
+      const { error: updateError } = await supabase
+        .from("user_question_answers")
+        .update(answerRow)
+        .eq("id", existing.id)
+        .eq("user_id", user.id);
+      error = updateError;
+    } else {
+      const { error: insertError } = await supabase
+        .from("user_question_answers")
+        .insert(answerRow);
+      error = insertError;
+    }
+  } else {
+    const { error: insertError } = await supabase.from("user_question_answers").insert(row);
+    error = insertError;
+  }
 
   if (error) return learningError("learning.saveDiagnosis", error);
+
+  if (practiceSessionResult.id) {
+    await refreshPracticeSessionStats(supabase, user.id, practiceSessionResult.id);
+  }
 
   await refreshTopicPerformance(user.id, question.topic_id);
   await autoCompleteStudyPlanItem(supabase, user.id, question.topic_id);
@@ -232,12 +328,211 @@ export async function submitQuestionAnswerAction(input: {
     ok: true,
     message: result.isCorrect ? "Resposta correta." : "Resposta registrada para revisão.",
     isCorrect: result.isCorrect,
-    explanation: result.explanation,
+    explanation: buildShortQuestionFeedback({
+      isCorrect: result.isCorrect,
+      correctOption: question.correct_option,
+      explanation: result.explanation,
+    }),
     correctOption: question.correct_option,
+    practiceSessionId: practiceSessionResult.id ?? undefined,
+  };
+}
+
+export async function updatePracticeSessionProgressAction(input: {
+  practiceSessionId: string;
+  currentIndex: number;
+}): Promise<ActionResult> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
+  const { supabase, user } = context;
+  const { error } = await supabase
+    .from("practice_sessions")
+    .update({
+      current_index: Math.max(0, Math.floor(input.currentIndex) || 0),
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", input.practiceSessionId)
+    .eq("user_id", user.id)
+    .eq("status", "Em andamento");
+
+  if (error) return learningError("learning.practiceSession.progress", error);
+  return { ok: true, message: "Progresso salvo." };
+}
+
+async function ensurePracticeSession({
+  supabase,
+  userId,
+  source,
+  snapshot,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  source: "question_bank" | "review" | "high_priority";
+  snapshot: PracticeSessionInput;
+}): Promise<PracticeSessionMutationResult> {
+  const questionIds = normalizePracticeQuestionIds(snapshot.questionIds).filter(
+    (questionId) => !isFallbackQuestionId(questionId),
+  );
+  if (!questionIds.length) return { ok: true, id: null };
+
+  if (snapshot.id) {
+    const { data: existing, error } = await supabase
+      .from("practice_sessions")
+      .select("id, status")
+      .eq("id", snapshot.id)
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (error) return practiceSessionMutationError("learning.practiceSession.load", error);
+    if (!existing) return { ok: false, message: "SessÃ£o nÃ£o encontrada. Reabra o treino." };
+    if (existing.status !== "Em andamento") {
+      return { ok: false, message: "Esta sessÃ£o jÃ¡ foi encerrada. Inicie outra." };
+    }
+
+    const { error: updateError } = await supabase
+      .from("practice_sessions")
+      .update(buildPracticeSessionUpdate(snapshot, questionIds))
+      .eq("id", existing.id)
+      .eq("user_id", userId)
+      .eq("status", "Em andamento");
+    if (updateError) {
+      return practiceSessionMutationError("learning.practiceSession.update", updateError);
+    }
+    return { ok: true, id: existing.id };
+  }
+
+  const { data: active, error: activeError } = await supabase
+    .from("practice_sessions")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("source", source)
+    .eq("status", "Em andamento")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (activeError) {
+    return practiceSessionMutationError("learning.practiceSession.active", activeError);
+  }
+
+  if (active) {
+    const { error } = await supabase
+      .from("practice_sessions")
+      .update(buildPracticeSessionUpdate(snapshot, questionIds))
+      .eq("id", active.id)
+      .eq("user_id", userId)
+      .eq("status", "Em andamento");
+    if (error) {
+      return practiceSessionMutationError("learning.practiceSession.activeUpdate", error);
+    }
+    return { ok: true, id: active.id };
+  }
+
+  const { data: created, error: createError } = await supabase
+    .from("practice_sessions")
+    .insert({
+      user_id: userId,
+      source,
+      ...buildPracticeSessionUpdate(snapshot, questionIds),
+    })
+    .select("id")
+    .single();
+
+  if (createError || !created) {
+    if (createError) {
+      const { data: existing } = await supabase
+        .from("practice_sessions")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("source", source)
+        .eq("status", "Em andamento")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (existing) return { ok: true, id: existing.id };
+    }
+    return practiceSessionMutationError("learning.practiceSession.create", createError);
+  }
+
+  return { ok: true, id: created.id };
+}
+
+function buildPracticeSessionUpdate(
+  snapshot: PracticeSessionInput,
+  questionIds: string[],
+) {
+  const startedAt = new Date(snapshot.startedAt);
+  return {
+    focus_mode: snapshot.focusMode,
+    session_size: snapshot.sessionSize,
+    filters: snapshot.filters,
+    question_ids: questionIds,
+    current_index: Math.max(0, Math.floor(snapshot.currentIndex) || 0),
+    started_at: Number.isNaN(startedAt.getTime())
+      ? new Date().toISOString()
+      : startedAt.toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+}
+
+async function refreshPracticeSessionStats(
+  supabase: SupabaseClient,
+  userId: string,
+  practiceSessionId: string,
+) {
+  const stats = await readPracticeSessionAnswerStats({
+    supabase,
+    userId,
+    practiceSessionId,
+  });
+  if (!stats.ok) return;
+
+  await supabase
+    .from("practice_sessions")
+    .update({
+      answered_count: stats.answered,
+      correct_count: stats.correct,
+      wrong_count: stats.wrong,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", practiceSessionId)
+    .eq("user_id", userId)
+    .eq("status", "Em andamento");
+}
+
+async function readPracticeSessionAnswerStats({
+  supabase,
+  userId,
+  practiceSessionId,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  practiceSessionId: string;
+}): Promise<PracticeSessionStatsResult> {
+  const { data: answers, error } = await supabase
+    .from("user_question_answers")
+    .select("question_id, is_correct")
+    .eq("user_id", userId)
+    .eq("practice_session_id", practiceSessionId);
+
+  if (error) return practiceSessionStatsError("learning.practiceSession.stats", error);
+
+  const latestQuestionIds = new Set<string>();
+  let correct = 0;
+  for (const answer of answers ?? []) {
+    if (latestQuestionIds.has(answer.question_id)) continue;
+    latestQuestionIds.add(answer.question_id);
+    if (answer.is_correct) correct += 1;
+  }
+
+  return {
+    ok: true,
+    answered: latestQuestionIds.size,
+    correct,
+    wrong: latestQuestionIds.size - correct,
   };
 }
 
 export async function finishPracticeSessionAction(input: {
+  practiceSessionId?: string;
   questionIds: string[];
   startedAt: string;
   source?: "question_bank" | "review" | "high_priority";
@@ -252,6 +547,92 @@ export async function finishPracticeSessionAction(input: {
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase, user } = context;
+  if (input.practiceSessionId) {
+    const { data: session, error: sessionError } = await supabase
+      .from("practice_sessions")
+      .select("*")
+      .eq("id", input.practiceSessionId)
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (sessionError) return learningError("learning.finishPracticeSession.session", sessionError);
+    if (!session) return { ok: false, message: "SessÃ£o nÃ£o encontrada. Reabra o treino." };
+
+    if (session.status === "Finalizado") {
+      return {
+        ok: true,
+        message: "SessÃ£o jÃ¡ finalizada.",
+        answered: session.answered_count,
+        correct: session.correct_count,
+        wrong: session.wrong_count,
+      };
+    }
+
+    const stats = await readPracticeSessionAnswerStats({
+      supabase,
+      userId: user.id,
+      practiceSessionId: session.id,
+    });
+    if (!stats.ok) return stats;
+    if (stats.answered === 0) {
+      return {
+        ok: false,
+        message: "Responda pelo menos uma questÃ£o da sessÃ£o antes de finalizar.",
+      };
+    }
+
+    const finishedAt = new Date().toISOString();
+    const { data: updated, error: updateError } = await supabase
+      .from("practice_sessions")
+      .update({
+        status: "Finalizado",
+        finished_at: finishedAt,
+        updated_at: finishedAt,
+        answered_count: stats.answered,
+        correct_count: stats.correct,
+        wrong_count: stats.wrong,
+      })
+      .eq("id", session.id)
+      .eq("user_id", user.id)
+      .eq("status", "Em andamento")
+      .select("id")
+      .maybeSingle();
+
+    if (updateError) return learningError("learning.finishPracticeSession.update", updateError);
+    if (!updated) {
+      return {
+        ok: true,
+        message: "SessÃ£o jÃ¡ finalizada.",
+        answered: stats.answered,
+        correct: stats.correct,
+        wrong: stats.wrong,
+      };
+    }
+
+    await recordPracticeSessionCompleted({
+      supabase,
+      userId: user.id,
+      source: input.source ?? session.source,
+      questionCount: session.question_ids.length,
+      answered: stats.answered,
+      correct: stats.correct,
+      wrong: stats.wrong,
+    });
+
+    revalidatePracticeSessionPaths();
+
+    return {
+      ok: true,
+      message:
+        stats.wrong > 0
+          ? "SessÃ£o finalizada. Seus erros jÃ¡ estÃ£o na revisÃ£o."
+          : "SessÃ£o finalizada. Seu desempenho foi atualizado.",
+      answered: stats.answered,
+      correct: stats.correct,
+      wrong: stats.wrong,
+    };
+  }
+
   const questionIds = Array.from(
     new Set(
       input.questionIds
@@ -263,17 +644,11 @@ export async function finishPracticeSessionAction(input: {
     return { ok: false, message: "Responda pelo menos uma questão da sessão antes de finalizar." };
   }
 
-  const startedAt = new Date(input.startedAt);
-  const since = Number.isNaN(startedAt.getTime())
-    ? new Date(Date.now() - 6 * 60 * 60 * 1000)
-    : startedAt;
-
   const { data: answers, error } = await supabase
     .from("user_question_answers")
     .select("question_id, is_correct, answered_at")
     .eq("user_id", user.id)
-    .in("question_id", questionIds)
-    .gte("answered_at", since.toISOString());
+    .in("question_id", questionIds);
 
   if (error) return learningError("learning.finishPracticeSession.answers", error);
 
@@ -295,30 +670,21 @@ export async function finishPracticeSessionAction(input: {
   const answered = finalizedAnswers.length;
   const correct = finalizedAnswers.filter((answer) => answer.is_correct).length;
   const wrong = answered - correct;
+  if (answered === 0) {
+    return { ok: false, message: "Responda pelo menos uma questÃ£o da sessÃ£o antes de finalizar." };
+  }
 
-  await recordProductEvent({
+  await recordPracticeSessionCompleted({
     supabase,
     userId: user.id,
-    eventName: "practice_session_completed",
-    route:
-      input.source === "high_priority"
-        ? "/dashboard/praticar?tab=banco&focus=priority"
-        : input.source === "review"
-          ? "/dashboard/praticar?tab=revisao"
-          : "/dashboard/praticar?tab=banco",
-    metadata: {
-      question_count: questionIds.length,
-      answered,
-      correct_answers: correct,
-      wrong_answers: wrong,
-      source: input.source ?? "question_bank",
-    },
+    source: input.source ?? "question_bank",
+    questionCount: questionIds.length,
+    answered,
+    correct,
+    wrong,
   });
 
-  revalidatePath("/dashboard/praticar");
-  revalidatePath("/dashboard/revisao");
-  revalidatePath("/dashboard/desempenho");
-  revalidatePath("/dashboard", "layout");
+  revalidatePracticeSessionPaths();
 
   return {
     ok: true,
@@ -330,6 +696,50 @@ export async function finishPracticeSessionAction(input: {
     correct,
     wrong,
   };
+}
+
+async function recordPracticeSessionCompleted({
+  supabase,
+  userId,
+  source,
+  questionCount,
+  answered,
+  correct,
+  wrong,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  source: "question_bank" | "review" | "high_priority";
+  questionCount: number;
+  answered: number;
+  correct: number;
+  wrong: number;
+}) {
+  await recordProductEvent({
+    supabase,
+    userId,
+    eventName: "practice_session_completed",
+    route:
+      source === "high_priority"
+        ? "/dashboard/praticar?tab=banco&focus=priority"
+        : source === "review"
+          ? "/dashboard/praticar?tab=revisao"
+          : "/dashboard/praticar?tab=banco",
+    metadata: {
+      question_count: questionCount,
+      answered,
+      correct_answers: correct,
+      wrong_answers: wrong,
+      source,
+    },
+  });
+}
+
+function revalidatePracticeSessionPaths() {
+  revalidatePath("/dashboard/praticar");
+  revalidatePath("/dashboard/revisao");
+  revalidatePath("/dashboard/desempenho");
+  revalidatePath("/dashboard", "layout");
 }
 
 export async function addQuestionReviewAction(questionId: string): Promise<ActionResult> {
@@ -456,6 +866,26 @@ export async function startSimulationAction(simulationId: string): Promise<{
     };
   }
 
+  const { data: activeAttempt, error: activeAttemptError } = await supabase
+    .from("user_simulations")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("simulation_id", simulationId)
+    .eq("status", "Em andamento")
+    .order("started_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (activeAttemptError) {
+    return learningError("learning.startSimulation.activeAttempt", activeAttemptError);
+  }
+  if (activeAttempt) {
+    return {
+      ok: true,
+      message: "Simulado em andamento restaurado.",
+      userSimulationId: activeAttempt.id,
+    };
+  }
+
   const { data, error } = await supabase
     .from("user_simulations")
     .insert({
@@ -541,7 +971,7 @@ export async function finishSimulationAction(
   const { supabase, user } = context;
   const { data: simulation, error: simulationError } = await supabase
     .from("user_simulations")
-    .select("id, simulation_id, total_questions")
+    .select("id, simulation_id, total_questions, correct_answers, score_percentage, status")
     .eq("id", userSimulationId)
     .eq("user_id", user.id)
     .single();
@@ -580,6 +1010,25 @@ export async function finishSimulationAction(
     selectedByQuestion.set(answer.question_id, answer.selected_option);
   }
 
+  if (simulation.status === "Finalizado") {
+    const storedResults = Array.from(selectedByQuestion.entries())
+      .filter(([questionId]) => questionById.has(questionId))
+      .map(([questionId, selectedOption]) => ({
+        questionId,
+        isCorrect: questionById.get(questionId)!.correct_option === selectedOption,
+      }));
+    const storedCorrect = storedResults.filter((answer) => answer.isCorrect).length;
+    const storedTotal = simulation.total_questions || questionById.size || storedResults.length;
+    return {
+      ok: true,
+      message: "Simulado jÃ¡ finalizado.",
+      results: storedResults,
+      correct: storedCorrect,
+      total: storedTotal,
+      percentage: storedTotal ? Math.round((storedCorrect / storedTotal) * 100) : 0,
+    };
+  }
+
   for (const [questionId, selectedOption] of Object.entries(submittedAnswers ?? {})) {
     const question = questionById.get(questionId);
     if (!question) continue;
@@ -606,7 +1055,7 @@ export async function finishSimulationAction(
   // Percentual sobre o total de questões do simulado, não sobre as respondidas.
   const totalQuestions = simulation.total_questions || questionById.size || answered;
   const percentage = totalQuestions ? Math.round((correct / totalQuestions) * 100) : 0;
-  const { error } = await supabase
+  const { data: finalizedAttempt, error } = await supabase
     .from("user_simulations")
     .update({
       finished_at: new Date().toISOString(),
@@ -615,9 +1064,22 @@ export async function finishSimulationAction(
       status: "Finalizado",
     })
     .eq("id", userSimulationId)
-    .eq("user_id", user.id);
+    .eq("user_id", user.id)
+    .eq("status", "Em andamento")
+    .select("id")
+    .maybeSingle();
 
   if (error) return learningError("learning.finishSimulation.update", error);
+  if (!finalizedAttempt) {
+    return {
+      ok: true,
+      message: "Simulado jÃ¡ finalizado.",
+      results,
+      correct,
+      total: totalQuestions,
+      percentage,
+    };
+  }
 
   // Simulado não é uma ilha: as respostas entram no mesmo histórico da
   // prática, alimentando desempenho, revisão de erros e sequência de estudo.

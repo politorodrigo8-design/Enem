@@ -43,6 +43,12 @@ import {
   estimateEnemScore,
 } from "@/lib/simulations/tri";
 import { formatAppDateTime } from "@/lib/dates";
+import {
+  answersFromAttemptRows,
+  elapsedSecondsSince,
+  firstUnansweredIndex,
+  latestActiveAttempt,
+} from "@/lib/practice-session/rules.mjs";
 
 const EXAM_DAY_PRESETS = [
   {
@@ -84,11 +90,30 @@ export function SimulationsClient({
   autoStartId?: string;
 }) {
   const router = useRouter();
-  const [active, setActive] = useState<SimulationWithQuestions | null>(null);
-  const [userSimulationId, setUserSimulationId] = useState("");
-  const [questionIndex, setQuestionIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({});
-  const [seconds, setSeconds] = useState(0);
+  const restoredAttempt = useMemo(
+    () => findRestorableSimulationAttempt(simulations),
+    [simulations],
+  );
+  const [active, setActive] = useState<SimulationWithQuestions | null>(
+    restoredAttempt?.simulation ?? null,
+  );
+  const [userSimulationId, setUserSimulationId] = useState(
+    restoredAttempt?.attempt.id ?? "",
+  );
+  const [questionIndex, setQuestionIndex] = useState(
+    restoredAttempt
+      ? firstUnansweredSimulationIndex(
+          restoredAttempt.simulation,
+          restoredAttempt.answers,
+        )
+      : 0,
+  );
+  const [answers, setAnswers] = useState<Record<string, string>>(
+    restoredAttempt?.answers ?? {},
+  );
+  const [seconds, setSeconds] = useState(
+    restoredAttempt ? elapsedSeconds(restoredAttempt.attempt.started_at) : 0,
+  );
   const [finished, setFinished] = useState(false);
   const [fallbackAttempt, setFallbackAttempt] = useState(false);
   // O gabarito não vem no payload; a correção por questão vem da action.
@@ -114,6 +139,21 @@ export function SimulationsClient({
   const locked = !access.hasPlatformAccess;
 
   function start(simulation: SimulationWithQuestions) {
+    const storedAttempt = latestInProgressAttempt(simulation);
+    if (storedAttempt) {
+      const storedAnswers = answersFromSimulationAttempt(storedAttempt);
+      toast.success("Simulado em andamento restaurado.");
+      setActive(simulation);
+      setUserSimulationId(storedAttempt.id);
+      setQuestionIndex(firstUnansweredSimulationIndex(simulation, storedAnswers));
+      setAnswers(storedAnswers);
+      setSeconds(elapsedSeconds(storedAttempt.started_at));
+      setFinished(false);
+      setFinishData(null);
+      setFallbackAttempt(false);
+      return;
+    }
+
     if (isFallbackSimulation(simulation)) {
       toast.success("Simulado iniciado.");
       setActive(simulation);
@@ -726,6 +766,54 @@ export function SimulationsClient({
 
 function isFallbackSimulation(simulation: Pick<SimulationWithQuestions, "id">) {
   return simulation.id.startsWith("fallback-simulation-");
+}
+
+type SimulationAttempt = NonNullable<
+  SimulationWithQuestions["user_simulations"]
+>[number];
+
+function findRestorableSimulationAttempt(simulations: SimulationWithQuestions[]) {
+  const candidates = simulations
+    .flatMap((simulation) =>
+      (simulation.user_simulations ?? [])
+        .filter((attempt) => attempt.status === "Em andamento")
+        .map((attempt) => ({ simulation, attempt })),
+    )
+    .sort((a, b) => b.attempt.started_at.localeCompare(a.attempt.started_at));
+  const restored = candidates[0];
+  if (!restored) return null;
+  return {
+    ...restored,
+    answers: answersFromSimulationAttempt(restored.attempt),
+  };
+}
+
+function latestInProgressAttempt(simulation: SimulationWithQuestions) {
+  return latestActiveAttempt(simulation.user_simulations ?? []) as
+    | SimulationAttempt
+    | undefined;
+}
+
+function answersFromSimulationAttempt(attempt: SimulationAttempt) {
+  return answersFromAttemptRows(attempt.user_simulation_answers ?? []);
+}
+
+function firstUnansweredSimulationIndex(
+  simulation: SimulationWithQuestions,
+  answers: Record<string, string>,
+) {
+  const questions = simulation.simulation_questions
+    .slice()
+    .sort((a, b) => a.position - b.position)
+    .map((item) => item.questions);
+  return firstUnansweredIndex(
+    questions.map((question) => question.id),
+    answers,
+  );
+}
+
+function elapsedSeconds(startedAt: string) {
+  return elapsedSecondsSince(startedAt);
 }
 
 const BUILDER_AREAS = [

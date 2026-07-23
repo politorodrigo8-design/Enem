@@ -6,6 +6,7 @@ export type Topic = Database["public"]["Tables"]["topics"]["Row"];
 export type QuestionOption = Database["public"]["Tables"]["question_options"]["Row"];
 export type QuestionMedia = Database["public"]["Tables"]["question_media"]["Row"];
 export type Question = Database["public"]["Tables"]["questions"]["Row"];
+export type PracticeSession = Database["public"]["Tables"]["practice_sessions"]["Row"];
 export type Simulation = Database["public"]["Tables"]["simulations"]["Row"];
 export type UserSimulation = Database["public"]["Tables"]["user_simulations"]["Row"];
 export type StudyPlan = Database["public"]["Tables"]["study_plans"]["Row"];
@@ -33,6 +34,7 @@ export type QuestionRecord = Question & {
   user_question_answers?: Array<{
     id: string;
     question_id: string;
+    practice_session_id?: string | null;
     selected_option: string;
     is_correct: boolean;
     response_time_seconds: number;
@@ -90,7 +92,24 @@ export type SimulationWithQuestions = Simulation & {
     position: number;
     questions: QuestionRecord;
   }>;
-  user_simulations?: UserSimulation[];
+  user_simulations?: Array<
+    UserSimulation & {
+      user_simulation_answers?: Array<
+        Database["public"]["Tables"]["user_simulation_answers"]["Row"]
+      >;
+    }
+  >;
+};
+
+export type ActivePracticeSession = PracticeSession & {
+  answers: Array<{
+    question_id: string;
+    selected_option: string;
+    is_correct: boolean;
+    answered_at: string;
+    correct_option: string;
+    explanation: string | null;
+  }>;
 };
 
 export type StudyPlanWithItems = StudyPlan & {

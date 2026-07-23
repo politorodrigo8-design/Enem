@@ -26,9 +26,14 @@ import {
   submitQuestionAnswerAction,
   finishPracticeSessionAction,
   toggleQuestionReviewAction,
+  updatePracticeSessionProgressAction,
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
-import type { QuestionRecord } from "@/lib/db/types";
+import type { ActivePracticeSession, QuestionRecord } from "@/lib/db/types";
+import {
+  buildShortQuestionFeedback,
+  getPracticeSessionStats,
+} from "@/lib/practice-session/rules.mjs";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -37,6 +42,7 @@ type Props = {
   answerSource?: "question_bank" | "high_priority";
   initialQuestionId?: string;
   initialTopic?: string;
+  activePracticeSession?: ActivePracticeSession | null;
 };
 
 export type FocusMode = "recommended" | "unanswered" | "review" | "all";
@@ -101,6 +107,7 @@ export function QuestionBankClient({
   answerSource = "question_bank",
   initialQuestionId,
   initialTopic,
+  activePracticeSession,
 }: Props) {
   const router = useRouter();
   const initialTopicName = useMemo(() => {
@@ -113,17 +120,27 @@ export function QuestionBankClient({
       )?.topics.name ?? null
     );
   }, [initialTopic, questions]);
+  const restoredPracticeSession = !initialTopicName ? activePracticeSession : null;
 
   const [focusMode, setFocusMode] = useState<FocusMode>(
-    initialTopicName ? "all" : "recommended",
+    initialTopicName
+      ? "all"
+      : coerceFocusMode(restoredPracticeSession?.focus_mode) ?? "recommended",
   );
   const [filters, setFilters] = useState(() =>
     initialTopicName
       ? { ...defaultFilters, topic: initialTopicName }
-      : defaultFilters,
+      : coerceFilters(restoredPracticeSession?.filters) ?? defaultFilters,
   );
-  const [sessionSize, setSessionSize] = useState<SessionSize>("15");
-  const [index, setIndex] = useState(0);
+  const [sessionSize, setSessionSize] = useState<SessionSize>(
+    coerceSessionSize(restoredPracticeSession?.session_size) ?? "15",
+  );
+  const [index, setIndex] = useState(
+    Math.max(0, Math.floor(restoredPracticeSession?.current_index ?? 0) || 0),
+  );
+  const [practiceSessionId, setPracticeSessionId] = useState(
+    restoredPracticeSession?.id ?? "",
+  );
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<{
     questionId: string;
@@ -161,10 +178,14 @@ export function QuestionBankClient({
       ]),
     ),
   );
-  const [pending, startTransition] = useTransition();
-  const [sessionSubmissions, setSessionSubmissions] = useState<Record<string, true>>(
-    {},
+  const restoredAnswerState = useMemo(
+    () =>
+      restoredPracticeSession
+        ? answerStateFromActiveSession(restoredPracticeSession)
+        : {},
+    [restoredPracticeSession],
   );
+  const [pending, startTransition] = useTransition();
   const [sessionFinished, setSessionFinished] = useState(false);
 
   const orderedQuestions = useMemo(() => {
@@ -193,22 +214,17 @@ export function QuestionBankClient({
 
   // A sessão ativa é um retrato congelado: responder questões não a embaralha,
   // e mexer nos controles só entra em vigor quando o aluno inicia a nova sessão.
-  const [session, setSession] = useState<SessionSnapshot>(() => ({
-    focusMode,
-    sessionSize,
-    filters,
-    startedAt: new Date().toISOString(),
-    questionIds: sliceForSize(
-      filterQuestions({
-        questions: orderedQuestions,
-        focusMode,
-        answerState,
-        reviewState,
-        filters,
-      }),
+  const [session, setSession] = useState<SessionSnapshot>(() =>
+    buildInitialSessionSnapshot({
+      restoredPracticeSession,
+      orderedQuestions,
+      focusMode,
       sessionSize,
-    ).map((item) => item.id),
-  }));
+      filters,
+      answerState,
+      reviewState,
+    }),
+  );
 
   const questionById = useMemo(
     () => new Map(orderedQuestions.map((item) => [item.id, item])),
@@ -228,7 +244,7 @@ export function QuestionBankClient({
     (focusMode === "all" && !sameFilters(filters, session.filters));
 
   function startNewSession() {
-    if (!sessionFinished && Object.keys(sessionSubmissions).length > 0) {
+    if (!sessionFinished && answeredInSession > 0) {
       toast.error("Finalize a sessão atual antes de iniciar outra.");
       return;
     }
@@ -240,7 +256,7 @@ export function QuestionBankClient({
       startedAt: new Date().toISOString(),
       questionIds: sliceForSize(filtered, sessionSize).map((item) => item.id),
     });
-    setSessionSubmissions({});
+    setPracticeSessionId("");
     setSessionFinished(false);
     move(0);
   }
@@ -252,7 +268,9 @@ export function QuestionBankClient({
   }
   const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
   const question = sessionQuestions[currentIndex];
-  const persistedResult = question ? answerState[question.id] : undefined;
+  const persistedResult = question
+    ? restoredAnswerState[question.id] ?? answerState[question.id]
+    : undefined;
   const currentResult =
     result?.questionId === question?.id
       ? result
@@ -266,21 +284,21 @@ export function QuestionBankClient({
         : null;
   const knownCorrectOption = Boolean(currentResult?.correctOption);
   const displayedSelected =
-    selected || (question ? answerState[question.id]?.selectedOption ?? "" : "");
+    selected || (question ? persistedResult?.selectedOption ?? "" : "");
   const accessBlocked = !access.hasPlatformAccess;
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question?.question_media ?? [];
-  const answeredInSession = sessionQuestions.filter((item) =>
-    Boolean(answerState[item.id]),
-  ).length;
-  const sessionSubmittedQuestions = sessionQuestions.filter(
-    (item) => sessionSubmissions[item.id],
-  );
-  const sessionSubmittedCount = sessionSubmittedQuestions.length;
-  const sessionSubmittedCorrect = sessionSubmittedQuestions.filter(
-    (item) => answerState[item.id]?.isCorrect,
-  ).length;
-  const sessionSubmittedWrong = sessionSubmittedCount - sessionSubmittedCorrect;
+  const sessionStats = getPracticeSessionStats({
+    questionIds: session.questionIds,
+    answerState,
+  });
+  const answeredInSession = sessionStats.answered;
+  const sessionSubmittedQuestions = sessionStats.answeredQuestionIds
+    .map((questionId) => questionById.get(questionId))
+    .filter((item): item is QuestionRecord => Boolean(item));
+  const sessionSubmittedCount = sessionStats.answered;
+  const sessionSubmittedCorrect = sessionStats.correct;
+  const sessionSubmittedWrong = sessionStats.wrong;
   const hasUnfinishedSubmissions = sessionSubmittedCount > 0 && !sessionFinished;
 
   const filterOptions = useMemo(
@@ -289,9 +307,18 @@ export function QuestionBankClient({
   );
 
   function move(nextIndex: number) {
-    setIndex(nextIndex);
+    const safeIndex = Math.max(0, nextIndex);
+    setIndex(safeIndex);
     setSelected("");
     setResult(null);
+    if (practiceSessionId) {
+      startTransition(async () => {
+        await updatePracticeSessionProgressAction({
+          practiceSessionId,
+          currentIndex: safeIndex,
+        });
+      });
+    }
   }
 
   function changeFocus(mode: FocusMode) {
@@ -330,7 +357,7 @@ export function QuestionBankClient({
         sessionSize,
       ).map((item) => item.id),
     });
-    setSessionSubmissions({});
+    setPracticeSessionId("");
     setSessionFinished(false);
     move(0);
     router.replace("/dashboard/praticar", { scroll: false });
@@ -345,6 +372,15 @@ export function QuestionBankClient({
         selectedOption: selected,
         responseTimeSeconds: 0,
         source: answerSource,
+        practiceSession: {
+          id: practiceSessionId || undefined,
+          focusMode: session.focusMode,
+          sessionSize: session.sessionSize,
+          filters: session.filters,
+          questionIds: session.questionIds,
+          currentIndex,
+          startedAt: session.startedAt,
+        },
       });
       toast[response.ok ? "success" : "error"](response.message);
       if (response.ok) {
@@ -357,7 +393,7 @@ export function QuestionBankClient({
             correctOption: response.correctOption ?? "",
           },
         }));
-        setSessionSubmissions((current) => ({ ...current, [question.id]: true }));
+        if (response.practiceSessionId) setPracticeSessionId(response.practiceSessionId);
         setSessionFinished(false);
         setResult({
           questionId: question.id,
@@ -377,6 +413,7 @@ export function QuestionBankClient({
 
     startTransition(async () => {
       const response = await finishPracticeSessionAction({
+        practiceSessionId: practiceSessionId || undefined,
         questionIds: sessionSubmittedQuestions.map((item) => item.id),
         startedAt: session.startedAt,
         source: answerSource,
@@ -1138,6 +1175,100 @@ function getQuestionMedia(question?: QuestionRecord) {
     width,
     height,
   };
+}
+
+function coerceFocusMode(value?: string | null): FocusMode | null {
+  return focusModes.some((mode) => mode.id === value) ? (value as FocusMode) : null;
+}
+
+function coerceSessionSize(value?: string | null): SessionSize | null {
+  return sessionSizes.includes(value as SessionSize) ? (value as SessionSize) : null;
+}
+
+function coerceFilters(value: unknown): Filters | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const stored = value as Partial<Record<keyof Filters, unknown>>;
+  return {
+    area: typeof stored.area === "string" ? stored.area : defaultFilters.area,
+    discipline:
+      typeof stored.discipline === "string"
+        ? stored.discipline
+        : defaultFilters.discipline,
+    topic: typeof stored.topic === "string" ? stored.topic : defaultFilters.topic,
+    difficulty:
+      typeof stored.difficulty === "string"
+        ? stored.difficulty
+        : defaultFilters.difficulty,
+    year: typeof stored.year === "string" ? stored.year : defaultFilters.year,
+    origin: typeof stored.origin === "string" ? stored.origin : defaultFilters.origin,
+  };
+}
+
+function buildInitialSessionSnapshot({
+  restoredPracticeSession,
+  orderedQuestions,
+  focusMode,
+  sessionSize,
+  filters,
+  answerState,
+  reviewState,
+}: {
+  restoredPracticeSession?: ActivePracticeSession | null;
+  orderedQuestions: QuestionRecord[];
+  focusMode: FocusMode;
+  sessionSize: SessionSize;
+  filters: Filters;
+  answerState: AnswerState;
+  reviewState: Record<string, boolean>;
+}): SessionSnapshot {
+  const availableQuestionIds = new Set(orderedQuestions.map((question) => question.id));
+  const restoredQuestionIds = (restoredPracticeSession?.question_ids ?? []).filter((id) =>
+    availableQuestionIds.has(id),
+  );
+  if (restoredPracticeSession && restoredQuestionIds.length) {
+    return {
+      focusMode,
+      sessionSize,
+      filters,
+      startedAt: restoredPracticeSession.started_at,
+      questionIds: restoredQuestionIds,
+    };
+  }
+
+  return {
+    focusMode,
+    sessionSize,
+    filters,
+    startedAt: new Date().toISOString(),
+    questionIds: sliceForSize(
+      filterQuestions({
+        questions: orderedQuestions,
+        focusMode,
+        answerState,
+        reviewState,
+        filters,
+      }),
+      sessionSize,
+    ).map((item) => item.id),
+  };
+}
+
+function answerStateFromActiveSession(session: ActivePracticeSession): AnswerState {
+  return Object.fromEntries(
+    session.answers.map((answer) => [
+      answer.question_id,
+      {
+        selectedOption: answer.selected_option,
+        isCorrect: answer.is_correct,
+        correctOption: answer.correct_option,
+        explanation: buildShortQuestionFeedback({
+          isCorrect: answer.is_correct,
+          correctOption: answer.correct_option,
+          explanation: answer.explanation,
+        }),
+      },
+    ]),
+  );
 }
 
 function latestAnswer(question: QuestionRecord) {

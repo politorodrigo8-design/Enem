@@ -4,7 +4,7 @@ import { useState } from "react";
 import { QuestionBankClient } from "../questoes/question-bank-client";
 import { ReviewClient } from "../revisao/review-client";
 import type { AccessContext } from "@/lib/access";
-import type { QuestionRecord } from "@/lib/db/types";
+import type { ActivePracticeSession, QuestionRecord } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
 
 export type PracticeTab = "banco" | "revisao";
@@ -21,6 +21,7 @@ export function PracticeTabs({
   access,
   initialQuestionId,
   initialTopic,
+  activePracticeSession,
 }: {
   initialTab: PracticeTab;
   questions: QuestionRecord[];
@@ -28,6 +29,7 @@ export function PracticeTabs({
   access: AccessContext;
   initialQuestionId?: string;
   initialTopic?: string;
+  activePracticeSession?: ActivePracticeSession | null;
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialTab);
 
@@ -88,6 +90,7 @@ export function PracticeTabs({
             access={access}
             initialQuestionId={initialQuestionId}
             initialTopic={initialTopic}
+            activePracticeSession={activePracticeSession}
           />
         </div>
       ) : null}

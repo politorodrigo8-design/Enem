@@ -220,6 +220,7 @@ export type Database = {
           id: string;
           user_id: string;
           question_id: string;
+          practice_session_id: string | null;
           selected_option: string;
           is_correct: boolean;
           response_time_seconds: number;
@@ -229,11 +230,49 @@ export type Database = {
           id?: string;
           user_id: string;
           question_id: string;
+          practice_session_id?: string | null;
           selected_option: string;
           is_correct: boolean;
           response_time_seconds?: number;
         };
         Update: Partial<Database["public"]["Tables"]["user_question_answers"]["Insert"]>;
+      };
+      practice_sessions: {
+        Row: {
+          id: string;
+          user_id: string;
+          source: "question_bank" | "review" | "high_priority";
+          focus_mode: string;
+          session_size: string;
+          filters: Json;
+          question_ids: string[];
+          current_index: number;
+          answered_count: number;
+          correct_count: number;
+          wrong_count: number;
+          status: "Em andamento" | "Finalizado" | "Abandonado";
+          started_at: string;
+          finished_at: string | null;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          source?: "question_bank" | "review" | "high_priority";
+          focus_mode?: string;
+          session_size?: string;
+          filters?: Json;
+          question_ids?: string[];
+          current_index?: number;
+          answered_count?: number;
+          correct_count?: number;
+          wrong_count?: number;
+          status?: "Em andamento" | "Finalizado" | "Abandonado";
+          started_at?: string;
+          finished_at?: string | null;
+          updated_at?: string;
+        };
+        Update: Partial<Database["public"]["Tables"]["practice_sessions"]["Insert"]>;
       };
       user_question_reviews: {
         Row: {

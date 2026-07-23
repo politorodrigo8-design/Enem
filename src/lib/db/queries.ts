@@ -13,6 +13,7 @@ import {
 import type {
   ActivityRecord,
   AreaMetric,
+  ActivePracticeSession,
   CreditsData,
   DashboardEssayCreditData,
   EssayCorrectionData,
@@ -231,7 +232,7 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
       subjects (*),
       topics (*),
       question_options (*),
-      user_question_answers (id, question_id, selected_option, is_correct, response_time_seconds, answered_at),
+      user_question_answers (id, question_id, practice_session_id, selected_option, is_correct, response_time_seconds, answered_at),
       user_question_reviews (id, mastered)
     `,
     )
@@ -377,7 +378,7 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
           question_options (*)
         )
       ),
-      user_simulations (*)
+      user_simulations (*, user_simulation_answers (*))
     `,
     )
     .eq("user_simulations.user_id", user.id)
@@ -420,6 +421,55 @@ export async function getSimulations(): Promise<SimulationWithQuestions[]> {
   );
 
   return mergeSimulationSources(usableSimulations, getFallbackSimulations());
+}
+
+export async function getActivePracticeSession(
+  source: "question_bank" | "review" | "high_priority" = "question_bank",
+): Promise<ActivePracticeSession | null> {
+  const { supabase, user } = await requireUser();
+  const { data: session, error } = await supabase
+    .from("practice_sessions")
+    .select("*")
+    .eq("user_id", user.id)
+    .eq("source", source)
+    .eq("status", "Em andamento")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    logQueryError("practice_sessions.active", error);
+    return null;
+  }
+
+  if (!session) return null;
+
+  const { data: answers, error: answersError } = await supabase
+    .from("user_question_answers")
+    .select("question_id, selected_option, is_correct, answered_at, questions (correct_option, explanation)")
+    .eq("user_id", user.id)
+    .eq("practice_session_id", session.id);
+
+  if (answersError) {
+    logQueryError("practice_sessions.active.answers", answersError);
+  }
+
+  return {
+    ...session,
+    answers: (answers ?? []).map((answer) => {
+      const question = Array.isArray(answer.questions)
+        ? answer.questions[0]
+        : answer.questions;
+      return {
+        question_id: answer.question_id,
+        selected_option: answer.selected_option,
+        is_correct: answer.is_correct,
+        answered_at: answer.answered_at,
+        correct_option: question?.correct_option ?? "",
+        explanation: question?.explanation ?? null,
+      };
+    }),
+  } as ActivePracticeSession;
 }
 
 export async function getCurrentStudyPlan(): Promise<StudyPlanWithItems | null> {

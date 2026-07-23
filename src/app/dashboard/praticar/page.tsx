@@ -2,6 +2,7 @@ import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { getAccessContext } from "@/lib/access";
 import {
   getProfile,
+  getActivePracticeSession,
   getQuestionRecords,
   getReviewQuestions,
 } from "@/lib/db/queries";
@@ -16,11 +17,12 @@ export default async function PracticePage({
     topic?: string;
   }>;
 }) {
-  const [{ tab, question, topic }, questions, reviewQuestions, profile] =
+  const [{ tab, question, topic }, questions, reviewQuestions, activePracticeSession, profile] =
     await Promise.all([
       searchParams,
       getQuestionRecords(),
       getReviewQuestions(),
+      getActivePracticeSession("question_bank"),
       getProfile(),
     ]);
 
@@ -40,6 +42,7 @@ export default async function PracticePage({
         access={access}
         initialQuestionId={question}
         initialTopic={topic}
+        activePracticeSession={activePracticeSession}
       />
     </div>
   );
