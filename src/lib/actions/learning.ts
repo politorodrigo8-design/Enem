@@ -152,7 +152,7 @@ export async function submitQuestionAnswerAction(input: {
           : "question_answered",
       route:
         input.source === "high_priority"
-          ? "/dashboard/praticar?tab=prioritarias"
+          ? "/dashboard/praticar?tab=banco&focus=priority"
           : "/dashboard/praticar?tab=banco",
       metadata: {
         question_id: question.id,
@@ -210,7 +210,7 @@ export async function submitQuestionAnswerAction(input: {
         : "question_answered",
     route:
       input.source === "high_priority"
-        ? "/dashboard/praticar?tab=prioritarias"
+        ? "/dashboard/praticar?tab=banco&focus=priority"
         : "/dashboard/praticar?tab=banco",
     metadata: {
       question_id: question.id,

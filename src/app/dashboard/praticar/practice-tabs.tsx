@@ -2,33 +2,31 @@
 
 import { useState } from "react";
 import { Notice } from "@/components/ui/notice";
-import { QuestionBankClient } from "../questoes/question-bank-client";
-import { HighPriorityTrainingClient } from "../treino-prioritario/training-client";
+import { QuestionBankClient, type FocusMode } from "../questoes/question-bank-client";
 import { ReviewClient } from "../revisao/review-client";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
 
-export type PracticeTab = "prioritarias" | "banco" | "revisao";
+export type PracticeTab = "banco" | "revisao";
 
 const tabs: Array<{ id: PracticeTab; label: string }> = [
   { id: "banco", label: "Banco de questões" },
-  { id: "prioritarias", label: "Prioritárias" },
   { id: "revisao", label: "Revisão de erros" },
 ];
 
 export function PracticeTabs({
   initialTab,
+  initialFocus,
   questions,
-  highPriorityQuestions,
   reviewQuestions,
   access,
   initialQuestionId,
   initialTopic,
 }: {
   initialTab: PracticeTab;
+  initialFocus?: FocusMode;
   questions: QuestionRecord[];
-  highPriorityQuestions: QuestionRecord[];
   reviewQuestions: QuestionRecord[];
   access: AccessContext;
   initialQuestionId?: string;
@@ -47,9 +45,7 @@ export function PracticeTabs({
           const count =
             item.id === "revisao"
               ? reviewQuestions.length
-              : item.id === "prioritarias"
-                ? highPriorityQuestions.length
-                : questions.length;
+              : questions.length;
 
           return (
             <button
@@ -88,19 +84,6 @@ export function PracticeTabs({
         })}
       </div>
 
-      {tab === "prioritarias" ? (
-        <div key="prioritarias" className="animate-rise">
-          <Notice tone="warning" className="mb-6">
-            A prioridade é uma estimativa para orientar o estudo. Ela não afirma
-            que uma questão específica vai cair no ENEM.
-          </Notice>
-          <HighPriorityTrainingClient
-            questions={highPriorityQuestions}
-            access={access}
-          />
-        </div>
-      ) : null}
-
       {tab === "banco" ? (
         <div key="banco" className="animate-rise">
           <Notice tone="info" className="mb-6">
@@ -112,6 +95,7 @@ export function PracticeTabs({
             access={access}
             initialQuestionId={initialQuestionId}
             initialTopic={initialTopic}
+            initialFocus={initialFocus}
           />
         </div>
       ) : null}

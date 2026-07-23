@@ -5,6 +5,7 @@ import {
   ArrowRight,
   BookmarkCheck,
   BookmarkPlus,
+  Check,
   CheckCircle2,
   Filter,
   ImageIcon,
@@ -38,12 +39,13 @@ type Props = {
   answerSource?: "question_bank" | "high_priority";
   initialQuestionId?: string;
   initialTopic?: string;
+  initialFocus?: FocusMode;
 };
 
 const pageSize = 1;
 const sessionSizes = ["10", "15", "20", "30", "Todas"] as const;
 const quickSessionSizes = ["10", "15", "20"] as const;
-type FocusMode = "recommended" | "priority" | "unanswered" | "review" | "all";
+export type FocusMode = "recommended" | "priority" | "unanswered" | "review" | "all";
 
 const focusModes: Array<{ id: FocusMode; label: string; helper: string }> = [
   {
@@ -79,6 +81,7 @@ export function QuestionBankClient({
   answerSource = "question_bank",
   initialQuestionId,
   initialTopic,
+  initialFocus,
 }: Props) {
   const router = useRouter();
   const initialTopicName =
@@ -98,12 +101,21 @@ export function QuestionBankClient({
   const [board, setBoard] = useState("Todas");
   const [status, setStatus] = useState("Todas");
   const [search, setSearch] = useState("");
-  const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>(() =>
+  const defaultFocusMode =
+    answerSource === "question_bank"
+      ? initialTopicName === "Todos"
+        ? "recommended"
+        : "all"
+      : "priority";
+  const startingFocusMode = initialFocus ?? defaultFocusMode;
+  const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>(
     "15",
   );
-  const [focusMode, setFocusMode] = useState<FocusMode>(
-    answerSource === "question_bank" ? "recommended" : "priority",
-  );
+  const [draftSessionSize, setDraftSessionSize] =
+    useState<(typeof sessionSizes)[number]>("15");
+  const [focusMode, setFocusMode] = useState<FocusMode>(startingFocusMode);
+  const [draftFocusMode, setDraftFocusMode] =
+    useState<FocusMode>(startingFocusMode);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<{
@@ -199,6 +211,8 @@ export function QuestionBankClient({
   );
 
   const filtered = useMemo(() => {
+    const advancedFiltersEnabled = focusMode === "all";
+
     return orderedQuestions.filter((question) => {
       const answered = Boolean(answerState[question.id]);
       const reviewed = Boolean(reviewState[question.id]);
@@ -230,18 +244,21 @@ export function QuestionBankClient({
           .join(" ")
           .toLowerCase()
           .includes(search.toLowerCase());
+      const matchesAdvancedFilters =
+        !advancedFiltersEnabled ||
+        ((area === "Todas" || question.subjects.area === area) &&
+          (discipline === "Todas" || question.subjects.name === discipline) &&
+          (topic === "Todos" || question.topics.name === topic) &&
+          (difficulty === "Todas" || question.difficulty === difficulty) &&
+          (year === "Todos" || String(question.year) === year) &&
+          (origin === "Todas" || questionOrigin(question) === origin) &&
+          (board === "Todas" || questionBoard(question) === board) &&
+          (status === "Favoritas" ? reviewed : matchesStatus) &&
+          matchesSearch);
 
       return (
-        (area === "Todas" || question.subjects.area === area) &&
-        (discipline === "Todas" || question.subjects.name === discipline) &&
-        (topic === "Todos" || question.topics.name === topic) &&
-        (difficulty === "Todas" || question.difficulty === difficulty) &&
-        (year === "Todos" || String(question.year) === year) &&
-        (origin === "Todas" || questionOrigin(question) === origin) &&
-        (board === "Todas" || questionBoard(question) === board) &&
-        (status === "Favoritas" ? reviewed : matchesStatus) &&
         matchesFocus &&
-        matchesSearch
+        matchesAdvancedFilters
       );
     });
   }, [answerState, area, board, difficulty, discipline, focusMode, orderedQuestions, origin, reviewState, search, status, topic, year]);
@@ -271,6 +288,9 @@ export function QuestionBankClient({
   const accessBlocked = !access.hasPlatformAccess;
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question?.question_media ?? [];
+  const filtersEnabled = focusMode === "all";
+  const hasPendingSessionChange =
+    draftFocusMode !== focusMode || draftSessionSize !== sessionSize;
 
   function move(nextIndex: number) {
     setIndex(nextIndex);
@@ -310,7 +330,9 @@ export function QuestionBankClient({
   }
 
   function resetFilters() {
-    setFocusMode(answerSource === "question_bank" ? "recommended" : "priority");
+    const nextFocusMode = answerSource === "question_bank" ? "recommended" : "priority";
+    setFocusMode(nextFocusMode);
+    setDraftFocusMode(nextFocusMode);
     setArea("Todas");
     setDiscipline("Todas");
     setTopic("Todos");
@@ -320,12 +342,27 @@ export function QuestionBankClient({
     setBoard("Todas");
     setStatus("Todas");
     setSearch("");
+    setSessionSize("15");
+    setDraftSessionSize("15");
+    setFiltersOpen(false);
     move(0);
   }
 
-  function applyFocusMode(mode: FocusMode) {
-    setFocusMode(mode);
-    setSessionSize("15");
+  function applySessionSettings() {
+    setFocusMode(draftFocusMode);
+    setSessionSize(draftSessionSize);
+    if (draftFocusMode !== "all") {
+      setArea("Todas");
+      setDiscipline("Todas");
+      setTopic("Todos");
+      setDifficulty("Todas");
+      setYear("Todos");
+      setOrigin("Todas");
+      setBoard("Todas");
+      setStatus("Todas");
+      setSearch("");
+      setFiltersOpen(false);
+    }
     move(0);
   }
 
@@ -358,9 +395,9 @@ export function QuestionBankClient({
               Sessão de prática
             </p>
             <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-              Em vez de encarar o banco inteiro, resolva um bloco curto. Troque
-              o foco da sessão ou abra os filtros apenas quando quiser buscar um
-              assunto específico.
+              Em vez de encarar o banco inteiro, resolva um bloco curto. O site
+              monta recomendadas, alta prioridade, novas e favoritas; use filtros
+              somente em Explorar banco.
             </p>
           </div>
           <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 ring-1 ring-inset ring-blue-100">
@@ -376,9 +413,9 @@ export function QuestionBankClient({
             <button
               key={mode.id}
               type="button"
-              onClick={() => applyFocusMode(mode.id)}
+              onClick={() => setDraftFocusMode(mode.id)}
               className={`rounded-lg border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                focusMode === mode.id
+                draftFocusMode === mode.id
                   ? "border-blue-300 bg-blue-50 text-blue-950"
                   : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
               }`}
@@ -401,12 +438,9 @@ export function QuestionBankClient({
                 <button
                   key={size}
                   type="button"
-                  onClick={() => {
-                    setSessionSize(size);
-                    move(0);
-                  }}
+                  onClick={() => setDraftSessionSize(size)}
                   className={`tnum rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                    sessionSize === size
+                    draftSessionSize === size
                       ? "border-blue-300 bg-blue-50 text-blue-900"
                       : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
                   }`}
@@ -418,13 +452,19 @@ export function QuestionBankClient({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setFiltersOpen((current) => !current)}
-            >
-              <Filter className="h-4 w-4" aria-hidden="true" />
-              {filtersOpen ? "Ocultar filtros" : "Filtros avançados"}
+            <Button onClick={applySessionSettings} disabled={!hasPendingSessionChange}>
+              <Check className="h-4 w-4" aria-hidden="true" />
+              Confirmar sessão
             </Button>
+            {filtersEnabled ? (
+              <Button
+                variant="outline"
+                onClick={() => setFiltersOpen((current) => !current)}
+              >
+                <Filter className="h-4 w-4" aria-hidden="true" />
+                {filtersOpen ? "Ocultar filtros" : "Filtros avançados"}
+              </Button>
+            ) : null}
             {hasCustomFilters({
               area,
               discipline,
@@ -436,6 +476,7 @@ export function QuestionBankClient({
               status,
               search,
               focusMode,
+              sessionSize,
             }) ? (
               <Button variant="outline" onClick={resetFilters}>
                 Limpar ajustes
@@ -445,6 +486,7 @@ export function QuestionBankClient({
         </div>
       </section>
 
+      {filtersEnabled ? (
       <details
         className={
           filtersOpen
@@ -475,11 +517,10 @@ export function QuestionBankClient({
             <Select label="Status" value={status} options={["Todas", "Respondida", "Não respondida", "Favoritas"]} onChange={(value) => { setStatus(value); move(0); }} />
             <Select
               label="Tamanho da sessão"
-              value={sessionSize}
+              value={draftSessionSize}
               options={[...sessionSizes]}
               onChange={(value) => {
-                setSessionSize(value as (typeof sessionSizes)[number]);
-                move(0);
+                setDraftSessionSize(value as (typeof sessionSizes)[number]);
               }}
             />
             <label className="block md:col-span-2">
@@ -502,6 +543,7 @@ export function QuestionBankClient({
           </div>
         </div>
       </details>
+      ) : null}
 
       {!question ? (
         <EmptyState
@@ -693,6 +735,18 @@ export function QuestionBankClient({
                   <p className="mt-3 text-sm leading-6 text-slate-700">
                     {currentResult.explanation ||
                       "A explicação completa aparece depois de uma nova tentativa nesta sessão."}
+                  </p>
+                </div>
+              ) : null}
+
+              {currentResult && currentIndex === sessionQuestions.length - 1 ? (
+                <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-5">
+                  <p className="font-bold text-blue-950">Bloco concluído</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    Não é uma trava diária: suas respostas ficam no histórico, e
+                    você pode montar outro bloco agora. Em Novas, as questões
+                    respondidas saem da fila; em Explorar banco, os filtros ficam
+                    disponíveis para buscar mais.
                   </p>
                 </div>
               ) : null}
@@ -896,6 +950,7 @@ function hasCustomFilters({
   status,
   search,
   focusMode,
+  sessionSize,
 }: {
   area: string;
   discipline: string;
@@ -907,9 +962,11 @@ function hasCustomFilters({
   status: string;
   search: string;
   focusMode: FocusMode;
+  sessionSize: (typeof sessionSizes)[number];
 }) {
   return (
     focusMode !== "recommended" ||
+    sessionSize !== "15" ||
     area !== "Todas" ||
     discipline !== "Todas" ||
     topic !== "Todos" ||
