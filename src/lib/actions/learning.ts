@@ -19,6 +19,7 @@ import type { AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
+import { formatAppDateTime } from "@/lib/dates";
 import {
   buildQuestionAnswerRecord,
   nextReviewToggle,
@@ -91,6 +92,7 @@ export async function saveDiagnosisAction(
       weekly_hours: parsed.data.weekly_hours,
       available_days: parsed.data.available_days,
       perceived_difficulties: parsed.data.perceived_difficulties,
+      onboarding_completed: true,
     })
     .eq("id", user.id);
 
@@ -660,7 +662,11 @@ export async function generateSimulationAction(
 
   const title =
     criteria.title?.trim() ||
-    `Simulado personalizado — ${new Date().toLocaleDateString("pt-BR")}`;
+    `Simulado personalizado — ${formatAppDateTime(new Date(), {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}`;
   const { data: simulation, error: simulationError } = await supabase
     .from("simulations")
     .insert({

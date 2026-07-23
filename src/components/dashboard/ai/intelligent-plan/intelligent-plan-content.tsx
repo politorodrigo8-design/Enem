@@ -1,5 +1,6 @@
 import { Target } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { AI_STUDY_PLAN_CREDIT_COST } from "@/lib/ai/credits";
 import { AiBalanceAfterUse } from "../ai-balance-after-use";
 import { AiMetricCard } from "../ai-metric-card";
 import { AiSection } from "../ai-section";
@@ -10,15 +11,21 @@ export function IntelligentPlanContent({
   result,
   balanceAfter,
   applying,
+  confirmingRegeneration,
   onApply,
   onGenerateAnother,
+  onCancelGenerateAnother,
+  onConfirmGenerateAnother,
   onBack,
 }: {
   result: SmartStudyPlanResult;
   balanceAfter: number | null;
   applying: boolean;
+  confirmingRegeneration: boolean;
   onApply: () => void;
   onGenerateAnother: () => void;
+  onCancelGenerateAnother: () => void;
+  onConfirmGenerateAnother: () => void;
   onBack: () => void;
 }) {
   return (
@@ -54,13 +61,42 @@ export function IntelligentPlanContent({
         <Button size="sm" onClick={onApply} disabled={applying}>
           {applying ? "Aplicando..." : "Aplicar este plano"}
         </Button>
-        <Button variant="outline" size="sm" onClick={onGenerateAnother}>
+        <Button variant="outline" size="sm" onClick={onGenerateAnother} disabled={applying}>
           Gerar outro ajuste
         </Button>
         <Button variant="ghost" size="sm" onClick={onBack}>
           Voltar ao plano atual
         </Button>
       </div>
+      {confirmingRegeneration ? (
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-950">
+            Gerar outro ajuste consome {AI_STUDY_PLAN_CREDIT_COST} créditos.
+          </p>
+          <p className="mt-1 text-sm leading-6 text-amber-900">
+            Confirme apenas se quiser descartar esta sugestão e criar uma nova.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={onConfirmGenerateAnother}
+              disabled={applying}
+            >
+              Confirmar novo ajuste
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onCancelGenerateAnother}
+              disabled={applying}
+            >
+              Manter este plano
+            </Button>
+          </div>
+        </div>
+      ) : null}
       <AiBalanceAfterUse label="Saldo após este plano" value={balanceAfter} />
     </div>
   );

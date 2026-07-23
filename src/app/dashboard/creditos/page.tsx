@@ -13,6 +13,7 @@ import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
 import { getCreditsData } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { ESSAY_CREDIT_COST_LABEL } from "@/lib/product-config";
+import { formatAppDateTime } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -356,12 +357,12 @@ function formatLedgerEntry(entry: CreditLedgerEntry) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }
 
 function formatCreditUnitPrice(priceCents: number, credits: number) {

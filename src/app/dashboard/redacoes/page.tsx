@@ -6,6 +6,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { getAdminEssayQueue } from "@/lib/db/queries";
+import { formatAppDateTime } from "@/lib/dates";
 import { EssayCleanupButton } from "./essay-cleanup-button";
 
 export const dynamic = "force-dynamic";
@@ -205,12 +206,12 @@ function getParam(value: string | string[] | undefined) {
 }
 
 function formatShortDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }
 
 function summarizeMimeTypes(files: Array<{ mime_type: string }>) {

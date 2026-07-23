@@ -33,6 +33,7 @@ import {
   acceptedEssayUploadTypes,
   countWords,
 } from "@/lib/schemas/essay";
+import { formatAppDateTime } from "@/lib/dates";
 import {
   ESSAY_ACCEPTED_FILE_LABEL,
   ESSAY_CREDIT_COST_LABEL,
@@ -563,12 +564,12 @@ function ModeButton({
 }
 
 function formatSubmissionDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }
 
 function formatBytes(value: number) {

@@ -7,6 +7,7 @@ import { createEssayFileSignedUrlAction } from "@/lib/actions/credits";
 import type { EssaySubmissionFile } from "@/lib/db/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
 
 export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
   const orderedFiles = useMemo(
@@ -16,6 +17,7 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  useLockPageScroll(activeIndex !== null && signedUrl !== null);
 
   function openFile(index: number, mode: "modal" | "tab" | "download" = "modal") {
     const file = orderedFiles[index];
@@ -94,8 +96,13 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
       </ul>
 
       {activeFile && signedUrl ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-100/90 p-4 backdrop-blur-[1px]"
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Arquivo da redação, página ${activeFile.page_order}`}
+        >
+          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-slate-950">

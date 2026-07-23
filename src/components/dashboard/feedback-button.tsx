@@ -6,6 +6,7 @@ import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { submitFeedbackAction } from "@/lib/actions/beta";
 import { Button } from "@/components/ui/button";
+import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
 import { cn } from "@/lib/utils";
 
 type FeedbackType = "erro" | "sugestao" | "duvida" | "elogio";
@@ -29,6 +30,7 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState(initialForm);
+  useLockPageScroll(open);
 
   function submit() {
     startTransition(async () => {
@@ -65,12 +67,12 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/40 px-4"
+          className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto overscroll-contain bg-white/75 px-4 py-4 backdrop-blur-[1px] sm:py-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="feedback-title"
         >
-          <div className="animate-pop w-full max-w-lg rounded-xl bg-white p-6 shadow-lg shadow-slate-900/15">
+          <div className="animate-pop max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-xl bg-white p-6 shadow-lg shadow-slate-900/15">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 id="feedback-title" className="text-lg font-bold text-slate-950">

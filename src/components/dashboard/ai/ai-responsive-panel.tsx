@@ -4,6 +4,7 @@ import type { ReactNode, RefObject } from "react";
 import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
 import { cn } from "@/lib/utils";
 
 export function AiResponsivePanel({
@@ -28,15 +29,11 @@ export function AiResponsivePanel({
   children: ReactNode;
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
+  useLockPageScroll(open);
 
   useEffect(() => {
     if (!open) return;
     const opener = openerRef.current;
-    const root = document.documentElement;
-    const previousOverflow = document.body.style.overflow;
-    const previousRootOverflow = root.style.overflow;
-    document.body.style.overflow = "hidden";
-    root.style.overflow = "hidden";
     const timer = window.setTimeout(() => panelRef.current?.focus(), 0);
 
     function onKeyDown(event: KeyboardEvent) {
@@ -60,8 +57,6 @@ export function AiResponsivePanel({
     document.addEventListener("keydown", onKeyDown);
     return () => {
       window.clearTimeout(timer);
-      document.body.style.overflow = previousOverflow;
-      root.style.overflow = previousRootOverflow;
       document.removeEventListener("keydown", onKeyDown);
       opener?.focus();
     };
@@ -75,7 +70,7 @@ export function AiResponsivePanel({
         type="button"
         className={cn(
           "absolute inset-0 cursor-default",
-          mode === "drawer" ? "bg-transparent" : "bg-slate-950/20",
+          mode === "drawer" ? "bg-transparent" : "bg-white/70 backdrop-blur-[1px]",
         )}
         aria-label="Fechar painel"
         onClick={() => {
@@ -111,7 +106,9 @@ export function AiResponsivePanel({
             </Button>
           </div>
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6">
+          {children}
+        </div>
       </div>
     </div>
   );

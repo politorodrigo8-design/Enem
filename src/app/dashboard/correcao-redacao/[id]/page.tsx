@@ -8,6 +8,7 @@ import { Notice } from "@/components/ui/notice";
 import { buttonClasses } from "@/components/ui/button";
 import { EssayFilesViewer } from "@/components/dashboard/essay-files-viewer";
 import { getStudentEssayDetail } from "@/lib/db/queries";
+import { formatAppDateTime } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
 
@@ -120,11 +121,11 @@ export default async function StudentEssayDetailPage({
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }

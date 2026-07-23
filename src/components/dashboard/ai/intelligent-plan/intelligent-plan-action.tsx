@@ -34,6 +34,7 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
   const [importedPriorities, setImportedPriorities] = useState<ImportedPriority[]>(() =>
     loadImportedPriorities(),
   );
+  const [confirmingRegeneration, setConfirmingRegeneration] = useState(false);
   const [pending, startTransition] = useTransition();
 
   function removePriority(topic: string) {
@@ -45,6 +46,7 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
   function generate(force = false) {
     if (result && !force) return;
     setError("");
+    setConfirmingRegeneration(false);
     startTransition(async () => {
       const response = await generateSmartStudyPlanAction({
         importedPriorities,
@@ -60,10 +62,7 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
   }
 
   function generateAnother() {
-    const confirmed = window.confirm(
-      `Gerar outro ajuste consome ${AI_STUDY_PLAN_CREDIT_COST} créditos. Deseja continuar?`,
-    );
-    if (confirmed) generate(true);
+    setConfirmingRegeneration(true);
   }
 
   function applyPlan() {
@@ -136,8 +135,11 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
             result={result}
             balanceAfter={balanceAfter}
             applying={pending}
+            confirmingRegeneration={confirmingRegeneration}
             onApply={applyPlan}
             onGenerateAnother={generateAnother}
+            onCancelGenerateAnother={() => setConfirmingRegeneration(false)}
+            onConfirmGenerateAnother={() => generate(true)}
             onBack={() => setOpen(false)}
           />
         ) : null}

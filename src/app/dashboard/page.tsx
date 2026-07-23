@@ -33,6 +33,7 @@ import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
 import { priorityLabel } from "@/lib/db/scoring";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { ESSAY_CREDIT_COST_LABEL } from "@/lib/product-config";
+import { formatAppDateTime } from "@/lib/dates";
 import { priorityTone } from "@/lib/utils";
 import { StudyPlanSection } from "./study-plan-section";
 
@@ -63,6 +64,7 @@ export default async function DashboardPage() {
   ]);
   const access = getAccessContext(profile);
   const hasAnswers = data.answered > 0;
+  const hasDiagnosis = hasDashboardDiagnosis(data.profile);
   const latestEssay = essayCreditData.latestEssay;
   const essayAction = getEssayAction(latestEssay);
   const recommendation = getWeeklyRecommendation(
@@ -234,7 +236,7 @@ export default async function DashboardPage() {
         </Reveal>
       </section>
 
-      {!hasAnswers ? (
+      {!hasAnswers && !hasDiagnosis ? (
         <div className="mt-6">
           <EmptyState
             icon={Target}
@@ -250,6 +252,12 @@ export default async function DashboardPage() {
               </Link>
             }
           />
+        </div>
+      ) : null}
+
+      {!hasAnswers && hasDiagnosis ? (
+        <div className="mt-6">
+          <DiagnosisReadySummary priorities={data.priorities} />
         </div>
       ) : null}
 
@@ -381,6 +389,78 @@ export default async function DashboardPage() {
   );
 }
 
+function hasDashboardDiagnosis(
+  profile: Awaited<ReturnType<typeof getDashboardData>>["profile"],
+) {
+  return Boolean(profile?.onboarding_completed && (profile.target_score ?? 0) > 0);
+}
+
+function DiagnosisReadySummary({
+  priorities,
+}: {
+  priorities: Awaited<ReturnType<typeof getDashboardData>>["priorities"];
+}) {
+  const topPriorities = priorities.slice(0, 3);
+
+  return (
+    <Card className="border-blue-100 bg-blue-50/40">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="max-w-2xl">
+            <p className="flex items-center gap-2 text-sm font-semibold text-blue-800">
+              <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              Diagnóstico pronto
+            </p>
+            <h2 className="mt-2 text-xl font-bold tracking-tight text-slate-950">
+              Suas prioridades iniciais já estão no painel.
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Elas foram calculadas a partir do seu objetivo, rotina e autopercepção.
+              Quando você responder questões, o Radar calibra esses pesos com desempenho real.
+            </p>
+          </div>
+          <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
+            <Link href="/dashboard/radar" className={buttonClasses({ variant: "primary" })}>
+              <Target className="h-4 w-4" aria-hidden="true" />
+              Ver Radar
+            </Link>
+            <Link href="/dashboard/praticar" className={buttonClasses({ variant: "outline" })}>
+              <PlayCircle className="h-4 w-4" aria-hidden="true" />
+              Praticar
+            </Link>
+          </div>
+        </div>
+
+        {topPriorities.length ? (
+          <div className="mt-5 grid gap-3 md:grid-cols-3">
+            {topPriorities.map(({ topic, score }) => {
+              const label = priorityLabel(score);
+              return (
+                <div
+                  key={topic.id}
+                  className="rounded-lg border border-blue-100 bg-white p-3"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {topic.subjects.area}
+                  </p>
+                  <p className="mt-1 text-sm font-bold leading-5 text-slate-950">
+                    {topic.subjects.name}: {topic.name}
+                  </p>
+                  <span
+                    className={`mt-3 inline-flex rounded-md px-2 py-1 text-xs font-semibold ring-1 ring-inset ${priorityTone(label)}`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
+      </CardContent>
+    </Card>
+  );
+}
+
 function MiniMetric({ label, value }: { label: string; value: number }) {
   return (
     <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200">
@@ -452,12 +532,12 @@ function formatLedgerEntry(entry: CreditLedgerEntry) {
     ai_study_plan: "plano inteligente",
   };
   const label = labels[entry.reason] ?? "uso de créditos";
-  const date = new Intl.DateTimeFormat("pt-BR", {
+  const date = formatAppDateTime(entry.created_at, {
     day: "2-digit",
     month: "2-digit",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(entry.created_at));
+  });
 
   return `${Math.abs(entry.amount)} crédito${Math.abs(entry.amount) === 1 ? "" : "s"} em ${label} (${date})`;
 }

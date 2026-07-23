@@ -7,6 +7,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EssayFilesViewer } from "@/components/dashboard/essay-files-viewer";
 import { getAdminEssayDetail } from "@/lib/db/queries";
+import { formatAppDateTime } from "@/lib/dates";
 import { EssayAdminDetailClient } from "./essay-admin-detail-client";
 
 export const dynamic = "force-dynamic";
@@ -149,11 +150,11 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }

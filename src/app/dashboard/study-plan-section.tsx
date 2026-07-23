@@ -20,6 +20,7 @@ import {
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
 import type { StudyPlanWithItems } from "@/lib/db/types";
+import { formatAppDateTime } from "@/lib/dates";
 import { statusTone } from "@/lib/utils";
 
 export function StudyPlanSection({
@@ -133,14 +134,11 @@ export function StudyPlanSection({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="text-sm font-semibold capitalize text-slate-950">
-                        {new Date(`${task.scheduled_date}T00:00:00`).toLocaleDateString(
-                          "pt-BR",
-                          {
-                            weekday: "long",
-                            day: "2-digit",
-                            month: "2-digit",
-                          },
-                        )}
+                        {formatAppDateTime(`${task.scheduled_date}T12:00:00-03:00`, {
+                          weekday: "long",
+                          day: "2-digit",
+                          month: "2-digit",
+                        })}
                       </p>
                       <span
                         className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${statusTone(status)}`}

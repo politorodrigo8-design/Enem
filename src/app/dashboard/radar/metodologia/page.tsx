@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Reveal } from "@/components/ui/reveal";
 import { getRadarMethodologyVersions } from "@/lib/db/queries";
+import { formatAppDateTime } from "@/lib/dates";
 
 const rules = [
   "Recorrência histórica não significa previsão exata.",
@@ -118,7 +119,11 @@ export default async function RadarMethodologyPage() {
                       <Detail label="Questões" value={String(version.question_count)} />
                       <Detail
                         label="Atualização"
-                        value={new Date(version.last_updated_at).toLocaleDateString("pt-BR")}
+                        value={formatAppDateTime(version.last_updated_at, {
+                          day: "2-digit",
+                          month: "2-digit",
+                          year: "numeric",
+                        })}
                       />
                       <Detail label="Responsável" value={version.reviewed_by || "Não informado"} />
                     </dl>

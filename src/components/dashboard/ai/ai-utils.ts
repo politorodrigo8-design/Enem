@@ -4,6 +4,7 @@ import type {
   PerformanceAnalysisResult,
   QuestionExplanationResult,
 } from "./ai-types";
+import { formatAppDateTime } from "@/lib/dates";
 
 export const importedPriorityStorageKey = "pontua-ai-imported-priorities";
 
@@ -76,10 +77,10 @@ export function formatTopicPath(area: string, subject: string, topic: string) {
 }
 
 export function formatDateLabel(date: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(`${date}T12:00:00-03:00`, {
     day: "2-digit",
     month: "long",
-  }).format(new Date(`${date}T12:00:00-03:00`));
+  });
 }
 
 export function formatMinutes(minutes: number) {

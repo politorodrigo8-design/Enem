@@ -7,6 +7,7 @@ import { signOutAction, updatePasswordAction } from "@/lib/actions/auth";
 import { updateProfileSettingsAction } from "@/lib/actions/beta";
 import { accessLevelLabel, type AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
+import { formatAppDateTime } from "@/lib/dates";
 import type { OnboardingInput } from "@/lib/schemas/beta";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -249,7 +250,11 @@ export function SettingsClient({
                 </Badge>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   {access.expiresAt
-                    ? `Expira em ${new Date(access.expiresAt).toLocaleDateString("pt-BR")}.`
+                    ? `Expira em ${formatAppDateTime(access.expiresAt, {
+                      day: "2-digit",
+                      month: "2-digit",
+                      year: "numeric",
+                    })}.`
                     : "Sem expiração definida para o acesso atual."}
                 </p>
               </div>

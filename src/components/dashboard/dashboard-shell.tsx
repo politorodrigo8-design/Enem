@@ -23,6 +23,7 @@ import { cn } from "@/lib/utils";
 import { signOutAction } from "@/lib/actions/auth";
 import { FeedbackButton } from "@/components/dashboard/feedback-button";
 import type { AccessLevel } from "@/lib/access";
+import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
 
 const navigation = [
   {
@@ -57,6 +58,7 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  useLockPageScroll(open);
   const initials = fullName
     .split(" ")
     .filter(Boolean)
@@ -84,7 +86,10 @@ export function DashboardShell({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4" aria-label="Menu do aluno">
+        <nav
+          className="flex-1 space-y-5 overflow-y-auto overscroll-contain px-3 py-4"
+          aria-label="Menu do aluno"
+        >
           {navigation.map((section) => {
             const items = section.items.filter(
               (item) => !("adminOnly" in item && item.adminOnly) || accessLevel === "admin",
@@ -138,7 +143,7 @@ export function DashboardShell({
       {open ? (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden"
+          className="fixed inset-0 z-40 bg-white/70 backdrop-blur-[1px] lg:hidden"
           onClick={() => setOpen(false)}
           aria-label="Fechar menu lateral"
         />

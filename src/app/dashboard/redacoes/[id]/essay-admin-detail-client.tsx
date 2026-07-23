@@ -14,6 +14,7 @@ import type { EssaySubmissionDetail } from "@/lib/db/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatAppDateTime } from "@/lib/dates";
 
 const statusLabels = {
   uploading: "Enviando",
@@ -201,11 +202,11 @@ function Textarea({
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }

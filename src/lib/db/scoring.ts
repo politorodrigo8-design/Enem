@@ -1,4 +1,5 @@
 import type { Topic, TopicPerformance } from "@/lib/db/types";
+import { formatAppDateTime } from "@/lib/dates";
 
 const difficultyWeight: Record<string, number> = {
   Baixa: 1.5,
@@ -51,12 +52,12 @@ export function priorityLabel(score: number) {
 }
 
 export function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
-  }).format(new Date(value));
+  });
 }
 
 export function getWeekStart(date = new Date()) {

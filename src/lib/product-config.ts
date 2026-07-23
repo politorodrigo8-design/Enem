@@ -4,6 +4,7 @@ import {
   MAX_ESSAY_UPLOAD_FILES,
   MAX_ESSAY_UPLOAD_SIZE_BYTES,
 } from "@/lib/schemas/essay";
+import { formatAppDateTime } from "@/lib/dates";
 
 export const PRODUCT_NAME = "Pontua Enem Completo";
 export const ENEM_YEAR = "2026";
@@ -14,11 +15,11 @@ export const ESSAY_UPLOAD_LIMIT_LABEL = `até ${MAX_ESSAY_UPLOAD_FILES} imagens,
 )} por arquivo e ${formatMegabytes(MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES)} no total`;
 
 export function formatAccessDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", {
+  return formatAppDateTime(value, {
     day: "2-digit",
     month: "long",
     year: "numeric",
-  }).format(new Date(value));
+  });
 }
 
 function formatMegabytes(value: number) {

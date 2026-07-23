@@ -4,6 +4,7 @@ import { Check } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { getAccessContext } from "@/lib/access";
+import { formatAppDateTime } from "@/lib/dates";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -40,7 +41,7 @@ export default async function CheckoutPage() {
   if (access.hasPlatformAccess) redirect("/dashboard");
 
   const price = getCurrentProductPrice(product);
-  const accessValidUntil = new Date(product.access_valid_until).toLocaleDateString("pt-BR", {
+  const accessValidUntil = formatAppDateTime(product.access_valid_until, {
     day: "2-digit",
     month: "long",
     year: "numeric",
