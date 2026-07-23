@@ -17,11 +17,13 @@ export function AiConfirmationDialog({
   children?: ReactNode;
 }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
-      <p className="text-sm leading-6 text-slate-700">{description}</p>
-      <AiCreditCost cost={cost} />
-      {children}
-      <Button className="mt-4" onClick={onConfirm}>
+    <div className="space-y-4">
+      <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-4">
+        <p className="text-sm leading-6 text-slate-700">{description}</p>
+        <AiCreditCost cost={cost} />
+      </div>
+      {children ? <div>{children}</div> : null}
+      <Button onClick={onConfirm}>
         <Sparkles className="h-4 w-4" aria-hidden="true" />
         {buttonLabel}
       </Button>

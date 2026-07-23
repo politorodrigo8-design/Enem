@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 import { Copy, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -25,26 +25,44 @@ export function QuestionExplanationCreditAction({
   selectedOption?: string;
   disabled?: boolean;
 }) {
+  const requestContext = `${questionId}:${selectedOption ?? ""}`;
   const openerRef = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const [result, setResult] = useState<QuestionExplanationResult | null>(null);
-  const [balanceAfter, setBalanceAfter] = useState<number | null>(null);
-  const [error, setError] = useState("");
+  const requestContextRef = useRef(requestContext);
+  const [openContext, setOpenContext] = useState<string | null>(null);
+  const [resultState, setResultState] = useState<{
+    context: string;
+    result: QuestionExplanationResult;
+    balanceAfter: number | null;
+  } | null>(null);
+  const [errorState, setErrorState] = useState<{ context: string; message: string } | null>(null);
   const [pending, startTransition] = useTransition();
+  const open = openContext === requestContext;
+  const result = resultState?.context === requestContext ? resultState.result : null;
+  const balanceAfter = resultState?.context === requestContext ? resultState.balanceAfter : null;
+  const error = errorState?.context === requestContext ? errorState.message : "";
+
+  useEffect(() => {
+    requestContextRef.current = requestContext;
+  }, [requestContext]);
 
   function generate() {
-    setError("");
+    setErrorState(null);
+    const generationContext = requestContext;
     startTransition(async () => {
       const response = await generateQuestionExplanationAction({
         questionId,
         selectedOption: selectedOption || undefined,
       });
+      if (requestContextRef.current !== generationContext) return;
       toast[response.ok ? "success" : "error"](response.message);
       if (response.ok && response.questionExplanation) {
-        setResult(response.questionExplanation);
-        setBalanceAfter(response.balanceAfter ?? null);
+        setResultState({
+          context: generationContext,
+          result: response.questionExplanation,
+          balanceAfter: response.balanceAfter ?? null,
+        });
       } else {
-        setError(response.message);
+        setErrorState({ context: generationContext, message: response.message });
       }
     });
   }
@@ -69,7 +87,7 @@ export function QuestionExplanationCreditAction({
         variant="outline"
         size="sm"
         full
-        onClick={() => setOpen(true)}
+        onClick={() => setOpenContext(requestContext)}
         disabled={disabled}
         aria-haspopup="dialog"
       >
@@ -82,7 +100,7 @@ export function QuestionExplanationCreditAction({
         mode="drawer"
         busy={pending}
         openerRef={openerRef}
-        onClose={() => setOpen(false)}
+        onClose={() => setOpenContext(null)}
         action={
           result ? (
             <Button variant="outline" size="sm" onClick={() => copyExplanation(result)}>

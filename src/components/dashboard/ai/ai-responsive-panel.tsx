@@ -69,7 +69,10 @@ export function AiResponsivePanel({
     <div className="fixed inset-0 z-50">
       <button
         type="button"
-        className="absolute inset-0 cursor-default bg-slate-950/30"
+        className={cn(
+          "absolute inset-0 cursor-default",
+          mode === "drawer" ? "bg-transparent" : "bg-slate-950/20",
+        )}
         aria-label="Fechar painel"
         onClick={() => {
           if (!busy) onClose();
