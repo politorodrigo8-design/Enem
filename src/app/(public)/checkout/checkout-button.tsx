@@ -73,7 +73,7 @@ export function CheckoutButton({
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <LockKeyhole className="h-5 w-5" />}
         {disabled ? "Pagamento indisponível" : "Ir para o pagamento"}
       </Button>
-      {disabledMessage ? (
+      {disabled && disabledMessage ? (
         <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold leading-6 text-slate-700">
           {disabledMessage}
         </p>

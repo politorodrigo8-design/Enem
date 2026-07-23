@@ -1,5 +1,9 @@
+import { twMerge } from "tailwind-merge";
+
+// twMerge resolve conflitos de utilitários (ex.: "p-5" + "p-0" → "p-0"),
+// garantindo que a classe passada por último sempre vença.
 export function cn(...classes: Array<string | false | null | undefined>) {
-  return classes.filter(Boolean).join(" ");
+  return twMerge(classes.filter(Boolean).join(" "));
 }
 
 export function priorityTone(priority: string) {

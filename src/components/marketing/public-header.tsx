@@ -44,30 +44,24 @@ export function PublicHeader({ cta, viewer }: PublicHeaderProps) {
           ))}
         </nav>
         <div className="flex items-center gap-2 sm:gap-3">
-          {viewer ? null : (
+          <div className="hidden items-center gap-3 md:flex">
+            {viewer ? null : (
+              <Link
+                href="/login"
+                className={buttonClasses({ variant: "ghost", size: "md" })}
+              >
+                <LogIn className="h-4 w-4" aria-hidden="true" />
+                Entrar
+              </Link>
+            )}
             <Link
-              href="/login"
-              className={buttonClasses({
-                variant: "ghost",
-                size: "md",
-                className: "hidden md:inline-flex",
-              })}
+              href={primaryCta.href}
+              className={buttonClasses({ variant: "primary", size: "md" })}
             >
-              <LogIn className="h-4 w-4" aria-hidden="true" />
-              Entrar
+              {primaryCta.label}
+              <ArrowRight className="h-4 w-4" aria-hidden="true" />
             </Link>
-          )}
-          <Link
-            href={primaryCta.href}
-            className={buttonClasses({
-              variant: "primary",
-              size: "md",
-              className: "hidden md:inline-flex",
-            })}
-          >
-            {primaryCta.label}
-            <ArrowRight className="h-4 w-4" aria-hidden="true" />
-          </Link>
+          </div>
           {viewer ? (
             <AccountMenu
               fullName={viewer.fullName}
