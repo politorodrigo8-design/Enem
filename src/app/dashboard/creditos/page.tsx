@@ -14,6 +14,7 @@ import { getCreditsData } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { ESSAY_CREDIT_COST_LABEL } from "@/lib/product-config";
 import { formatAppDateTime } from "@/lib/dates";
+import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,15 @@ const creditTools = [
     status: "Disponível",
     href: "/dashboard/correcao-redacao",
     cta: "Enviar redação",
+    available: true,
+  },
+  {
+    title: "Proposta semanal de redação",
+    description: "Libere o comando completo, textos motivadores, eixos e repertórios para treinar.",
+    cost: `Custo: ${WEEKLY_ESSAY_TOPIC_UNLOCK_COST} crédito`,
+    status: "Disponível",
+    href: "/dashboard/correcao-redacao",
+    cta: "Ver proposta",
     available: true,
   },
   {
@@ -186,7 +196,7 @@ export default async function CreditsPage() {
             </h2>
             <Badge tone="blue">IA operacional</Badge>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
             {creditTools.map((tool) => (
               <Card key={tool.title} className="h-full">
                 <CardContent className="flex h-full flex-col">

@@ -14,6 +14,10 @@ const cardSource = readFileSync(
   new URL("../src/app/dashboard/correcao-redacao/weekly-essay-topic-card.tsx", import.meta.url),
   "utf8",
 );
+const creditsPageSource = readFileSync(
+  new URL("../src/app/dashboard/creditos/page.tsx", import.meta.url),
+  "utf8",
+);
 
 test("migration 021 registra desbloqueio semanal com custo auditavel", () => {
   assert.match(migration, /'weekly_essay_topic'/);
@@ -44,4 +48,10 @@ test("UI confirma custo antes de mostrar proposta completa", () => {
   assert.match(cardSource, /unlockWeeklyEssayTopicAction/);
   assert.match(cardSource, /1 crédito/);
   assert.match(cardSource, /Saldo após liberar a proposta/);
+});
+
+test("pagina de creditos lista a proposta semanal como uso de credito", () => {
+  assert.match(creditsPageSource, /Proposta semanal de redação/);
+  assert.match(creditsPageSource, /WEEKLY_ESSAY_TOPIC_UNLOCK_COST/);
+  assert.match(creditsPageSource, /Ver proposta/);
 });
