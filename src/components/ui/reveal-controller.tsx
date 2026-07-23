@@ -9,20 +9,38 @@ function revealAll(elements: HTMLElement[]) {
   }
 }
 
+const revealSelector = ".reveal-fx:not([data-revealed='true'])";
+
+function getRevealElements(root: ParentNode = document) {
+  const elements = Array.from(root.querySelectorAll<HTMLElement>(revealSelector));
+
+  if (root instanceof HTMLElement && root.matches(revealSelector)) {
+    elements.unshift(root);
+  }
+
+  return elements;
+}
+
 export function RevealController() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const elements = Array.from(
-      document.querySelectorAll<HTMLElement>(".reveal-fx:not([data-revealed='true'])"),
-    );
-
-    if (!elements.length) return;
-
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reduceMotion || !("IntersectionObserver" in window)) {
-      revealAll(elements);
-      return;
+      revealAll(getRevealElements());
+
+      const fallbackObserver = new MutationObserver((mutations) => {
+        for (const mutation of mutations) {
+          for (const node of mutation.addedNodes) {
+            if (node instanceof HTMLElement) {
+              revealAll(getRevealElements(node));
+            }
+          }
+        }
+      });
+
+      fallbackObserver.observe(document.body, { childList: true, subtree: true });
+      return () => fallbackObserver.disconnect();
     }
 
     const observer = new IntersectionObserver(
@@ -34,14 +52,34 @@ export function RevealController() {
           observer.unobserve(element);
         }
       },
-      { threshold: 0.08, rootMargin: "0px 0px -24px 0px" },
+      { threshold: 0.01, rootMargin: "0px 0px 160px 0px" },
     );
 
-    for (const element of elements) {
-      observer.observe(element);
+    function observePending(root?: ParentNode) {
+      const elements = getRevealElements(root);
+      for (const element of elements) {
+        observer.observe(element);
+      }
     }
 
-    return () => observer.disconnect();
+    observePending();
+
+    const mutationObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node instanceof HTMLElement) {
+            observePending(node);
+          }
+        }
+      }
+    });
+
+    mutationObserver.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      mutationObserver.disconnect();
+      observer.disconnect();
+    };
   }, [pathname]);
 
   return null;
