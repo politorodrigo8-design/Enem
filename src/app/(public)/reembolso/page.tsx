@@ -1,14 +1,17 @@
 import { LegalList, LegalPage } from "@/components/marketing/legal-page";
+import { legalContacts, legalDocuments } from "@/lib/legal/config";
 
-const SUPPORT_EMAIL = "suporte@pontuaenem.com.br";
-const UPDATED_AT = "22 de julho de 2026";
+const refundDocument = legalDocuments.refund_policy;
+const SUPPORT_EMAIL = legalContacts.supportEmail;
 
 export default function RefundPage() {
   return (
     <LegalPage
       title="Política de reembolso"
       documentLabel="Política de Reembolso do Pontua Enem"
-      updatedAt={UPDATED_AT}
+      updatedAt={refundDocument.updatedAtLabel}
+      version={refundDocument.version}
+      effectiveAt={refundDocument.effectiveAtLabel}
       notice="Leia antes de contratar o acesso."
       sections={[
         {
@@ -26,9 +29,9 @@ export default function RefundPage() {
           heading: "Direito de arrependimento",
           body: (
             <p>
-              Compras online podem ter direito de arrependimento em até 7 dias, contado
-              conforme a legislação aplicável. O exercício desse direito dentro do prazo
-              legal não exige justificativa.
+              Nas compras realizadas pela internet, o consumidor poderá exercer o direito
+              de arrependimento no prazo legal de 7 dias, contado na forma da legislação
+              aplicável, sem necessidade de apresentar justificativa.
             </p>
           ),
         },
@@ -61,11 +64,10 @@ export default function RefundPage() {
           heading: "Confirmação e prazos",
           body: (
             <p>
-              Após receber a solicitação, verificaremos os dados, o status do pagamento e
-              a hipótese legal ou contratual aplicável. Confirmado o enquadramento da
-              solicitação, o reembolso será processado pelo fluxo disponível no Mercado
-              Pago ou no meio de pagamento utilizado, sujeito aos prazos do provedor,
-              banco ou bandeira.
+              Após a confirmação da identidade, da compra e do recebimento da solicitação
+              dentro do prazo aplicável, o reembolso será encaminhado pelo fluxo disponível
+              no Mercado Pago ou pelo meio de pagamento utilizado. O prazo para visualização
+              do valor pode depender do Mercado Pago, banco, bandeira ou meio de pagamento.
             </p>
           ),
         },
@@ -87,12 +89,16 @@ export default function RefundPage() {
             <>
               <p>
                 O acesso à plataforma pode ser encerrado após a confirmação do reembolso.
-                Créditos internos concedidos com o acesso podem ser cancelados ou
-                ajustados, sem reduzir direitos legais do consumidor.
+                Créditos internos concedidos com o produto principal, comprados
+                separadamente ou promocionais podem ser ajustados no saldo e no histórico,
+                sem reduzir direitos legais do consumidor.
               </p>
               <p>
-                Em caso de falha técnica que gere débito indevido de créditos, o histórico
-                poderá ser corrigido conforme as regras do serviço.
+                Créditos já consumidos serão analisados conforme o caso, especialmente em
+                direito de arrependimento, falha técnica, débito indevido, cobrança
+                duplicada, créditos pagos e não entregues ou pagamento aprovado sem
+                liberação. Em caso de falha técnica que gere débito indevido, o histórico
+                poderá ser corrigido por estorno de créditos.
               </p>
             </>
           ),
@@ -103,9 +109,9 @@ export default function RefundPage() {
           body: (
             <p>
               Em caso de duplicidade, cobrança não reconhecida, pagamento aprovado sem
-              liberação de acesso ou falha de processamento, entre em contato pelo suporte
-              para que o pedido seja localizado e tratado junto ao provedor quando
-              necessário.
+              liberação de acesso, créditos pagos e não entregues, falha de processamento
+              ou débito indevido de créditos, entre em contato pelo suporte para que o
+              pedido seja localizado e tratado junto ao provedor quando necessário.
             </p>
           ),
         },

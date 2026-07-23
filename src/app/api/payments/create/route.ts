@@ -9,6 +9,10 @@ import {
   isTrustedCheckoutOrigin,
 } from "@/lib/services/payment-security.mjs";
 import { recordProductEvent } from "@/lib/services/product-events";
+import {
+  recordCurrentLegalAcceptances,
+  validateLegalAcceptancePayload,
+} from "@/lib/legal/acceptances";
 import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
 import { checkRateLimit, userRateLimitIdentifier } from "@/lib/security/rate-limit";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -106,6 +110,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const legalAcceptance = validateLegalAcceptancePayload(body.legalAcceptance);
+  if (!legalAcceptance.ok) {
+    return NextResponse.json(
+      { ok: false, message: legalAcceptance.message },
+      { status: 400 },
+    );
+  }
+
   const product = await getActiveProductForCheckout(admin, productSlug ?? undefined);
   if (productSlug && product.product_kind !== "credit_package") {
     return NextResponse.json(
@@ -174,6 +186,31 @@ export async function POST(request: NextRequest) {
   const reusableOrder = pendingOrder as Order | null;
 
   if (reusableOrder?.checkout_url) {
+    try {
+      await recordCurrentLegalAcceptances({
+        userId: user.id,
+        context: product.product_kind === "credit_package" ? "credit_checkout" : "main_checkout",
+        documentVersions: legalAcceptance.versions,
+        orderId: reusableOrder.id,
+        productId: product.id,
+        metadata: {
+          product_slug: product.slug,
+          product_kind: product.product_kind,
+          amount_cents: reusableOrder.amount_cents,
+          credit_amount: product.credit_amount,
+          reused_order: true,
+        },
+      });
+    } catch (error) {
+      logServerError("payments.create.legal_acceptance_reused_order", error, {
+        orderId: reusableOrder.id,
+      });
+      return NextResponse.json(
+        { ok: false, message: "Não foi possível registrar os aceites legais da compra." },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
       orderId: reusableOrder.id,
@@ -215,6 +252,39 @@ export async function POST(request: NextRequest) {
     );
   }
   const createdOrder = order as Order;
+
+  try {
+    await recordCurrentLegalAcceptances({
+      userId: user.id,
+      context: product.product_kind === "credit_package" ? "credit_checkout" : "main_checkout",
+      documentVersions: legalAcceptance.versions,
+      orderId: createdOrder.id,
+      productId: product.id,
+      metadata: {
+        product_slug: product.slug,
+        product_kind: product.product_kind,
+        amount_cents: createdOrder.amount_cents,
+        credit_amount: product.credit_amount,
+      },
+    });
+  } catch (error) {
+    logServerError("payments.create.legal_acceptance", error, { orderId: createdOrder.id });
+    await admin
+      .from("orders")
+      .update({
+        status: "cancelled",
+        metadata: {
+          ...(isPlainObject(createdOrder.metadata) ? createdOrder.metadata : {}),
+          checkout_failure: "legal_acceptance_failed",
+        },
+      } as never)
+      .eq("id", createdOrder.id);
+
+    return NextResponse.json(
+      { ok: false, message: "Não foi possível registrar os aceites legais da compra." },
+      { status: 500 },
+    );
+  }
 
   await recordProductEvent({
     supabase: admin,
@@ -285,9 +355,14 @@ export async function POST(request: NextRequest) {
   });
 }
 
-async function readCheckoutBody(request: NextRequest): Promise<{ productSlug?: unknown }> {
+async function readCheckoutBody(
+  request: NextRequest,
+): Promise<{ productSlug?: unknown; legalAcceptance?: unknown }> {
   try {
-    const body = (await request.json()) as { productSlug?: unknown };
+    const body = (await request.json()) as {
+      productSlug?: unknown;
+      legalAcceptance?: unknown;
+    };
     return body && typeof body === "object" ? body : {};
   } catch {
     return {};

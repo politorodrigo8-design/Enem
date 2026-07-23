@@ -17,7 +17,7 @@ import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
 import { creditPackageProducts } from "@/lib/credits/packages";
 import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
-import { getCreditsData } from "@/lib/db/queries";
+import { getCreditsData, getDashboardIdentity } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { formatAppDateTime } from "@/lib/dates";
 import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
@@ -37,6 +37,7 @@ const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
   ai_performance_analysis: "Análise de desempenho",
   ai_study_plan: "Plano inteligente",
   ai_credit_refund: "Estorno automático",
+  purchase_refund: "Estorno de compra de créditos",
   weekly_essay_topic: "Proposta de redação semanal",
 };
 
@@ -67,6 +68,7 @@ type CreditUse = {
   cost: number;
   href: string;
   icon: LucideIcon;
+  actionLabel?: string;
 };
 
 const creditUses: CreditUse[] = [
@@ -99,16 +101,17 @@ const creditUses: CreditUse[] = [
     icon: BookOpen,
   },
   {
-    title: "Proposta de redação semanal",
+    title: "Proposta semanal de redação",
     description: "Comando completo, textos motivadores e repertórios.",
     cost: WEEKLY_ESSAY_TOPIC_UNLOCK_COST,
     href: "/dashboard/correcao-redacao",
     icon: PenLine,
+    actionLabel: "Ver proposta",
   },
 ];
 
 export default async function CreditsPage() {
-  const data = await getCreditsData();
+  const [data, identity] = await Promise.all([getCreditsData(), getDashboardIdentity()]);
   const used = Math.max(0, data.account.monthly_allowance - data.account.balance);
   const balancePercentage = data.account.monthly_allowance
     ? Math.round((data.account.balance / data.account.monthly_allowance) * 100)
@@ -192,6 +195,11 @@ export default async function CreditsPage() {
                       <span className="tnum shrink-0 rounded-md bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-200">
                         {use.cost} {use.cost === 1 ? "crédito" : "créditos"}
                       </span>
+                      {use.actionLabel ? (
+                        <span className="hidden shrink-0 text-xs font-bold text-blue-700 sm:inline">
+                          {use.actionLabel}
+                        </span>
+                      ) : null}
                       <ArrowRight
                         className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-blue-700"
                         aria-hidden="true"
@@ -345,6 +353,9 @@ export default async function CreditsPage() {
                   <div className="mt-5">
                     <CreditPackageCheckoutButton
                       productSlug={pack.productSlug}
+                      credits={pack.credits}
+                      price={pack.price}
+                      accountEmail={identity.email}
                       variant={pack.highlight ? "primary" : "outline"}
                     />
                   </div>
@@ -355,6 +366,11 @@ export default async function CreditsPage() {
           <p className="mt-3 text-xs leading-5 text-slate-500">
             Pagamento processado pelo Mercado Pago. O saldo é creditado
             automaticamente após a confirmação.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Os créditos são unidades internas de uso, pessoais e intransferíveis, e não
+            podem ser convertidos em dinheiro. O saldo é liberado após a confirmação do
+            pagamento. Consulte as regras de consumo e reembolso antes de comprar.
           </p>
         </section>
       </Reveal>

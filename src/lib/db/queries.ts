@@ -135,6 +135,7 @@ export async function getDashboardIdentity() {
       : "";
 
   return {
+    userId: user.id,
     fullName:
       profile?.full_name?.trim() ||
       metadataFullName.trim() ||

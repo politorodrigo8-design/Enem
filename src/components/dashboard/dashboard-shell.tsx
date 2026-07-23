@@ -11,6 +11,7 @@ import {
   Coins,
   FileCheck2,
   LayoutDashboard,
+  Loader2,
   LogOut,
   Menu,
   PenLine,
@@ -18,11 +19,18 @@ import {
   UserRound,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Logo } from "@/components/ui/logo";
 import { RevealController } from "@/components/ui/reveal-controller";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/lib/actions/auth";
+import { acceptCurrentLegalDocumentsAction } from "@/lib/actions/legal";
+import {
+  currentLegalAcceptanceVersions,
+  type LegalDocumentConfig,
+} from "@/lib/legal/config";
 import { FeedbackButton } from "@/components/dashboard/feedback-button";
 import type { AccessLevel } from "@/lib/access";
 import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
@@ -54,12 +62,14 @@ export function DashboardShell({
   email,
   accessLevel,
   profilePhotoUrl,
+  pendingLegalDocuments,
 }: {
   children: React.ReactNode;
   fullName: string;
   email: string;
   accessLevel: AccessLevel;
   profilePhotoUrl: string;
+  pendingLegalDocuments: LegalDocumentConfig[];
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -89,6 +99,9 @@ export function DashboardShell({
   return (
     <div className="min-h-screen bg-slate-50">
       <RevealController />
+      {pendingLegalDocuments.length ? (
+        <LegalReacceptanceModal documents={pendingLegalDocuments} />
+      ) : null}
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform lg:translate-x-0",
@@ -193,6 +206,118 @@ export function DashboardShell({
         <main className="px-4 py-6 sm:px-6 lg:px-8">
           <div className="animate-rise">{children}</div>
         </main>
+      </div>
+    </div>
+  );
+}
+
+function LegalReacceptanceModal({ documents }: { documents: LegalDocumentConfig[] }) {
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+  const [pending, startTransition] = useTransition();
+  const [open, setOpen] = useState(true);
+  const primaryRef = useRef<HTMLButtonElement>(null);
+  const ready = acceptedTerms && acceptedPrivacy;
+
+  useEffect(() => {
+    primaryRef.current?.focus();
+  }, []);
+
+  function submitAcceptance() {
+    if (!ready) return;
+
+    startTransition(async () => {
+      const result = await acceptCurrentLegalDocumentsAction({
+        legalAcceptance: currentLegalAcceptanceVersions(),
+      });
+
+      if (!result.ok) {
+        toast.error("Não foi possível registrar os aceites", {
+          description: result.message,
+        });
+        return;
+      }
+
+      toast.success("Aceites registrados");
+      setOpen(false);
+      window.location.reload();
+    });
+  }
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/65 px-4 py-6">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="legal-reacceptance-title"
+        className="w-full max-w-lg rounded-xl bg-white p-5 shadow-xl shadow-slate-950/20"
+      >
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Documentos atualizados
+        </p>
+        <h2
+          id="legal-reacceptance-title"
+          className="mt-1 text-xl font-bold tracking-tight text-slate-950"
+        >
+          Revise os documentos vigentes
+        </h2>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Para continuar usando a plataforma, registre sua manifestação sobre as versões
+          vigentes dos documentos abaixo.
+        </p>
+
+        <ul className="mt-4 space-y-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+          {documents.map((document) => (
+            <li key={document.type}>
+              <Link
+                href={document.href}
+                target="_blank"
+                rel="noreferrer"
+                className="font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              >
+                {document.title}
+              </Link>{" "}
+              · versão {document.version}
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-4 space-y-3">
+          <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-700">
+            <input
+              type="checkbox"
+              checked={acceptedTerms}
+              onChange={(event) => setAcceptedTerms(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+            />
+            <span>
+              Li e concordo com os Termos de Uso e com a Política de Reembolso.
+            </span>
+          </label>
+          <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-700">
+            <input
+              type="checkbox"
+              checked={acceptedPrivacy}
+              onChange={(event) => setAcceptedPrivacy(event.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+            />
+            <span>Declaro que li e estou ciente da Política de Privacidade.</span>
+          </label>
+        </div>
+
+        <div className="mt-5 flex justify-end">
+          <Button
+            ref={primaryRef}
+            type="button"
+            onClick={submitAcceptance}
+            disabled={!ready || pending}
+          >
+            {pending ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : null}
+            Continuar
+          </Button>
+        </div>
       </div>
     </div>
   );

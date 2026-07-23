@@ -460,6 +460,13 @@ export function EssayCorrectionClient({
                 />
               ) : null}
 
+              <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
+                Evite inserir informações pessoais ou dados sensíveis desnecessários seus
+                ou de terceiros. O texto e os arquivos enviados serão utilizados para
+                processar e entregar a correção da redação, conforme a Política de
+                Privacidade.
+              </div>
+
               <div className="flex flex-col gap-3 border-t border-slate-100 pt-5 sm:flex-row sm:items-center sm:justify-between">
                 <p className="text-sm leading-6 text-slate-600">
                   Ao confirmar, serão debitados{" "}
@@ -509,6 +516,11 @@ export function EssayCorrectionClient({
               <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Como funciona
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  A redação entra em análise pela equipe de correção. O envio pode ser
+                  por arquivo ou texto digitado, e a devolutiva fica disponível na
+                  plataforma quando for concluída.
                 </p>
                 <ol className="mt-3 space-y-2.5">
                   {[

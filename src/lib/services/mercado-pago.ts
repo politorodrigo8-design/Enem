@@ -39,7 +39,7 @@ export async function createMercadoPagoPreference({
       items: [
         {
           id: product.slug,
-          title: product.product_name,
+          title: getMercadoPagoItemTitle(product),
           quantity: 1,
           currency_id: "BRL",
           unit_price: order.amount_cents / 100,
@@ -84,6 +84,14 @@ export async function createMercadoPagoPreference({
     providerOrderId: String(payload.id),
     checkoutUrl,
   };
+}
+
+function getMercadoPagoItemTitle(product: Product) {
+  if (product.product_kind === "credit_package" && product.credit_amount) {
+    return `Pontua Enem - pacote de ${product.credit_amount} créditos`;
+  }
+
+  return product.product_name;
 }
 
 export async function fetchMercadoPagoPayment(paymentId: string) {

@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Check, LogOut } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
@@ -128,15 +127,8 @@ export default async function CheckoutPage() {
                   </div>
 
                   <p className="mt-4 text-xs leading-5 text-slate-500">
-                    Ao pagar, você confirma que leu os{" "}
-                    <Link className="font-semibold text-blue-700 hover:text-blue-800" href="/termos">
-                      termos, incluindo as regras de reembolso
-                    </Link>{" "}
-                    e a{" "}
-                    <Link className="font-semibold text-blue-700 hover:text-blue-800" href="/privacidade">
-                      política de privacidade
-                    </Link>
-                    .
+                    O pagamento é processado pelo Mercado Pago. O acesso só é liberado após
+                    confirmação financeira.
                   </p>
                 </div>
               </CardContent>

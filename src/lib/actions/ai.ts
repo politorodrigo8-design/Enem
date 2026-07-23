@@ -1394,6 +1394,8 @@ function validateStudyPlan(
   const parsed = studyPlanResultSchema.parse(parseJsonObject(content));
   assertNoTechnicalText(parsed);
   // As datas válidas já vêm prontas do servidor; a IA só escolhe entre elas.
+  const allowedStart = context.allowedStartDate;
+  const allowedEnd = context.allowedDates.at(-1)?.date ?? allowedStart;
   const allowedDates = new Set(context.allowedDates.map((item) => item.date));
   const seenSessions = new Set<string>();
   let lastDate = "";
@@ -1402,6 +1404,7 @@ function validateStudyPlan(
   let totalQuestions = 0;
 
   for (const day of parsed.days) {
+    if (day.date < allowedStart || day.date > allowedEnd) throw new Error("out_of_range_plan_day");
     if (!allowedDates.has(day.date)) throw new Error("unavailable_plan_day");
     if (lastDate && day.date < lastDate) throw new Error("unordered_plan_dates");
     lastDate = day.date;

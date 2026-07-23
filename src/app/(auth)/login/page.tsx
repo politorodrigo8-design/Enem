@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
 import { Suspense, useState, useTransition } from "react";
-import { useForm, type UseFormRegisterReturn } from "react-hook-form";
+import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
@@ -24,6 +24,7 @@ import {
   type SignInInput,
   type SignUpInput,
 } from "@/lib/schemas/auth";
+import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
 
 type Mode = "login" | "signup" | "reset";
 
@@ -64,6 +65,7 @@ function LoginPageContent() {
   const setupMissing = searchParams.get("setup") === "supabase";
   const [mode, setMode] = useState<Mode>("login");
   const [pending, startTransition] = useTransition();
+  const legalVersions = currentLegalAcceptanceVersions();
 
   const signInForm = useForm<SignInInput>({
     resolver: zodResolver(signInSchema),
@@ -72,12 +74,26 @@ function LoginPageContent() {
 
   const signUpForm = useForm<SignUpInput>({
     resolver: zodResolver(signUpSchema),
-    defaultValues: { fullName: "", email: "", password: "", confirmPassword: "" },
+    defaultValues: {
+      fullName: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      legalAcceptance: {
+        terms_of_use: "" as typeof legalVersions.terms_of_use,
+        privacy_policy: "" as typeof legalVersions.privacy_policy,
+        refund_policy: "" as typeof legalVersions.refund_policy,
+      },
+    },
   });
 
   const resetForm = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email: "" },
+  });
+  const signupLegalAcceptance = useWatch({
+    control: signUpForm.control,
+    name: "legalAcceptance",
   });
 
   function handleSignIn(values: SignInInput) {
@@ -125,6 +141,12 @@ function LoginPageContent() {
   }
 
   const copy = headline[mode];
+  const signupAcceptedTerms =
+    signupLegalAcceptance?.terms_of_use === legalVersions.terms_of_use &&
+    signupLegalAcceptance?.refund_policy === legalVersions.refund_policy;
+  const signupAcceptedPrivacy =
+    signupLegalAcceptance?.privacy_policy === legalVersions.privacy_policy;
+  const signupLegalReady = signupAcceptedTerms && signupAcceptedPrivacy;
 
   return (
     <main className="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_1fr]">
@@ -262,7 +284,48 @@ function LoginPageContent() {
                 error={signUpForm.formState.errors.confirmPassword?.message}
                 registration={signUpForm.register("confirmPassword")}
               />
-              <Button type="submit" full size="lg" disabled={pending}>
+              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <LegalCheckbox
+                  checked={signupAcceptedTerms}
+                  onChange={(checked) => {
+                    signUpForm.setValue(
+                      "legalAcceptance.terms_of_use",
+                      checked ? legalVersions.terms_of_use : ("" as typeof legalVersions.terms_of_use),
+                      { shouldValidate: true },
+                    );
+                    signUpForm.setValue(
+                      "legalAcceptance.refund_policy",
+                      checked ? legalVersions.refund_policy : ("" as typeof legalVersions.refund_policy),
+                      { shouldValidate: true },
+                    );
+                  }}
+                >
+                  Li e concordo com os{" "}
+                  <LegalLink href="/termos">Termos de Uso</LegalLink> e com a{" "}
+                  <LegalLink href="/reembolso">Política de Reembolso</LegalLink>.
+                </LegalCheckbox>
+                <LegalCheckbox
+                  checked={signupAcceptedPrivacy}
+                  onChange={(checked) => {
+                    signUpForm.setValue(
+                      "legalAcceptance.privacy_policy",
+                      checked
+                        ? legalVersions.privacy_policy
+                        : ("" as typeof legalVersions.privacy_policy),
+                      { shouldValidate: true },
+                    );
+                  }}
+                >
+                  Declaro que li e estou ciente da{" "}
+                  <LegalLink href="/privacidade">Política de Privacidade</LegalLink>.
+                </LegalCheckbox>
+                {signUpForm.formState.errors.legalAcceptance ? (
+                  <p className="text-xs font-semibold text-rose-600" role="alert">
+                    Marque os aceites obrigatórios para criar a conta.
+                  </p>
+                ) : null}
+              </div>
+              <Button type="submit" full size="lg" disabled={pending || !signupLegalReady}>
                 {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                 Criar conta
               </Button>
@@ -311,18 +374,57 @@ function LoginPageContent() {
         </div>
 
         <p className="text-center text-xs leading-5 text-slate-400">
-          Ao continuar, você concorda com os{" "}
+          Consulte os{" "}
           <Link href="/termos" className="underline underline-offset-2 hover:text-slate-600">
-            Termos de uso
-          </Link>{" "}
-          e a{" "}
+            Termos de Uso
+          </Link>
+          {" · "}
           <Link href="/privacidade" className="underline underline-offset-2 hover:text-slate-600">
-            Política de privacidade
+            Política de Privacidade
+          </Link>
+          {" · "}
+          <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-600">
+            Política de Reembolso
           </Link>
           .
         </p>
       </section>
     </main>
+  );
+}
+
+function LegalCheckbox({
+  checked,
+  onChange,
+  children,
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-700">
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChange(event.target.checked)}
+        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+      />
+      <span>{children}</span>
+    </label>
+  );
+}
+
+function LegalLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      target="_blank"
+      rel="noreferrer"
+      className="font-semibold text-blue-700 underline underline-offset-2 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+    >
+      {children}
+    </Link>
   );
 }
 

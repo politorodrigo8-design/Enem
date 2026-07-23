@@ -3,6 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import {
   getSiteUrl,
   getSupabasePublicKey,
@@ -20,6 +22,7 @@ import {
   type UpdatePasswordInput,
 } from "@/lib/schemas/auth";
 import { recordProductEvent } from "@/lib/services/product-events";
+import { recordCurrentLegalAcceptances } from "@/lib/legal/acceptances";
 import { logServerError } from "@/lib/security/public-errors";
 import {
   checkRateLimit,
@@ -116,6 +119,12 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
   if (!isSupabaseConfigured()) {
     return supabaseMissing();
   }
+  if (!isSupabaseAdminConfigured()) {
+    return {
+      ok: false,
+      message: "O cadastro está temporariamente indisponível para registro dos aceites legais.",
+    };
+  }
 
   const parsed = signUpSchema.safeParse(input);
   if (!parsed.success) {
@@ -147,6 +156,27 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
     }
 
     if (data.user) {
+      try {
+        await recordCurrentLegalAcceptances({
+          userId: data.user.id,
+          context: "signup",
+          documentVersions: parsed.data.legalAcceptance,
+          metadata: { source: "signup_form" },
+        });
+      } catch (acceptanceError) {
+        logAuthError("legal acceptance failed after signup", acceptanceError);
+        try {
+          await createAdminClient().auth.admin.deleteUser(data.user.id);
+        } catch (deleteError) {
+          logAuthError("delete user after legal acceptance failure", deleteError);
+        }
+        return {
+          ok: false,
+          message:
+            "Não foi possível registrar os aceites obrigatórios. Nenhuma conta foi criada.",
+        };
+      }
+
       await recordProductEvent({
         supabase,
         userId: data.user.id,

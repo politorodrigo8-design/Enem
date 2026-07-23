@@ -5,12 +5,16 @@ export function LegalPage({
   title,
   documentLabel,
   updatedAt,
+  version,
+  effectiveAt,
   notice,
   sections,
 }: {
   title: string;
   documentLabel: string;
   updatedAt: string;
+  version?: string;
+  effectiveAt?: string;
   notice: string;
   sections: Array<{ id: string; heading: string; body: React.ReactNode }>;
 }) {
@@ -22,7 +26,9 @@ export function LegalPage({
           className="animate-rise mt-4 text-base leading-7 text-slate-600"
           style={{ "--rise-delay": "70ms" } as React.CSSProperties}
         >
-          {documentLabel} · Última atualização: {updatedAt}. {notice}
+          {documentLabel} · Versão: {version ?? updatedAt} · Última atualização:{" "}
+          {updatedAt}
+          {effectiveAt ? ` · Vigência: ${effectiveAt}` : ""}. {notice}
         </p>
         <Reveal delay={140}>
           <Card className="mt-8">

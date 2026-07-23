@@ -6,16 +6,19 @@ import {
   ESSAY_UPLOAD_LIMIT_LABEL,
   PRODUCT_NAME,
 } from "@/lib/product-config";
+import { legalContacts, legalDocuments } from "@/lib/legal/config";
 
-const SUPPORT_EMAIL = "suporte@pontuaenem.com.br";
-const UPDATED_AT = "22 de julho de 2026";
+const termsDocument = legalDocuments.terms_of_use;
+const SUPPORT_EMAIL = legalContacts.supportEmail;
 
 export default function TermsPage() {
   return (
     <LegalPage
       title="Termos de uso"
       documentLabel="Termos de Uso do Pontua Enem"
-      updatedAt={UPDATED_AT}
+      updatedAt={termsDocument.updatedAtLabel}
+      version={termsDocument.version}
+      effectiveAt={termsDocument.effectiveAtLabel}
       notice="Leia antes de contratar ou usar a plataforma."
       sections={[
         {
@@ -25,13 +28,16 @@ export default function TermsPage() {
             <>
               <p>
                 O Pontua Enem é uma plataforma educacional de preparação estratégica para
-                o ENEM. Ao criar conta, acessar a plataforma ou contratar o {PRODUCT_NAME},
-                você declara que leu e aceita estes Termos.
+                o ENEM. Ao criar uma conta, o usuário deverá manifestar expressamente sua
+                concordância com os Termos de Uso e com a Política de Reembolso e declarar
+                ciência da Política de Privacidade, por meio das opções apresentadas no
+                cadastro.
               </p>
               <p>
-                A Política de Privacidade integra estes Termos. Usuários menores de idade
-                devem utilizar a plataforma com ciência ou assistência do responsável legal,
-                conforme aplicável.
+                A contratação do {PRODUCT_NAME} e a compra de créditos podem exigir novo
+                aceite das condições comerciais vigentes. Também poderá haver nova
+                solicitação de aceite quando ocorrer alteração relevante destes Termos, da
+                Política de Reembolso, das regras de créditos ou do tratamento de dados.
               </p>
             </>
           ),
@@ -48,8 +54,9 @@ export default function TermsPage() {
               </p>
               <p>
                 As redações podem ser enviadas por texto digitado ou arquivo aceito pela
-                plataforma. Recursos automatizados, recomendações e eventuais integrações de
-                IA são usados apenas como apoio educacional quando estiverem disponíveis.
+                plataforma. Explicações de questões, análises de desempenho e planos
+                inteligentes podem ser gerados com apoio de IA, conforme disponibilidade,
+                sempre com finalidade educacional.
               </p>
               <p>
                 Funcionalidades podem ser atualizadas, substituídas ou descontinuadas,
@@ -72,6 +79,7 @@ export default function TermsPage() {
                 items={[
                   "Não há garantia de aprovação, vaga, bolsa, classificação ou nota específica.",
                   "Radar, prioridades, indicadores e projeções são estimativas educacionais.",
+                  "Recursos automatizados de IA são apoio educacional e não garantem exatidão absoluta, nota, aprovação ou resultado.",
                   "Não existe garantia de que determinado assunto, questão ou tema cairá no ENEM.",
                 ]}
               />
@@ -87,6 +95,7 @@ export default function TermsPage() {
                 "Você deve fornecer dados corretos e manter suas informações atualizadas.",
                 "A conta é pessoal e não pode ser compartilhada, vendida ou cedida.",
                 "Você é responsável por proteger sua senha e avisar o suporte em caso de acesso indevido.",
+                "Estudantes menores de idade devem usar a plataforma com ciência e orientação de seu responsável legal, em linguagem e finalidade compatíveis com preparação educacional.",
                 "Contas podem ser suspensas em caso de fraude, abuso, compartilhamento ou violação destes Termos.",
               ]}
             />
@@ -121,7 +130,8 @@ export default function TermsPage() {
             <>
               <p>
                 Créditos são unidades internas de uso. Eles não representam moeda,
-                investimento, saldo bancário e não podem ser convertidos em dinheiro.
+                investimento, saldo bancário e não podem ser convertidos em dinheiro. São
+                pessoais, intransferíveis e vinculados à conta do usuário.
               </p>
               <p>
                 O envio confirmado de redação consome {ESSAY_CREDIT_COST_LABEL}. O usuário
@@ -130,9 +140,23 @@ export default function TermsPage() {
                 disponível na plataforma até a devolutiva ser liberada.
               </p>
               <p>
+                Créditos comprados são liberados após a confirmação do pagamento pelo
+                Mercado Pago. Não foi implementada expiração própria para créditos enquanto
+                a conta permanecer ativa, ressalvadas alterações futuras informadas
+                previamente e os direitos legais aplicáveis.
+              </p>
+              <p>
+                Créditos podem ser concedidos com o produto principal, comprados
+                separadamente ou concedidos de forma promocional. O sistema mantém saldo e
+                histórico em ledger; débitos indevidos, falhas técnicas, cobranças
+                duplicadas ou pagamento aprovado sem entrega podem ser corrigidos conforme
+                a Política de Reembolso e a legislação aplicável.
+              </p>
+              <p>
                 Arquivos ilegíveis, corrompidos, incompletos, ilícitos, ofensivos ou fora
-                das regras podem ser recusados. Créditos adicionais só poderão ser
-                comprados quando a opção estiver expressamente habilitada.
+                das regras podem ser recusados. A redação entra em análise pela equipe de
+                correção, e o usuário deve evitar dados pessoais desnecessários no texto,
+                nas observações e nos arquivos.
               </p>
             </>
           ),
@@ -200,8 +224,9 @@ export default function TermsPage() {
           body: (
             <>
               <p>
-                Compras online podem ter direito de arrependimento em até 7 dias, conforme
-                a legislação aplicável. Veja a{" "}
+                Nas compras realizadas pela internet, o consumidor poderá exercer o
+                direito de arrependimento no prazo legal de 7 dias, contado na forma da
+                legislação aplicável, sem necessidade de apresentar justificativa. Veja a{" "}
                 <Link href="/reembolso" className="font-semibold text-blue-700 hover:text-blue-800">
                   Política de Reembolso
                 </Link>
@@ -247,9 +272,8 @@ export default function TermsPage() {
                 .
               </p>
               <p>
-                O projeto ainda está em fase inicial. Dados institucionais formais e
-                responsabilidades legais devem ser revisados com assessoria jurídica antes
-                da abertura de vendas comerciais definitivas.
+                Solicitações sobre conta, pagamento, créditos, redações ou uso da
+                plataforma devem ser enviadas por esse canal.
               </p>
             </>
           ),
