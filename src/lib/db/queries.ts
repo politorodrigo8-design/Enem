@@ -143,7 +143,18 @@ export async function getDashboardIdentity() {
     email: profile?.email || user.email || "",
     accessLevel: access.level,
     betaTester: access.betaTester,
+    profilePhotoUrl: getProfilePhotoUrl(profile),
   };
+}
+
+function getProfilePhotoUrl(profile: Profile | null) {
+  const preferences = profile?.study_preferences;
+  if (!preferences || typeof preferences !== "object" || Array.isArray(preferences)) {
+    return "";
+  }
+
+  const value = preferences.profile_photo_url;
+  return typeof value === "string" && value.startsWith("data:image/") ? value : "";
 }
 
 export async function getProfile(): Promise<Profile | null> {

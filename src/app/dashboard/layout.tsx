@@ -13,6 +13,7 @@ export default async function DashboardLayout({
       fullName={identity.fullName}
       email={identity.email}
       accessLevel={identity.accessLevel}
+      profilePhotoUrl={identity.profilePhotoUrl}
     >
       {children}
     </DashboardShell>

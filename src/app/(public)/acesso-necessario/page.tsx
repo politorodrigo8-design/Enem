@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Check, Headphones } from "lucide-react";
+import { ArrowRight, Check, Headphones, LogOut } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { signOutAction } from "@/lib/actions/auth";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 
 const benefits = [
@@ -50,6 +51,20 @@ export default async function AccessRequiredPage() {
                 Suporte
               </Link>
             </div>
+
+            <form action={signOutAction} className="mt-5">
+              <button
+                type="submit"
+                className={buttonClasses({
+                  variant: "ghost",
+                  size: "md",
+                  className: "text-slate-600",
+                })}
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                Trocar conta
+              </button>
+            </form>
           </CardContent>
         </Card>
       </div>

@@ -22,6 +22,7 @@ import {
   DifficultyMeter,
   DifficultyScale,
 } from "@/components/dashboard/difficulty-scale";
+import { WeekdaySelector } from "@/components/dashboard/weekday-selector";
 import { saveDiagnosisAction } from "@/lib/actions/learning";
 import type { Profile } from "@/lib/db/types";
 import { priorityTone } from "@/lib/utils";
@@ -402,13 +403,13 @@ function DiagnosisForm({
                   setForm((current) => ({ ...current, weekly_hours: Number(value) }))
                 }
               />
-              <InputField
+              <WeekdaySelector
                 label="Dias disponíveis"
-                placeholder="Ex.: Segunda, quarta, sexta e sábado"
                 value={form.available_days}
                 onChange={(value) =>
                   setForm((current) => ({ ...current, available_days: value }))
                 }
+                className="md:col-span-2"
               />
             </div>
           ) : null}

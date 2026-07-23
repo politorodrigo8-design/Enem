@@ -1,6 +1,7 @@
 "use client";
 
-import { KeyRound, Loader2, LogOut, Save, ShieldCheck, UserCog } from "lucide-react";
+import Image from "next/image";
+import { ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { signOutAction, updatePasswordAction } from "@/lib/actions/auth";
@@ -9,11 +10,12 @@ import { accessLevelLabel, type AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
 import type { OnboardingInput } from "@/lib/schemas/beta";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DifficultyScale } from "@/components/dashboard/difficulty-scale";
 import { Badge } from "@/components/ui/badge";
 import { Reveal } from "@/components/ui/reveal";
+import { WeekdaySelector } from "@/components/dashboard/weekday-selector";
 
 const areas = [
   "Linguagens",
@@ -40,6 +42,7 @@ export function SettingsClient({
   access: AccessContext;
 }) {
   const formId = useId();
+  const initialStudyPreferences = getStudyPreferences(profile);
   const storedDifficulties =
     typeof profile?.perceived_difficulties === "object" &&
     profile.perceived_difficulties !== null &&
@@ -59,22 +62,64 @@ export function SettingsClient({
     perceived_difficulties: Object.fromEntries(
       areas.map((area) => [area, Number(storedDifficulties[area] ?? 3)]),
     ),
-    study_preferences:
-      typeof profile?.study_preferences === "object" &&
-      profile.study_preferences &&
-      !Array.isArray(profile.study_preferences)
-        ? profile.study_preferences
-        : {},
+    study_preferences: initialStudyPreferences,
   });
   const [passwords, setPasswords] = useState({
     password: "",
     confirmPassword: "",
   });
+  const [pendingPhoto, setPendingPhoto] = useState(false);
   const [preferencesText, setPreferencesText] = useState(
     typeof form.study_preferences?.notes === "string"
       ? String(form.study_preferences.notes)
       : "",
   );
+  const profilePhotoUrl = getProfilePhotoUrl(form.study_preferences);
+
+  async function uploadProfilePhoto(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Escolha uma imagem em PNG, JPG ou WebP.");
+      return;
+    }
+
+    if (file.size > 6 * 1024 * 1024) {
+      toast.error("Escolha uma imagem de até 6 MB.");
+      return;
+    }
+
+    setPendingPhoto(true);
+    try {
+      const photoUrl = await resizeProfilePhoto(file);
+      setForm((current) => ({
+        ...current,
+        study_preferences: {
+          ...current.study_preferences,
+          profile_photo_url: photoUrl,
+        },
+      }));
+      toast.success("Foto carregada. Salve as configurações para manter a alteração.");
+    } catch {
+      toast.error("Não foi possível carregar essa imagem.");
+    } finally {
+      setPendingPhoto(false);
+    }
+  }
+
+  function removeProfilePhoto() {
+    setForm((current) => {
+      const nextPreferences = { ...current.study_preferences };
+      delete nextPreferences.profile_photo_url;
+
+      return {
+        ...current,
+        study_preferences: nextPreferences,
+      };
+    });
+  }
 
   function saveProfile() {
     startProfileTransition(async () => {
@@ -116,6 +161,62 @@ export function SettingsClient({
           <CardTitle>Perfil e rotina</CardTitle>
         </CardHeader>
         <CardContent className="space-y-5">
+          <div className="flex flex-col gap-4 rounded-lg border border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-3">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-700 text-xl font-bold text-white">
+                {profilePhotoUrl ? (
+                  <Image
+                    src={profilePhotoUrl}
+                    alt="Foto de perfil"
+                    width={64}
+                    height={64}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  (form.full_name.trim()[0] || "P").toUpperCase()
+                )}
+              </div>
+              <div>
+                <p className="text-sm font-bold text-slate-950">Foto de perfil</p>
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  Use uma imagem quadrada ou centralizada para aparecer bem no menu.
+                </p>
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <label
+                className={buttonClasses({
+                  variant: "outline",
+                  size: "sm",
+                  className: pendingPhoto ? "pointer-events-none opacity-55" : "",
+                })}
+                htmlFor={`${formId}-profile-photo`}
+              >
+                {pendingPhoto ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <ImagePlus className="h-4 w-4" aria-hidden="true" />
+                )}
+                Escolher foto
+              </label>
+              <input
+                id={`${formId}-profile-photo`}
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={uploadProfilePhoto}
+                className="sr-only"
+                disabled={pendingPhoto}
+              />
+              {profilePhotoUrl ? (
+                <Button type="button" variant="ghost" size="sm" onClick={removeProfilePhoto}>
+                  <Trash2 className="h-4 w-4" aria-hidden="true" />
+                  Remover
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
           <div className="grid gap-4 md:grid-cols-2">
             <Input
               id={`${formId}-full-name`}
@@ -176,17 +277,15 @@ export function SettingsClient({
               value={form.weekly_hours}
               onChange={(weekly_hours) => setForm((current) => ({ ...current, weekly_hours }))}
             />
-            <label className="block md:col-span-2" htmlFor={`${formId}-available-days`}>
-              <span className="text-sm font-semibold text-slate-700">Dias disponíveis</span>
-              <input
-                id={`${formId}-available-days`}
-                name="available_days"
-                autoComplete="off"
-                value={form.available_days}
-                onChange={(event) => setForm((current) => ({ ...current, available_days: event.target.value }))}
-                className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-              />
-            </label>
+            <WeekdaySelector
+              id={`${formId}-available-days`}
+              label="Dias disponíveis"
+              value={form.available_days}
+              onChange={(available_days) =>
+                setForm((current) => ({ ...current, available_days }))
+              }
+              className="md:col-span-2"
+            />
             <label className="block md:col-span-2" htmlFor={`${formId}-study-preferences`}>
               <span className="text-sm font-semibold text-slate-700">Preferências de estudo</span>
               <textarea
@@ -323,6 +422,54 @@ export function SettingsClient({
       </Reveal>
     </div>
   );
+}
+
+function getStudyPreferences(profile: Profile | null): Record<string, unknown> {
+  return typeof profile?.study_preferences === "object" &&
+    profile.study_preferences &&
+    !Array.isArray(profile.study_preferences)
+    ? profile.study_preferences
+    : {};
+}
+
+function getProfilePhotoUrl(studyPreferences: Record<string, unknown>) {
+  const value = studyPreferences.profile_photo_url;
+  return typeof value === "string" && value.startsWith("data:image/") ? value : "";
+}
+
+function resizeProfilePhoto(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+
+    reader.onerror = () => reject(new Error("read_failed"));
+    reader.onload = () => {
+      const image = new window.Image();
+
+      image.onerror = () => reject(new Error("image_failed"));
+      image.onload = () => {
+        const maxSize = 384;
+        const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+        const width = Math.max(1, Math.round(image.width * scale));
+        const height = Math.max(1, Math.round(image.height * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+
+        const context = canvas.getContext("2d");
+        if (!context) {
+          reject(new Error("canvas_failed"));
+          return;
+        }
+
+        context.drawImage(image, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", 0.86));
+      };
+
+      image.src = String(reader.result);
+    };
+
+    reader.readAsDataURL(file);
+  });
 }
 
 function Input({

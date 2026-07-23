@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { DifficultyScale } from "@/components/dashboard/difficulty-scale";
 import { Progress } from "@/components/ui/progress";
+import { WeekdaySelector } from "@/components/dashboard/weekday-selector";
 import { saveOnboardingAction } from "@/lib/actions/beta";
 import type { Profile } from "@/lib/db/types";
 import type { OnboardingInput } from "@/lib/schemas/beta";
@@ -180,13 +181,13 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
                   }))
                 }
               />
-              <InputField
+              <WeekdaySelector
                 label="Dias disponíveis"
                 value={form.available_days}
-                placeholder="Ex.: Segunda, quarta e sábado"
                 onChange={(available_days) =>
                   setForm((current) => ({ ...current, available_days }))
                 }
+                className="sm:col-span-2"
               />
             </div>
           ) : null}

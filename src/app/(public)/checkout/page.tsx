@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, LogOut } from "lucide-react";
+import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Logo } from "@/components/ui/logo";
 import { getAccessContext } from "@/lib/access";
+import { signOutAction } from "@/lib/actions/auth";
 import { formatAppDateTime } from "@/lib/dates";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
 import { createClient } from "@/lib/supabase/server";
@@ -94,6 +96,28 @@ export default async function CheckoutPage() {
                     <SummaryRow label="Validade" value={accessValidUntil} />
                     <SummaryRow label="Renovação" value="Não automática" />
                     <SummaryRow label="Conta" value={user.email ?? "aluno Pontua Enem"} />
+                  </div>
+
+                  <div className="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Entrou com o e-mail errado?
+                    </p>
+                    <p className="mt-1 text-xs leading-5 text-slate-600">
+                      Saia desta conta para entrar com outro e-mail antes de comprar.
+                    </p>
+                    <form action={signOutAction} className="mt-3">
+                      <button
+                        type="submit"
+                        className={buttonClasses({
+                          variant: "outline",
+                          size: "sm",
+                          full: true,
+                        })}
+                      >
+                        <LogOut className="h-4 w-4" aria-hidden="true" />
+                        Trocar conta
+                      </button>
+                    </form>
                   </div>
 
                   <div className="mt-5">

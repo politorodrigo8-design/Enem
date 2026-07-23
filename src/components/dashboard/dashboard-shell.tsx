@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   BookOpen,
@@ -50,11 +51,13 @@ export function DashboardShell({
   fullName,
   email,
   accessLevel,
+  profilePhotoUrl,
 }: {
   children: React.ReactNode;
   fullName: string;
   email: string;
   accessLevel: AccessLevel;
+  profilePhotoUrl: string;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -163,7 +166,12 @@ export function DashboardShell({
               Bons estudos, {fullName.split(" ")[0] || "aluno"}
             </p>
           </div>
-          <UserMenu fullName={fullName} email={email} initials={initials} />
+          <UserMenu
+            fullName={fullName}
+            email={email}
+            initials={initials}
+            profilePhotoUrl={profilePhotoUrl}
+          />
         </header>
         <main className="px-4 py-6 sm:px-6 lg:px-8">
           <div className="animate-rise">{children}</div>
@@ -177,10 +185,12 @@ function UserMenu({
   fullName,
   email,
   initials,
+  profilePhotoUrl,
 }: {
   fullName: string;
   email: string;
   initials: string;
+  profilePhotoUrl: string;
 }) {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -214,9 +224,7 @@ function UserMenu({
         onClick={() => setOpen((value) => !value)}
         className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-700 text-sm font-bold text-white">
-          {initials || "NE"}
-        </span>
+        <Avatar initials={initials} profilePhotoUrl={profilePhotoUrl} />
         <span className="hidden text-left sm:block">
           <span className="block text-sm font-semibold leading-tight text-slate-950">
             {fullName}
@@ -264,5 +272,30 @@ function UserMenu({
         </div>
       ) : null}
     </div>
+  );
+}
+
+function Avatar({
+  initials,
+  profilePhotoUrl,
+}: {
+  initials: string;
+  profilePhotoUrl: string;
+}) {
+  return (
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-blue-700 text-sm font-bold text-white">
+      {profilePhotoUrl ? (
+        <Image
+          src={profilePhotoUrl}
+          alt="Foto de perfil"
+          width={36}
+          height={36}
+          unoptimized
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        initials || "NE"
+      )}
+    </span>
   );
 }

@@ -1584,6 +1584,7 @@ function parseAvailableWeekdays(value: string) {
     ["segunda", "segunda-feira"],
     ["segunda-feira", "segunda-feira"],
     ["terca", "terça-feira"],
+    ["terca-feira", "terça-feira"],
     ["terça", "terça-feira"],
     ["terça-feira", "terça-feira"],
     ["quarta", "quarta-feira"],
