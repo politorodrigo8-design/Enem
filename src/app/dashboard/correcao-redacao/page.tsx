@@ -38,6 +38,7 @@ export default async function EssayCorrectionPage() {
       <EssayCorrectionClient
         creditBalance={data.account.balance}
         submissions={data.submissions}
+        weeklyTopicUnlocks={data.weeklyTopicUnlocks}
       />
     </div>
   );

@@ -90,10 +90,13 @@ function newIdempotencyKey() {
 export function EssayCorrectionClient({
   creditBalance,
   submissions,
+  weeklyTopicUnlocks,
 }: {
   creditBalance: number;
   submissions: EssayWithFiles[];
+  weeklyTopicUnlocks: string[];
 }) {
+  const [availableCreditBalance, setAvailableCreditBalance] = useState(creditBalance);
   const [theme, setTheme] = useState("");
   const [studentNote, setStudentNote] = useState("");
   const [deliveryMode, setDeliveryMode] = useState<DeliveryMode>("upload");
@@ -105,7 +108,7 @@ export function EssayCorrectionClient({
   const filesRef = useRef(files);
   const themeInputRef = useRef<HTMLInputElement>(null);
 
-  const hasCredits = creditBalance >= ESSAY_CREDIT_COST;
+  const hasCredits = availableCreditBalance >= ESSAY_CREDIT_COST;
   const totalSize = files.reduce((sum, item) => sum + item.file.size, 0);
   const essayWordCount = countWords(essayText);
   const canSubmit =
@@ -250,9 +253,13 @@ export function EssayCorrectionClient({
       {activeWeeklyEssayTopic ? (
         <Reveal delay={0}>
           <WeeklyEssayTopicCard
+            key={activeWeeklyEssayTopic.id}
             topic={activeWeeklyEssayTopic}
             topicCount={weeklyEssayTopics.length}
+            creditBalance={availableCreditBalance}
+            initiallyUnlocked={weeklyTopicUnlocks.includes(activeWeeklyEssayTopic.id)}
             onUseTopic={useSuggestedTopic}
+            onBalanceChange={setAvailableCreditBalance}
           />
         </Reveal>
       ) : null}
@@ -453,7 +460,7 @@ export function EssayCorrectionClient({
                   <span className="font-semibold text-slate-950">
                     {ESSAY_CREDIT_COST_LABEL}
                   </span>
-                  . Saldo atual: <span className="font-semibold text-slate-950">{creditBalance}</span>.
+                  . Saldo atual: <span className="font-semibold text-slate-950">{availableCreditBalance}</span>.
                 </p>
                 <Button type="button" onClick={submitEssay} disabled={!canSubmit || Boolean(validationMessage)}>
                   {pending ? (

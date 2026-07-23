@@ -414,7 +414,8 @@ export type Database = {
             | "ai_question_explanation"
             | "ai_performance_analysis"
             | "ai_study_plan"
-            | "ai_credit_refund";
+            | "ai_credit_refund"
+            | "weekly_essay_topic";
           reference_type: string | null;
           reference_id: string | null;
           related_ledger_id: string | null;
@@ -438,7 +439,8 @@ export type Database = {
             | "ai_question_explanation"
             | "ai_performance_analysis"
             | "ai_study_plan"
-            | "ai_credit_refund";
+            | "ai_credit_refund"
+            | "weekly_essay_topic";
           reference_type?: string | null;
           reference_id?: string | null;
           related_ledger_id?: string | null;
@@ -887,6 +889,13 @@ export type Database = {
         Args: {
           input_ledger_id: string;
           input_reason?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
+      };
+      unlock_weekly_essay_topic: {
+        Args: {
+          input_topic_id: string;
+          input_topic_title?: string | null;
         };
         Returns: Database["public"]["Tables"]["credit_ledger"]["Row"];
       };

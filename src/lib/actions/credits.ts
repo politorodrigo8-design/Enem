@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { accessRequiredMessage, getAccessContext } from "@/lib/access";
 import type { ActionResult } from "@/lib/actions/auth";
 import type { Profile } from "@/lib/db/types";
+import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
 import {
   ESSAY_CREDIT_COST,
   ESSAY_SIGNED_URL_EXPIRES_IN_SECONDS,
@@ -100,6 +101,73 @@ function mapAdminEssayError(message: string) {
     return "Redacao cancelada nao pode ser concluida.";
   }
   return "Nao foi possivel atualizar a redacao agora.";
+}
+
+function mapWeeklyTopicUnlockError(message: string) {
+  if (message.includes("insufficient credits")) {
+    return "Saldo insuficiente para liberar a proposta completa.";
+  }
+  if (message.includes("platform access required")) {
+    return accessRequiredMessage();
+  }
+  if (message.includes("invalid weekly essay topic")) {
+    return "Tema sugerido invalido para liberacao.";
+  }
+  return "Nao foi possivel liberar a proposta completa agora.";
+}
+
+export async function unlockWeeklyEssayTopicAction(input: {
+  topicId: string;
+  topicTitle: string;
+}): Promise<ActionResult & { balanceAfter?: number; cost?: number }> {
+  const context = await getAuthenticatedContext();
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if (!context.access.hasPlatformAccess) {
+    return {
+      ok: false,
+      message: context.access.expired
+        ? "Seu acesso ao Pontua Enem expirou."
+        : accessRequiredMessage(),
+    };
+  }
+
+  const topicId = input.topicId.trim().toLowerCase();
+  const topicTitle = input.topicTitle.trim();
+  if (!/^[a-z0-9][a-z0-9_-]{2,119}$/.test(topicId) || !topicTitle) {
+    return { ok: false, message: "Tema sugerido invalido para liberacao." };
+  }
+
+  const rateLimit = await checkRateLimit({
+    operation: "essays.weekly_topic_unlock",
+    identifier: userRateLimitIdentifier(context.user.id),
+    limit: 10,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
+
+  const { data, error } = await context.supabase.rpc("unlock_weekly_essay_topic", {
+    input_topic_id: topicId,
+    input_topic_title: topicTitle,
+  });
+
+  if (error || !data) {
+    if (error) logServerError("credits.unlockWeeklyEssayTopic", error, { topicId });
+    return {
+      ok: false,
+      message: mapWeeklyTopicUnlockError(error?.message ?? "Nao foi possivel liberar."),
+    };
+  }
+
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/correcao-redacao");
+  revalidatePath("/dashboard/creditos");
+
+  return {
+    ok: true,
+    message: "Proposta completa liberada.",
+    balanceAfter: data.balance_after,
+    cost: WEEKLY_ESSAY_TOPIC_UNLOCK_COST,
+  };
 }
 
 export async function submitEssayCorrectionAction(

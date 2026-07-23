@@ -50,6 +50,7 @@ export type CreditsData = {
 export type EssayCorrectionData = {
   account: CreditAccount;
   submissions: EssaySubmission[];
+  weeklyTopicUnlocks: string[];
 };
 
 export type DashboardEssayCreditData = {

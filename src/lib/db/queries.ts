@@ -692,21 +692,42 @@ export async function getEssayCorrectionData(): Promise<EssayCorrectionData> {
     throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
   }
 
-  const { data: submissions, error } = await supabase
-    .from("essay_submissions")
-    .select("*, essay_submission_files(*)")
-    .eq("user_id", user.id)
-    .order("submitted_at", { ascending: false })
-    .order("page_order", { referencedTable: "essay_submission_files", ascending: true })
-    .limit(8);
+  const [submissionsResult, topicUnlocksResult] = await Promise.all([
+    supabase
+      .from("essay_submissions")
+      .select("*, essay_submission_files(*)")
+      .eq("user_id", user.id)
+      .order("submitted_at", { ascending: false })
+      .order("page_order", { referencedTable: "essay_submission_files", ascending: true })
+      .limit(8),
+    supabase
+      .from("credit_ledger")
+      .select("metadata")
+      .eq("user_id", user.id)
+      .eq("reason", "weekly_essay_topic"),
+  ]);
 
-  if (error) {
-    logQueryError("essay_submissions.by_user", error);
+  if (submissionsResult.error) {
+    logQueryError("essay_submissions.by_user", submissionsResult.error);
+  }
+  if (topicUnlocksResult.error) {
+    logQueryError("credit_ledger.weekly_topic_unlocks", topicUnlocksResult.error);
   }
 
   return {
     account,
-    submissions: submissions ?? [],
+    submissions: submissionsResult.data ?? [],
+    weeklyTopicUnlocks: (topicUnlocksResult.data ?? [])
+      .map((entry) =>
+        typeof entry.metadata === "object" &&
+        entry.metadata &&
+        !Array.isArray(entry.metadata) &&
+        "topic_id" in entry.metadata &&
+        typeof entry.metadata.topic_id === "string"
+          ? entry.metadata.topic_id
+          : null,
+      )
+      .filter((topicId): topicId is string => Boolean(topicId)),
   };
 }
 

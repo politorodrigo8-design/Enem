@@ -1,4 +1,5 @@
 export type WeeklyEssayTopic = {
+  id: string;
   title: string;
   shortDescription: string;
   command: string;
@@ -13,8 +14,11 @@ export type WeeklyEssayTopic = {
   active: boolean;
 };
 
+export const WEEKLY_ESSAY_TOPIC_UNLOCK_COST = 1;
+
 export const weeklyEssayTopics: WeeklyEssayTopic[] = [
   {
+    id: "2026-07-20-desinformacao-jovens",
     title: "Desafios para combater a desinformação entre jovens no Brasil",
     shortDescription:
       "Treine sua argumentação com uma proposta atual e estruturada no formato do ENEM.",

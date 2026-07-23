@@ -30,6 +30,7 @@ const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
   ai_performance_analysis: "Análise de desempenho com IA",
   ai_study_plan: "Plano inteligente com IA",
   ai_credit_refund: "Estorno de IA",
+  weekly_essay_topic: "Proposta de redação semanal",
 };
 
 const essayStatusLabels: Record<EssaySubmission["status"], string> = {

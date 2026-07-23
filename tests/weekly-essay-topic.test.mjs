@@ -17,6 +17,7 @@ const cardSource = readFileSync(
 
 test("tema sugerido semanal mantem conteudo editorial estruturado", () => {
   assert.match(contentSource, /type WeeklyEssayTopic = \{/);
+  assert.match(contentSource, /id: string/);
   assert.match(contentSource, /title: string/);
   assert.match(contentSource, /shortDescription: string/);
   assert.match(contentSource, /command: string/);
@@ -26,6 +27,7 @@ test("tema sugerido semanal mantem conteudo editorial estruturado", () => {
   assert.match(contentSource, /startsAt: string/);
   assert.match(contentSource, /endsAt: string/);
   assert.match(contentSource, /active: boolean/);
+  assert.match(contentSource, /WEEKLY_ESSAY_TOPIC_UNLOCK_COST = 1/);
   assert.match(contentSource, /Desafios para combater a desinformação entre jovens no Brasil/);
   assert.match(contentSource, /active: true/);
 });
@@ -34,7 +36,9 @@ test("card semanal oferece a proposta completa sem expor historico vazio", () =>
   assert.match(cardSource, /Tema sugerido da semana/);
   assert.match(cardSource, /Usar este tema/);
   assert.match(cardSource, /Ver proposta completa/);
+  assert.match(cardSource, /Liberar proposta completa/);
   assert.match(cardSource, /AiResponsivePanel/);
+  assert.match(cardSource, /AiConfirmationDialog/);
   assert.match(cardSource, /mode="drawer"/);
   assert.match(cardSource, /topicCount > 1/);
   assert.match(cardSource, /otherTopicsHref/);
