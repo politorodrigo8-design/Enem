@@ -9,6 +9,7 @@ import {
   Filter,
   ImageIcon,
   ListChecks,
+  PlayCircle,
   Search,
   Target,
   XCircle,
@@ -41,6 +42,36 @@ type Props = {
 
 const pageSize = 1;
 const sessionSizes = ["10", "15", "20", "30", "Todas"] as const;
+const quickSessionSizes = ["10", "15", "20"] as const;
+type FocusMode = "recommended" | "priority" | "unanswered" | "review" | "all";
+
+const focusModes: Array<{ id: FocusMode; label: string; helper: string }> = [
+  {
+    id: "recommended",
+    label: "Recomendadas",
+    helper: "Prioridade alta e questões novas primeiro",
+  },
+  {
+    id: "priority",
+    label: "Alta prioridade",
+    helper: "Assuntos com maior potencial de ganho",
+  },
+  {
+    id: "unanswered",
+    label: "Novas",
+    helper: "Questões que você ainda não respondeu",
+  },
+  {
+    id: "review",
+    label: "Favoritas",
+    helper: "Questões salvas para revisar depois",
+  },
+  {
+    id: "all",
+    label: "Explorar banco",
+    helper: "Use filtros quando quiser procurar algo específico",
+  },
+];
 
 export function QuestionBankClient({
   questions,
@@ -68,7 +99,10 @@ export function QuestionBankClient({
   const [status, setStatus] = useState("Todas");
   const [search, setSearch] = useState("");
   const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>(() =>
-    answerSource === "question_bank" ? "Todas" : "15",
+    "15",
+  );
+  const [focusMode, setFocusMode] = useState<FocusMode>(
+    answerSource === "question_bank" ? "recommended" : "priority",
   );
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
@@ -108,7 +142,7 @@ export function QuestionBankClient({
       ]),
     ),
   );
-  const [filtersOpen, setFiltersOpen] = useState(answerSource === "question_bank");
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const orderedQuestions = useMemo(() => {
     if (!initialQuestionId) return questions;
@@ -168,10 +202,17 @@ export function QuestionBankClient({
     return orderedQuestions.filter((question) => {
       const answered = Boolean(answerState[question.id]);
       const reviewed = Boolean(reviewState[question.id]);
+      const highPriority = isHighPriority(question);
       const matchesStatus =
         status === "Todas" ||
         (status === "Respondida" && answered) ||
         (status === "Não respondida" && !answered);
+      const matchesFocus =
+        focusMode === "all" ||
+        (focusMode === "priority" && highPriority) ||
+        (focusMode === "unanswered" && !answered) ||
+        (focusMode === "review" && reviewed) ||
+        (focusMode === "recommended" && (highPriority || !answered));
       const matchesSearch =
         !search ||
         [
@@ -199,10 +240,11 @@ export function QuestionBankClient({
         (origin === "Todas" || questionOrigin(question) === origin) &&
         (board === "Todas" || questionBoard(question) === board) &&
         (status === "Favoritas" ? reviewed : matchesStatus) &&
+        matchesFocus &&
         matchesSearch
       );
     });
-  }, [answerState, area, board, difficulty, discipline, orderedQuestions, origin, reviewState, search, status, topic, year]);
+  }, [answerState, area, board, difficulty, discipline, focusMode, orderedQuestions, origin, reviewState, search, status, topic, year]);
 
   const sessionQuestions = useMemo(() => {
     if (sessionSize === "Todas") return filtered;
@@ -268,6 +310,7 @@ export function QuestionBankClient({
   }
 
   function resetFilters() {
+    setFocusMode(answerSource === "question_bank" ? "recommended" : "priority");
     setArea("Todas");
     setDiscipline("Todas");
     setTopic("Todos");
@@ -277,6 +320,12 @@ export function QuestionBankClient({
     setBoard("Todas");
     setStatus("Todas");
     setSearch("");
+    move(0);
+  }
+
+  function applyFocusMode(mode: FocusMode) {
+    setFocusMode(mode);
+    setSessionSize("15");
     move(0);
   }
 
@@ -301,8 +350,107 @@ export function QuestionBankClient({
         <PriorityExplanation questions={questions} />
       ) : null}
 
+      <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-900/5">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+          <div>
+            <p className="flex items-center gap-2 text-sm font-bold text-slate-950">
+              <PlayCircle className="h-4 w-4 text-blue-700" aria-hidden="true" />
+              Sessão de prática
+            </p>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
+              Em vez de encarar o banco inteiro, resolva um bloco curto. Troque
+              o foco da sessão ou abra os filtros apenas quando quiser buscar um
+              assunto específico.
+            </p>
+          </div>
+          <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 ring-1 ring-inset ring-blue-100">
+            Questão {question ? currentIndex + 1 : 0} de {sessionQuestions.length}
+            <span className="block text-xs font-medium text-blue-700">
+              {filtered.length} disponíveis neste foco
+            </span>
+          </div>
+        </div>
+
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+          {focusModes.map((mode) => (
+            <button
+              key={mode.id}
+              type="button"
+              onClick={() => applyFocusMode(mode.id)}
+              className={`rounded-lg border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
+                focusMode === mode.id
+                  ? "border-blue-300 bg-blue-50 text-blue-950"
+                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
+              }`}
+            >
+              <span className="block text-sm font-bold">{mode.label}</span>
+              <span className="mt-1 block text-xs leading-5 text-slate-500">
+                {mode.helper}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              Tamanho da sessão
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {quickSessionSizes.map((size) => (
+                <button
+                  key={size}
+                  type="button"
+                  onClick={() => {
+                    setSessionSize(size);
+                    move(0);
+                  }}
+                  className={`tnum rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
+                    sessionSize === size
+                      ? "border-blue-300 bg-blue-50 text-blue-900"
+                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
+                  }`}
+                >
+                  {size} questões
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setFiltersOpen((current) => !current)}
+            >
+              <Filter className="h-4 w-4" aria-hidden="true" />
+              {filtersOpen ? "Ocultar filtros" : "Filtros avançados"}
+            </Button>
+            {hasCustomFilters({
+              area,
+              discipline,
+              topic,
+              difficulty,
+              year,
+              origin,
+              board,
+              status,
+              search,
+              focusMode,
+            }) ? (
+              <Button variant="outline" onClick={resetFilters}>
+                Limpar ajustes
+              </Button>
+            ) : null}
+          </div>
+        </div>
+      </section>
+
       <details
-        className="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5"
+        className={
+          filtersOpen
+            ? "mb-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5"
+            : "hidden"
+        }
         open={filtersOpen}
         onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
       >
@@ -727,6 +875,51 @@ function PriorityDetails({ question }: { question: QuestionRecord }) {
 
 function uniqueOptions(first: string, values: string[]) {
   return [first, ...Array.from(new Set(values.filter(Boolean)))];
+}
+
+function isHighPriority(question: QuestionRecord) {
+  return (
+    priorityDisplay(question).includes("máxima") ||
+    priorityDisplay(question).includes("alta") ||
+    Number(question.priority_score ?? 0) >= 70
+  );
+}
+
+function hasCustomFilters({
+  area,
+  discipline,
+  topic,
+  difficulty,
+  year,
+  origin,
+  board,
+  status,
+  search,
+  focusMode,
+}: {
+  area: string;
+  discipline: string;
+  topic: string;
+  difficulty: string;
+  year: string;
+  origin: string;
+  board: string;
+  status: string;
+  search: string;
+  focusMode: FocusMode;
+}) {
+  return (
+    focusMode !== "recommended" ||
+    area !== "Todas" ||
+    discipline !== "Todas" ||
+    topic !== "Todos" ||
+    difficulty !== "Todas" ||
+    year !== "Todos" ||
+    origin !== "Todas" ||
+    board !== "Todas" ||
+    status !== "Todas" ||
+    Boolean(search.trim())
+  );
 }
 
 function priorityDisplay(question: QuestionRecord) {
