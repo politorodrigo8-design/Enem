@@ -25,6 +25,7 @@ import { signOutAction } from "@/lib/actions/auth";
 import { FeedbackButton } from "@/components/dashboard/feedback-button";
 import type { AccessLevel } from "@/lib/access";
 import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
+import { isProfilePhotoDataUrl, PROFILE_PHOTO_UPDATED_EVENT } from "@/lib/profile-photo";
 
 const navigation = [
   {
@@ -61,13 +62,28 @@ export function DashboardShell({
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [profilePhotoOverride, setProfilePhotoOverride] = useState<string | null>(null);
   useLockPageScroll(open);
+  const currentProfilePhotoUrl = profilePhotoOverride ?? profilePhotoUrl;
   const initials = fullName
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
     .map((part) => part[0]?.toUpperCase())
     .join("");
+
+  useEffect(() => {
+    function handleProfilePhotoUpdated(event: Event) {
+      const nextUrl = (event as CustomEvent<{ profilePhotoUrl?: unknown }>).detail
+        ?.profilePhotoUrl;
+      setProfilePhotoOverride(isProfilePhotoDataUrl(nextUrl) ? nextUrl : "");
+    }
+
+    window.addEventListener(PROFILE_PHOTO_UPDATED_EVENT, handleProfilePhotoUpdated);
+    return () => {
+      window.removeEventListener(PROFILE_PHOTO_UPDATED_EVENT, handleProfilePhotoUpdated);
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -170,7 +186,7 @@ export function DashboardShell({
             fullName={fullName}
             email={email}
             initials={initials}
-            profilePhotoUrl={profilePhotoUrl}
+            profilePhotoUrl={currentProfilePhotoUrl}
           />
         </header>
         <main className="px-4 py-6 sm:px-6 lg:px-8">

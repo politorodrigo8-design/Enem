@@ -27,6 +27,7 @@ import type {
   TopicWithSubject,
 } from "@/lib/db/types";
 import { canEditEditorial } from "@/lib/editorial/rules.mjs";
+import { isProfilePhotoDataUrl } from "@/lib/profile-photo";
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
 
 type QueryError = {
@@ -154,7 +155,7 @@ function getProfilePhotoUrl(profile: Profile | null) {
   }
 
   const value = preferences.profile_photo_url;
-  return typeof value === "string" && value.startsWith("data:image/") ? value : "";
+  return isProfilePhotoDataUrl(value) ? value : "";
 }
 
 export async function getProfile(): Promise<Profile | null> {

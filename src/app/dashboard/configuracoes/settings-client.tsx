@@ -1,14 +1,16 @@
 "use client";
 
 import Image from "next/image";
-import { ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import { Check, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { signOutAction, updatePasswordAction } from "@/lib/actions/auth";
-import { updateProfileSettingsAction } from "@/lib/actions/beta";
+import { updateProfilePhotoAction, updateProfileSettingsAction } from "@/lib/actions/beta";
 import { accessLevelLabel, type AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
+import { isProfilePhotoDataUrl, PROFILE_PHOTO_UPDATED_EVENT } from "@/lib/profile-photo";
 import type { OnboardingInput } from "@/lib/schemas/beta";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,8 +43,10 @@ export function SettingsClient({
   profile: Profile | null;
   access: AccessContext;
 }) {
+  const router = useRouter();
   const formId = useId();
   const initialStudyPreferences = getStudyPreferences(profile);
+  const initialProfilePhotoUrl = getProfilePhotoUrl(initialStudyPreferences);
   const storedDifficulties =
     typeof profile?.perceived_difficulties === "object" &&
     profile.perceived_difficulties !== null &&
@@ -51,6 +55,9 @@ export function SettingsClient({
       : {};
   const [pendingProfile, startProfileTransition] = useTransition();
   const [pendingPassword, startPasswordTransition] = useTransition();
+  const [pendingPhotoSave, startPhotoSaveTransition] = useTransition();
+  const [confirmedProfilePhotoUrl, setConfirmedProfilePhotoUrl] =
+    useState(initialProfilePhotoUrl);
   const [form, setForm] = useState<SettingsFormState>({
     full_name: profile?.full_name || "",
     target_course: profile?.target_course || "",
@@ -75,6 +82,7 @@ export function SettingsClient({
       : "",
   );
   const profilePhotoUrl = getProfilePhotoUrl(form.study_preferences);
+  const profilePhotoChanged = profilePhotoUrl !== confirmedProfilePhotoUrl;
 
   async function uploadProfilePhoto(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -101,7 +109,7 @@ export function SettingsClient({
           profile_photo_url: photoUrl,
         },
       }));
-      toast.success("Foto carregada. Salve as configurações para manter a alteração.");
+      toast.success("Foto pronta. Clique em Confirmar foto para atualizar o menu.");
     } catch {
       toast.error("Não foi possível carregar essa imagem.");
     } finally {
@@ -118,6 +126,21 @@ export function SettingsClient({
         ...current,
         study_preferences: nextPreferences,
       };
+    });
+  }
+
+  function confirmProfilePhoto() {
+    startPhotoSaveTransition(async () => {
+      const result = await updateProfilePhotoAction({
+        profilePhotoUrl: profilePhotoUrl || null,
+      });
+      toast[result.ok ? "success" : "error"](result.message);
+
+      if (result.ok) {
+        setConfirmedProfilePhotoUrl(profilePhotoUrl);
+        dispatchProfilePhotoUpdated(profilePhotoUrl);
+        router.refresh();
+      }
     });
   }
 
@@ -140,6 +163,11 @@ export function SettingsClient({
         onboarding_completed: true,
       });
       toast[result.ok ? "success" : "error"](result.message);
+      if (result.ok) {
+        setConfirmedProfilePhotoUrl(profilePhotoUrl);
+        dispatchProfilePhotoUpdated(profilePhotoUrl);
+        router.refresh();
+      }
     });
   }
 
@@ -212,6 +240,21 @@ export function SettingsClient({
                 <Button type="button" variant="ghost" size="sm" onClick={removeProfilePhoto}>
                   <Trash2 className="h-4 w-4" aria-hidden="true" />
                   Remover
+                </Button>
+              ) : null}
+              {profilePhotoChanged ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={confirmProfilePhoto}
+                  disabled={pendingPhoto || pendingPhotoSave}
+                >
+                  {pendingPhotoSave ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                  ) : (
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {profilePhotoUrl ? "Confirmar foto" : "Confirmar remoção"}
                 </Button>
               ) : null}
             </div>
@@ -434,7 +477,15 @@ function getStudyPreferences(profile: Profile | null): Record<string, unknown> {
 
 function getProfilePhotoUrl(studyPreferences: Record<string, unknown>) {
   const value = studyPreferences.profile_photo_url;
-  return typeof value === "string" && value.startsWith("data:image/") ? value : "";
+  return isProfilePhotoDataUrl(value) ? value : "";
+}
+
+function dispatchProfilePhotoUpdated(profilePhotoUrl: string) {
+  window.dispatchEvent(
+    new CustomEvent(PROFILE_PHOTO_UPDATED_EVENT, {
+      detail: { profilePhotoUrl },
+    }),
+  );
 }
 
 function resizeProfilePhoto(file: File) {

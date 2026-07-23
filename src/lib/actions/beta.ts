@@ -22,6 +22,7 @@ import {
   recordProductEvent,
   type ProductEventName,
 } from "@/lib/services/product-events";
+import { isProfilePhotoDataUrl } from "@/lib/profile-photo";
 import { logServerError } from "@/lib/security/public-errors";
 import {
   checkRateLimit,
@@ -185,6 +186,61 @@ export async function updateProfileSettingsAction(
   revalidatePath("/dashboard/configuracoes");
   revalidatePath("/dashboard", "layout");
   return { ok: true, message: "Configuracoes salvas." };
+}
+
+export async function updateProfilePhotoAction(input: {
+  profilePhotoUrl: string | null;
+}): Promise<ActionResult> {
+  const context = await getAuthenticatedContext();
+  if ("error" in context) return context.error;
+
+  const profilePhotoUrl = input.profilePhotoUrl?.trim() ?? "";
+  if (
+    profilePhotoUrl &&
+    (!isProfilePhotoDataUrl(profilePhotoUrl) || profilePhotoUrl.length > 900_000)
+  ) {
+    return { ok: false, message: "Escolha uma foto valida de ate 6 MB." };
+  }
+
+  const { supabase, user } = context;
+  const { data: profile, error: selectError } = await supabase
+    .from("profiles")
+    .select("study_preferences")
+    .eq("id", user.id)
+    .maybeSingle();
+
+  if (selectError) {
+    logServerError("beta.updateProfilePhoto.select", selectError, { userId: user.id });
+    return { ok: false, message: publicDbErrorMessage(selectError.message) };
+  }
+
+  const currentPreferences =
+    profile?.study_preferences &&
+    typeof profile.study_preferences === "object" &&
+    !Array.isArray(profile.study_preferences)
+      ? profile.study_preferences
+      : {};
+  const nextPreferences = { ...currentPreferences };
+
+  if (profilePhotoUrl) {
+    nextPreferences.profile_photo_url = profilePhotoUrl;
+  } else {
+    delete nextPreferences.profile_photo_url;
+  }
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ study_preferences: nextPreferences })
+    .eq("id", user.id);
+
+  if (error) {
+    logServerError("beta.updateProfilePhoto", error, { userId: user.id });
+    return { ok: false, message: publicDbErrorMessage(error.message) };
+  }
+
+  revalidatePath("/dashboard/configuracoes");
+  revalidatePath("/dashboard", "layout");
+  return { ok: true, message: profilePhotoUrl ? "Foto confirmada." : "Foto removida." };
 }
 
 export async function submitBetaApplicationAction(

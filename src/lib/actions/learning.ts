@@ -31,6 +31,10 @@ type UserContext =
   | { error: string }
   | { supabase: SupabaseClient; user: User; profile: Profile | null; access: AccessContext };
 
+type SimulationAnswerQuestion = Parameters<typeof isStudentReadyQuestion>[0] & {
+  correct_option: string;
+};
+
 async function getUserContext(): Promise<UserContext> {
   if (!isSupabaseConfigured()) {
     return { error: "Configure o Supabase para salvar dados reais." };
@@ -387,7 +391,7 @@ export async function saveSimulationAnswerAction(input: {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
 
-  const { supabase } = context;
+  const { supabase, user } = context;
   if (
     input.userSimulationId.startsWith("fallback-attempt-") ||
     isFallbackQuestionId(input.questionId)
@@ -395,18 +399,13 @@ export async function saveSimulationAnswerAction(input: {
     return { ok: true, message: "Resposta salva nesta sessão." };
   }
 
-  const { data: question, error: questionError } = await supabase
-    .from("questions")
-    .select(
-      "correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url)",
-    )
-    .eq("id", input.questionId)
-    .single();
-
-  if (questionError || !question) {
-    if (questionError) logServerError("learning.submitSimulationAnswer.questionRow", questionError);
-    return { ok: false, message: "Questao nao encontrada." };
-  }
+  const { attempt, question, error } = await getSimulationAttemptQuestion({
+    supabase,
+    userId: user.id,
+    userSimulationId: input.userSimulationId,
+    questionId: input.questionId,
+  });
+  if (error) return error;
 
   if (!isStudentReadyQuestion(question)) {
     return {
@@ -415,23 +414,22 @@ export async function saveSimulationAnswerAction(input: {
     };
   }
 
-  const { error } = await supabase.from("user_simulation_answers").upsert(
-    {
-      user_simulation_id: input.userSimulationId,
-      question_id: input.questionId,
-      selected_option: input.selectedOption,
-      is_correct: question.correct_option === input.selectedOption,
-      response_time_seconds: input.responseTimeSeconds ?? 0,
-    },
-    { onConflict: "user_simulation_id,question_id" },
-  );
+  const writeResult = await writeSimulationAnswer({
+    supabase,
+    userSimulationId: attempt.id,
+    questionId: input.questionId,
+    selectedOption: input.selectedOption,
+    correctOption: question.correct_option,
+    responseTimeSeconds: input.responseTimeSeconds,
+  });
+  if (!writeResult.ok) return writeResult;
 
-  if (error) return learningError("learning.submitQuestionAnswer", error);
   return { ok: true, message: "Resposta salva." };
 }
 
 export async function finishSimulationAction(
   userSimulationId: string,
+  submittedAnswers?: Record<string, string>,
 ): Promise<
   ActionResult & {
     results?: Array<{ questionId: string; isCorrect: boolean }>;
@@ -444,16 +442,9 @@ export async function finishSimulationAction(
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase, user } = context;
-  const { data: answers, error: answersError } = await supabase
-    .from("user_simulation_answers")
-    .select("question_id, is_correct")
-    .eq("user_simulation_id", userSimulationId);
-
-  if (answersError) return learningError("learning.finishSimulation.answers", answersError);
-
   const { data: simulation, error: simulationError } = await supabase
     .from("user_simulations")
-    .select("total_questions")
+    .select("id, simulation_id, total_questions")
     .eq("id", userSimulationId)
     .eq("user_id", user.id)
     .single();
@@ -463,16 +454,61 @@ export async function finishSimulationAction(
     return { ok: false, message: "Simulado nao encontrado." };
   }
 
-  const answered = answers?.length ?? 0;
-  const correct = answers?.filter((answer) => answer.is_correct).length ?? 0;
-  // Percentual sobre o total de questões do simulado, não sobre as respondidas.
-  const totalQuestions = simulation.total_questions || answered;
-  const percentage = totalQuestions ? Math.round((correct / totalQuestions) * 100) : 0;
-  const results = (answers ?? []).map((answer) => ({
-    questionId: answer.question_id,
-    isCorrect: Boolean(answer.is_correct),
-  }));
+  const { data: questionRows, error: questionError } = await supabase
+    .from("simulation_questions")
+    .select(
+      "question_id, questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
+    )
+    .eq("simulation_id", simulation.simulation_id);
 
+  if (questionError) return learningError("learning.finishSimulation.questions", questionError);
+
+  const questionById = new Map<string, SimulationAnswerQuestion>();
+  for (const row of questionRows ?? []) {
+    const question = Array.isArray(row.questions) ? row.questions[0] : row.questions;
+    if (question && isStudentReadyQuestion(question)) {
+      questionById.set(row.question_id as string, question);
+    }
+  }
+
+  const { data: answers, error: answersError } = await supabase
+    .from("user_simulation_answers")
+    .select("question_id, selected_option, is_correct")
+    .eq("user_simulation_id", userSimulationId);
+
+  if (answersError) return learningError("learning.finishSimulation.answers", answersError);
+
+  const selectedByQuestion = new Map<string, string>();
+  for (const answer of answers ?? []) {
+    selectedByQuestion.set(answer.question_id, answer.selected_option);
+  }
+
+  for (const [questionId, selectedOption] of Object.entries(submittedAnswers ?? {})) {
+    const question = questionById.get(questionId);
+    if (!question) continue;
+    selectedByQuestion.set(questionId, selectedOption);
+    const writeResult = await writeSimulationAnswer({
+      supabase,
+      userSimulationId,
+      questionId,
+      selectedOption,
+      correctOption: question.correct_option,
+    });
+    if (!writeResult.ok) return writeResult;
+  }
+
+  const results = Array.from(selectedByQuestion.entries())
+    .filter(([questionId]) => questionById.has(questionId))
+    .map(([questionId, selectedOption]) => ({
+      questionId,
+      isCorrect: questionById.get(questionId)!.correct_option === selectedOption,
+    }));
+
+  const answered = results.length;
+  const correct = results.filter((answer) => answer.isCorrect).length;
+  // Percentual sobre o total de questões do simulado, não sobre as respondidas.
+  const totalQuestions = simulation.total_questions || questionById.size || answered;
+  const percentage = totalQuestions ? Math.round((correct / totalQuestions) * 100) : 0;
   const { error } = await supabase
     .from("user_simulations")
     .update({
@@ -501,6 +537,128 @@ export async function finishSimulationAction(
     total: totalQuestions,
     percentage,
   };
+}
+
+async function getSimulationAttemptQuestion({
+  supabase,
+  userId,
+  userSimulationId,
+  questionId,
+}: {
+  supabase: SupabaseClient;
+  userId: string;
+  userSimulationId: string;
+  questionId: string;
+}): Promise<
+  | {
+      attempt: { id: string; simulation_id: string; status: string };
+      question: SimulationAnswerQuestion;
+      error?: never;
+    }
+  | { attempt?: never; question?: never; error: ActionResult }
+> {
+  const { data: attempt, error: attemptError } = await supabase
+    .from("user_simulations")
+    .select("id, simulation_id, status")
+    .eq("id", userSimulationId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (attemptError) {
+    return { error: learningError("learning.saveSimulationAnswer.attempt", attemptError) };
+  }
+
+  if (!attempt) {
+    return {
+      error: {
+        ok: false,
+        message: "Tentativa de simulado nao encontrada. Inicie o simulado novamente.",
+      },
+    };
+  }
+
+  if (attempt.status === "Finalizado") {
+    return {
+      error: {
+        ok: false,
+        message: "Este simulado ja foi finalizado. Inicie uma nova tentativa.",
+      },
+    };
+  }
+
+  const { data: simulationQuestion, error: questionError } = await supabase
+    .from("simulation_questions")
+    .select(
+      "questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
+    )
+    .eq("simulation_id", attempt.simulation_id)
+    .eq("question_id", questionId)
+    .maybeSingle();
+
+  if (questionError) {
+    return { error: learningError("learning.saveSimulationAnswer.question", questionError) };
+  }
+
+  const question = Array.isArray(simulationQuestion?.questions)
+    ? simulationQuestion.questions[0]
+    : simulationQuestion?.questions;
+
+  if (!question) {
+    return {
+      error: {
+        ok: false,
+        message: "Esta questao nao faz parte desta tentativa. Reabra o simulado.",
+      },
+    };
+  }
+
+  return { attempt, question };
+}
+
+async function writeSimulationAnswer({
+  supabase,
+  userSimulationId,
+  questionId,
+  selectedOption,
+  correctOption,
+  responseTimeSeconds,
+}: {
+  supabase: SupabaseClient;
+  userSimulationId: string;
+  questionId: string;
+  selectedOption: string;
+  correctOption: string;
+  responseTimeSeconds?: number;
+}): Promise<ActionResult> {
+  const row = {
+    user_simulation_id: userSimulationId,
+    question_id: questionId,
+    selected_option: selectedOption,
+    is_correct: correctOption === selectedOption,
+    response_time_seconds: responseTimeSeconds ?? 0,
+  };
+
+  const { data: existing, error: existingError } = await supabase
+    .from("user_simulation_answers")
+    .select("id")
+    .eq("user_simulation_id", userSimulationId)
+    .eq("question_id", questionId)
+    .maybeSingle();
+
+  if (existingError) return learningError("learning.writeSimulationAnswer.select", existingError);
+
+  if (existing) {
+    const { error } = await supabase
+      .from("user_simulation_answers")
+      .update(row)
+      .eq("id", existing.id);
+    if (error) return learningError("learning.writeSimulationAnswer.update", error);
+    return { ok: true, message: "Resposta salva." };
+  }
+
+  const { error } = await supabase.from("user_simulation_answers").insert(row);
+  if (error) return learningError("learning.writeSimulationAnswer.insert", error);
+  return { ok: true, message: "Resposta salva." };
 }
 
 export async function finishFallbackSimulationAction(input: {

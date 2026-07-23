@@ -129,7 +129,7 @@ export function SimulationsClient({
               simulationId: active.id,
               answers,
             })
-          : await finishSimulationAction(userSimulationId);
+          : await finishSimulationAction(userSimulationId, answers);
       toast[result.ok ? "success" : "error"](result.message);
       if (result.ok) {
         const correctness: Record<string, boolean> = {};
