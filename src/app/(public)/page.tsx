@@ -28,35 +28,37 @@ import {
 } from "@/lib/product-config";
 
 const LANDING_ACCESS_UNTIL_LABEL = "01 de dezembro de 2026";
+const LANDING_ACCESS_COPY =
+  "Pagamento único para acesso até 01 de dezembro de 2026.";
 
 const problemItems = [
-  "Estudar assuntos aleatórios, sem saber o que pesa mais na prova.",
-  "Resolver questões no volume, sem estratégia de priorização.",
-  "Não saber em quais assuntos os pontos estão sendo perdidos.",
-  "Gastar semanas em conteúdos de baixa prioridade.",
-  "Chegar perto da prova sem saber se evoluiu de verdade.",
+  "Estudar assuntos aleatórios sem saber quais têm maior peso na prova.",
+  "Resolver muitas questões sem uma estratégia de priorização.",
+  "Não saber em quais assuntos você está perdendo pontos.",
+  "Gastar semanas com conteúdos de baixa prioridade.",
+  "Chegar perto da data da prova sem saber se realmente evoluiu.",
 ];
 
 const steps = [
   {
     title: "Faça o diagnóstico",
     description:
-      "Informe seu objetivo e rotina e resolva uma trilha inicial de questões que mapeia seu ponto de partida.",
+      "Informe seu objetivo e sua rotina e resolva uma sequência inicial de questões para mapear seu ponto de partida.",
   },
   {
     title: "Identifique onde perde pontos",
     description:
-      "Descubra em quais assuntos sua taxa de acerto está abaixo do necessário para a nota que você quer.",
+      "Descubra em quais assuntos sua taxa de acerto está abaixo do necessário para alcançar seu objetivo.",
   },
   {
-    title: "Cruze desempenho, recorrência e prioridade",
+    title: "Cruze desempenho, frequência e relevância",
     description:
-      "O Radar combina seus erros, a recorrência dos assuntos e a prioridade de estudo para ordenar o que vem primeiro.",
+      "O Radar combina seus erros, a frequência dos assuntos no ENEM e o potencial de ganho para definir a ordem dos seus estudos.",
   },
   {
-    title: "Siga sua rota semanal",
+    title: "Siga sua rotina semanal",
     description:
-      "Receba um plano com as questões certas, na ordem certa, recalculado toda semana conforme você avança.",
+      "Receba um plano com as atividades e questões certas, recalculado semanalmente conforme seu desempenho.",
   },
 ];
 
@@ -64,19 +66,19 @@ const features = [
   {
     title: "Radar ENEM",
     description:
-      "Prioridades por área e assunto, cruzando a recorrência histórica dos temas com o seu desempenho.",
+      "Prioridades por área e assunto, cruzando a frequência histórica dos temas com o seu desempenho.",
     icon: Radar,
   },
   {
     title: "Simulado diagnóstico",
     description:
-      "Uma trilha inicial de questões que mapeia seu ponto de partida em cada área da prova.",
+      "Uma sequência inicial de questões que identifica seu ponto de partida em cada área da prova.",
     icon: ClipboardCheck,
   },
   {
-    title: "Banco de questões",
+    title: "Banco de questões atualizado",
     description:
-      "Questões organizadas por assunto, dificuldade, fonte e prioridade de estudo.",
+      "Questões organizadas por área, assunto, dificuldade e prioridade, com novas questões adicionadas semanalmente e fonte identificada quando aplicável.",
     icon: BookOpenCheck,
   },
   {
@@ -88,7 +90,7 @@ const features = [
   {
     title: "Plano semanal",
     description:
-      "Uma rota de estudo objetiva para cada semana, recalculada conforme você avança.",
+      "Uma rotina semanal de estudos objetiva, recalculada conforme seu desempenho.",
     icon: Route,
   },
   {
@@ -106,7 +108,7 @@ const features = [
   {
     title: "Revisão de erros",
     description:
-      "Suas questões erradas voltam no momento certo para transformar erro em ponto.",
+      "Revise suas questões erradas no momento certo e transforme erros em pontos.",
     icon: SearchCheck,
   },
 ];
@@ -119,14 +121,14 @@ const radarDemo = [
         topic: "Razão e proporção",
         priority: "Prioridade máxima",
         accuracy: "42%",
-        recurrence: "Alta recorrência",
-        reason: "Alta recorrência e taxa de acerto abaixo do seu objetivo.",
+        recurrence: "Alta frequência",
+        reason: "Alta frequência e taxa de acerto abaixo do seu objetivo.",
       },
       {
         topic: "Estatística",
         priority: "Prioridade alta",
         accuracy: "54%",
-        recurrence: "Alta recorrência",
+        recurrence: "Alta frequência",
         reason: "Aparece com frequência e ainda gera perda de pontos.",
       },
       {
@@ -145,7 +147,7 @@ const radarDemo = [
         topic: "Ecologia",
         priority: "Prioridade máxima",
         accuracy: "41%",
-        recurrence: "Alta recorrência",
+        recurrence: "Alta frequência",
         reason: "Conteúdo recorrente com espaço claro para consolidar acertos.",
       },
       {
@@ -167,8 +169,8 @@ const radarDemo = [
 ];
 
 const planItems = [
-  `Acesso completo até o ENEM ${ENEM_YEAR}`,
-  "Diagnóstico personalizado",
+  `Acesso completo até ${LANDING_ACCESS_UNTIL_LABEL}`,
+  "Simulado diagnóstico",
   "Banco de questões com fonte identificada",
   "Radar ENEM",
   "Treino de alta prioridade",
@@ -186,31 +188,36 @@ function buildFaqs() {
     {
       question: "A plataforma garante uma nota específica?",
       answer:
-        "Não. A Pontua Enem organiza prioridades, treino e acompanhamento da evolução. Quem faz a nota é você, e nenhuma plataforma honesta promete resultado garantido.",
+        "Não. O Pontua Enem organiza prioridades, treino e acompanhamento da evolução, mas não garante nota, aprovação ou previsão exata da prova.",
     },
     {
       question: "As questões são oficiais do ENEM?",
       answer:
-        "O banco reúne questões antigas do ENEM, sempre com a fonte identificada, além de questões autorais ou demonstrativas devidamente sinalizadas. Todo o conteúdo passa por revisão editorial.",
+        "O banco reúne questões organizadas por área, assunto, dificuldade e prioridade. Novas questões são adicionadas semanalmente, com fonte identificada quando aplicável. Questões oficiais, autorais ou demonstrativas são sinalizadas conforme a origem.",
     },
     {
       question: "Como funcionam o acesso e o pagamento?",
-      answer: `O acesso principal não é mensal. Você realiza um pagamento único pelo checkout, após criar ou entrar na sua conta. Depois da confirmação do pagamento, o dashboard é liberado até ${LANDING_ACCESS_UNTIL_LABEL}, sem mensalidade ou renovação automática.`,
+      answer: `${LANDING_ACCESS_COPY} Não há mensalidade nem renovação automática. Depois da confirmação do pagamento, o dashboard é liberado na sua conta.`,
     },
     {
       question: "Como funcionam o Radar ENEM e a análise de desempenho?",
       answer:
-        "O Radar ENEM não prevê a prova. Ele cruza a recorrência histórica dos assuntos com seus acertos e erros para indicar prioridades de estudo e os pontos com maior potencial de evolução.",
+        "O Radar ENEM não prevê a prova. Ele cruza a frequência histórica dos assuntos no ENEM com seus acertos e erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
     },
     {
       question: "Como funcionam a correção de redação e os créditos?",
       answer:
-        "Você pode enviar uma redação digitada ou manuscrita, por foto ou PDF. A correção utiliza créditos da conta, e a quantidade necessária é informada antes da confirmação. Os créditos também podem ser utilizados em outros recursos de inteligência artificial da plataforma. O saldo e o histórico de uso ficam disponíveis no dashboard, e créditos adicionais podem ser comprados a qualquer momento.",
+        "Você pode enviar uma redação digitada ou manuscrita, por foto ou PDF. A correção utiliza créditos da conta, e a quantidade necessária é informada antes da confirmação. O acesso inclui 50 créditos para funcionalidades de inteligência artificial. Caso esses créditos terminem, créditos adicionais poderão ser adquiridos separadamente.",
     },
     {
-      question: "A Pontua Enem funciona no celular e substitui um cursinho?",
+      question: "O Pontua Enem funciona no celular e substitui um cursinho?",
       answer:
-        "Sim. As telas principais são responsivas para celular, tablet, notebook e desktop. A Pontua Enem não substitui necessariamente um cursinho, mas complementa a preparação com prioridades personalizadas, banco de questões, simulados, análise de desempenho, plano de estudos e correção de redação.",
+        "Sim. As telas principais são responsivas para celular, tablet, notebook e desktop. O Pontua Enem não substitui necessariamente um cursinho, mas complementa a preparação com prioridades personalizadas, banco de questões, simulados, análise de desempenho, plano de estudos e correção de redação.",
+    },
+    {
+      question: "O Pontua Enem tem vínculo oficial com Inep ou MEC?",
+      answer:
+        "Não. O Pontua Enem não possui vínculo oficial com o Inep, com o MEC ou com os organizadores do ENEM. As prioridades indicadas são estimativas educacionais e não representam previsão da prova.",
     },
   ];
 }
@@ -235,16 +242,17 @@ export default async function HomePage() {
               className="animate-rise mt-5 max-w-xl font-display text-5xl font-semibold leading-[1.08] tracking-tight text-slate-950 md:text-6xl"
               style={{ "--rise-delay": "70ms" } as React.CSSProperties}
             >
-              Pare de estudar no escuro. Saiba{" "}
-              <span className="highlight">o que estudar primeiro</span>.
+              Pare de estudar no escuro. Descubra{" "}
+              <span className="highlight">o&nbsp;que&nbsp;priorizar</span>.
             </h1>
             <p
               className="animate-rise mt-6 max-w-lg text-lg leading-8 text-slate-600"
               style={{ "--rise-delay": "140ms" } as React.CSSProperties}
             >
-              A Pontua Enem analisa seu desempenho, cruza erros, recorrência dos
-              conteúdos e prioridade, e transforma isso em uma rota semanal com
-              banco de questões, simulados e correção de redação.
+              O Pontua Enem analisa seu desempenho, identifica os assuntos em
+              que você mais perde pontos e transforma esses dados em uma rotina
+              semanal de estudos com banco de questões, simulados e correção de
+              redação.
             </p>
             <div
               className="animate-rise mt-9 flex flex-col gap-3 sm:flex-row"
@@ -269,16 +277,16 @@ export default async function HomePage() {
               style={{ "--rise-delay": "280ms" } as React.CSSProperties}
             >
               {[
-                "Sem promessa de nota garantida — com método para evoluir",
-                "Prioridades baseadas no seu desempenho real",
-                `Pagamento único, acesso até ${accessUntil}`,
-                "Redação digitada ou manuscrita, por foto ou PDF",
+                "Sem promessa de nota garantida — com método para evoluir.",
+                "Prioridades baseadas no seu desempenho real.",
+                LANDING_ACCESS_COPY,
+                "Redação digitada ou manuscrita, enviada por foto ou PDF.",
               ].map((label) => (
                 <li
                   key={label}
-                  className="flex items-center gap-2.5 text-sm font-medium text-slate-700"
+                  className="flex items-start gap-2.5 text-sm font-medium leading-6 text-slate-700"
                 >
-                  <Check className="h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
+                  <Check className="mt-1 h-4 w-4 shrink-0 text-blue-700" aria-hidden="true" />
                   {label}
                 </li>
               ))}
@@ -297,8 +305,8 @@ export default async function HomePage() {
         <div className="mx-auto max-w-5xl px-4 text-center sm:px-6 lg:px-8">
           <Reveal>
             <p className="text-lg font-semibold leading-8 text-slate-950">
-              A Pontua Enem cruza seu desempenho, a recorrência dos assuntos e a
-              prioridade de estudo para mostrar o que estudar primeiro.
+              O Pontua Enem cruza seu desempenho com a frequência dos assuntos
+              no ENEM para indicar o que deve ser priorizado nos estudos.
             </p>
           </Reveal>
         </div>
@@ -312,12 +320,13 @@ export default async function HomePage() {
               O problema
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
-              Esforço sem prioridade <span className="highlight">não vira nota</span>.
+              Esforço sem prioridade{" "}
+              <span className="highlight">não resulta em nota para aprovação</span>.
             </h2>
             <p className="mt-5 text-base leading-7 text-slate-600">
-              O ENEM exige repertório, leitura e constância — mas estudar sem
-              mapa faz você gastar energia exatamente onde o impacto é menor. Os
-              padrões se repetem todo ano:
+              O ENEM exige repertório, leitura e constância, mas estudar sem uma
+              estratégia faz você gastar energia justamente nos conteúdos de
+              menor impacto. Alguns padrões se repetem todos os anos:
             </p>
           </Reveal>
           <ol className="lg:mt-2">
@@ -380,14 +389,14 @@ export default async function HomePage() {
                 Suas prioridades, visíveis por área e assunto.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
-                O Radar cruza a recorrência histórica dos temas com o seu
-                desempenho para mostrar onde existe maior potencial de ganho de
-                nota.
+                O Radar cruza a frequência histórica dos assuntos no ENEM com o
+                seu desempenho para mostrar onde existe maior potencial de ganho
+                de pontos.
               </p>
               <p className="mt-5 text-sm leading-6 text-slate-500">
-                As prioridades são estimativas educacionais para organizar seu
-                estudo — nenhuma plataforma prevê a prova, e quem promete isso
-                não está sendo honesto com você.
+                As prioridades são estimativas educacionais criadas para
+                organizar seus estudos. Nenhuma plataforma pode prever com
+                exatidão o conteúdo da prova.
               </p>
             </Reveal>
             <div className="grid gap-5 md:grid-cols-2">
@@ -455,8 +464,9 @@ export default async function HomePage() {
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
                 Envie sua redação digitada ou manuscrita, por foto ou PDF, e
-                acompanhe a correção dentro da plataforma. O histórico fica
-                junto do seu plano, banco de questões, Radar e desempenho.
+                acompanhe a correção pela plataforma. O histórico fica integrado
+                ao seu plano semanal, ao banco de questões, ao Radar ENEM e ao
+                painel de desempenho.
               </p>
             </Reveal>
 
@@ -481,10 +491,11 @@ export default async function HomePage() {
                   ],
                 },
                 {
-                  title: "Banco de questões",
+                  title: "Banco de questões atualizado",
                   icon: BookOpenCheck,
                   lines: [
-                    "Filtro por área, assunto e prioridade",
+                    "Filtros por área, assunto, dificuldade e prioridade",
+                    "Novas questões adicionadas semanalmente",
                     "Fonte identificada quando aplicável",
                     "Revisão de erros integrada",
                   ],
@@ -534,7 +545,7 @@ export default async function HomePage() {
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
               Tudo para decidir o{" "}
-              <span className="highlight">próximo melhor estudo</span>.
+              <span className="highlight">próximo passo nos estudos</span>.
             </h2>
           </Reveal>
           <div className="mt-12 grid gap-x-16 md:grid-cols-2">
@@ -559,18 +570,23 @@ export default async function HomePage() {
       </section>
 
       {/* Preço */}
-      <section id="precos" className="bg-white py-14 sm:py-20">
+      <section id="precos" className="scroll-mt-24 bg-white py-16 sm:py-24">
         <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               Acesso
             </p>
             <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
-              Um pagamento. Acesso até {accessUntil}.
+              Pagamento único. Acesso até {accessUntil}.
             </h2>
             <p className="mt-4 text-base leading-7 text-slate-600">
-              Funcionalidades específicas podem consumir créditos internos, com
-              o consumo informado antes da confirmação.
+              Algumas funcionalidades de inteligência artificial utilizam
+              créditos. A quantidade necessária é sempre informada antes da
+              confirmação.
+            </p>
+            <p className="mt-3 text-base font-semibold leading-7 text-slate-800">
+              O acesso inclui 50 créditos. Créditos adicionais podem ser
+              adquiridos separadamente quando necessário.
             </p>
           </Reveal>
           <Reveal
@@ -582,14 +598,24 @@ export default async function HomePage() {
                 <p className="text-sm font-semibold text-blue-300">{PRODUCT_NAME}</p>
                 <p className="tnum mt-4 flex items-start font-display text-6xl font-semibold tracking-tight">
                   <span>{formatCurrency(price)}</span>
-                  <sup className="ml-1 mt-1 text-2xl leading-none text-blue-300">*</sup>
+                  <sup
+                    className="ml-1 mt-1 text-2xl leading-none text-blue-300"
+                    aria-label="Consulte as condições do acesso"
+                  >
+                    *
+                  </sup>
                 </p>
                 <p className="mt-4 text-sm leading-6 text-slate-400">
                   Inclui 50 créditos para recursos de inteligência artificial.
                 </p>
-                <p className="mt-5 text-xs leading-5 text-slate-500">
-                  * Pagamento único, sem mensalidade ou renovação automática.
-                  Acesso completo até {accessUntil}.
+                <p className="mt-6 rounded-lg border border-white/15 bg-white/10 p-4 text-sm leading-6 text-slate-100">
+                  <span className="font-semibold text-blue-200" aria-hidden="true">
+                    *
+                  </span>{" "}
+                  Pagamento único, sem mensalidade ou renovação automática. O
+                  acesso é válido até {accessUntil}. O plano inclui 50 créditos
+                  de inteligência artificial. Caso esses créditos terminem,
+                  créditos adicionais poderão ser adquiridos separadamente.
                 </p>
                 <Link
                   href={cta.href}
@@ -622,14 +648,14 @@ export default async function HomePage() {
                 <div className="mt-6 rounded-lg bg-blue-50 p-4 text-sm leading-6 text-blue-950">
                   <p className="font-semibold">Como funcionam os créditos</p>
                   <p className="mt-1">
-                    O acesso inclui 50 créditos para usar nos recursos de
-                    inteligência artificial da Pontua Enem, como correção de
-                    redação, explicação de questões, análise de desempenho e
-                    plano de estudos inteligente. Cada recurso consome uma
-                    quantidade específica de créditos, informada antes da
+                    O acesso inclui 50 créditos para funcionalidades de
+                    inteligência artificial, como correção de redação,
+                    explicação de questões, análise de desempenho e plano de
+                    estudos inteligente. Cada funcionalidade utiliza uma
+                    quantidade específica de créditos, sempre informada antes da
                     confirmação. O saldo e o histórico de uso ficam disponíveis
-                    na sua conta, e créditos adicionais podem ser comprados a
-                    qualquer momento.
+                    na conta. Quando os créditos incluídos terminarem, créditos
+                    adicionais poderão ser adquiridos separadamente.
                   </p>
                 </div>
               </div>
@@ -640,8 +666,9 @@ export default async function HomePage() {
             <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-700">
               política de reembolso
             </Link>
-            . A Pontua Enem não possui vínculo com o MEC ou com o Inep e não
-            promete nota, aprovação ou previsão exata da prova.
+            . O Pontua Enem não possui vínculo oficial com o Inep, com o MEC ou
+            com os organizadores do ENEM. As prioridades indicadas são
+            estimativas educacionais e não representam previsão da prova.
           </p>
         </div>
       </section>
@@ -678,12 +705,12 @@ export default async function HomePage() {
       <section className="bg-slate-950 py-16 text-white sm:py-24">
         <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
           <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
-            A prova tem data marcada. Seu plano de estudos{" "}
-            <span className="highlight text-slate-950">também deveria ter</span>.
+            A prova já tem data marcada. Seu plano de estudos{" "}
+            <span className="highlight text-slate-950">também precisa ter</span>.
           </h2>
           <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-slate-400">
-            Comece pelo diagnóstico hoje e chegue no ENEM {ENEM_YEAR} sabendo
-            exatamente onde investiu cada hora de estudo.
+            Comece pelo simulado diagnóstico e chegue ao ENEM {ENEM_YEAR}
+            sabendo exatamente onde concentrar cada hora de estudo.
           </p>
           <Link
             href={cta.href}

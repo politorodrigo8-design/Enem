@@ -51,9 +51,9 @@ export default async function PublicLayout({
             <div>
               <p className="text-sm font-semibold text-white">Aviso</p>
               <p className="mt-3 text-sm leading-6 text-slate-300">
-                A Pontua Enem não possui vínculo oficial com o Inep, com o MEC ou
-                com organizadores do ENEM. As prioridades indicadas são
-                estimativas educacionais, não previsão da prova.
+                O Pontua Enem não possui vínculo oficial com o Inep, com o MEC
+                ou com os organizadores do ENEM. As prioridades indicadas são
+                estimativas educacionais e não representam previsão da prova.
               </p>
             </div>
           </div>
