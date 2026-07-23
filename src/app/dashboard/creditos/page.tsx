@@ -223,6 +223,50 @@ export default async function CreditsPage({
                   </li>
                 ))}
               </ul>
+            </CardContent>
+          </Card>
+        </Reveal>
+      </div>
+
+      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Reveal delay={120}>
+          <Card id="historico">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <History className="h-4.5 w-4.5 text-blue-700" aria-hidden="true" />
+                Histórico recente
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="pt-3">
+              <ul className="divide-y divide-slate-100">
+                {ledger.length ? (
+                  ledger.map((item, index) => (
+                    <li
+                      key={`${item.label}-${item.date}-${index}`}
+                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-slate-900">
+                          {item.label}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-500">{item.date}</p>
+                      </div>
+                      <p
+                        className={`tnum text-sm font-bold ${
+                          item.value > 0 ? "text-emerald-700" : "text-rose-600"
+                        }`}
+                      >
+                        {item.value > 0 ? "+" : ""}
+                        {item.value}
+                      </p>
+                    </li>
+                  ))
+                ) : (
+                  <li className="py-3 text-sm leading-6 text-slate-500">
+                    Nenhuma movimentação de créditos registrada ainda.
+                  </li>
+                )}
+              </ul>
               {hasLedgerPagination ? (
                 <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
                   {data.ledgerPage > 1 ? (
@@ -280,50 +324,6 @@ export default async function CreditsPage({
                   )}
                 </div>
               ) : null}
-            </CardContent>
-          </Card>
-        </Reveal>
-      </div>
-
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Reveal delay={120}>
-          <Card id="historico">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <History className="h-4.5 w-4.5 text-blue-700" aria-hidden="true" />
-                Histórico recente
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-3">
-              <ul className="divide-y divide-slate-100">
-                {ledger.length ? (
-                  ledger.map((item, index) => (
-                    <li
-                      key={`${item.label}-${item.date}-${index}`}
-                      className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-slate-900">
-                          {item.label}
-                        </p>
-                        <p className="mt-0.5 text-xs text-slate-500">{item.date}</p>
-                      </div>
-                      <p
-                        className={`tnum text-sm font-bold ${
-                          item.value > 0 ? "text-emerald-700" : "text-rose-600"
-                        }`}
-                      >
-                        {item.value > 0 ? "+" : ""}
-                        {item.value}
-                      </p>
-                    </li>
-                  ))
-                ) : (
-                  <li className="py-3 text-sm leading-6 text-slate-500">
-                    Nenhuma movimentação de créditos registrada ainda.
-                  </li>
-                )}
-              </ul>
             </CardContent>
           </Card>
         </Reveal>
