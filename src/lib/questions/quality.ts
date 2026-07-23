@@ -5,13 +5,13 @@ type MinimalQuestionForQuality = Pick<
   | "answer_verified"
   | "correct_option"
   | "media_required"
-  | "media_url"
   | "review_status"
   | "reviewed"
   | "source_verified"
   | "statement"
 > & {
   is_demo?: boolean | null;
+  media_url?: string | null;
   question_media?: Array<Pick<QuestionMedia, "url">>;
   question_options?: Array<Pick<QuestionOption, "option_key" | "option_text">>;
 };

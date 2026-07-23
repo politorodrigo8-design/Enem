@@ -181,7 +181,7 @@ export async function submitQuestionAnswerAction(input: {
   const { data: question, error: questionError } = await supabase
     .from("questions")
     .select(
-      "id, topic_id, correct_option, explanation, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, topics (*), question_options (option_key, option_text), question_media (url)",
+      "id, topic_id, correct_option, explanation, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, statement, topics (*), question_options (option_key, option_text), question_media (url)",
     )
     .eq("id", input.questionId)
     .single();
@@ -438,7 +438,7 @@ export async function startSimulationAction(simulationId: string): Promise<{
   const { data: simulationQuestionRows, error: simulationQuestionError } = await supabase
     .from("simulation_questions")
     .select(
-      "questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
+      "questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text), question_media (url))",
     )
     .eq("simulation_id", simulationId);
   if (simulationQuestionError) {
@@ -554,7 +554,7 @@ export async function finishSimulationAction(
   const { data: questionRows, error: questionError } = await supabase
     .from("simulation_questions")
     .select(
-      "question_id, questions (topic_id, correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
+      "question_id, questions (topic_id, correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text), question_media (url))",
     )
     .eq("simulation_id", simulation.simulation_id);
 
@@ -715,7 +715,7 @@ async function getSimulationAttemptQuestion({
   const { data: simulationQuestion, error: questionError } = await supabase
     .from("simulation_questions")
     .select(
-      "questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
+      "questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, statement, question_options (option_key, option_text), question_media (url))",
     )
     .eq("simulation_id", attempt.simulation_id)
     .eq("question_id", questionId)
@@ -924,7 +924,7 @@ async function createGeneratedSimulation(
   let query = supabase
     .from("questions")
     .select(
-      "id, topic_id, difficulty, language, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, correct_option, subjects!inner(area), topics(name), question_options(option_key, option_text), question_media(url)",
+      "id, topic_id, difficulty, language, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, statement, correct_option, subjects!inner(area), topics(name), question_options(option_key, option_text), question_media(url)",
     )
     .in("subjects.area", queryAreas)
     .or(`language.is.null,language.eq.${foreignLanguage}`);

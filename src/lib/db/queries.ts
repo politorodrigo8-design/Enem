@@ -250,11 +250,7 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
     .filter(isStudentReadyQuestion)
     .map(stripAnswerKey);
 
-  if (readyRecords.length) {
-    return sortQuestionRecords(readyRecords);
-  }
-
-  return sortQuestionRecords(getFallbackQuestionRecords());
+  return mergeQuestionRecordSources(readyRecords, getFallbackQuestionRecords());
 }
 
 export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
@@ -582,14 +578,46 @@ function simulationSignature(simulation: SimulationWithQuestions) {
   return normalizeQuestionKey([simulation.title]);
 }
 
-function sortQuestionRecords(questions: QuestionRecord[]) {
-  return questions.slice().sort((a, b) => {
+function mergeQuestionRecordSources(
+  primary: QuestionRecord[],
+  fallback: QuestionRecord[],
+) {
+  const seen = new Set(primary.map(questionSignature));
+  const merged = [...primary];
+
+  for (const question of fallback) {
+    const signature = questionSignature(question);
+    if (seen.has(signature)) continue;
+    seen.add(signature);
+    merged.push(question);
+  }
+
+  return merged.sort((a, b) => {
     const officialDelta = Number(b.is_official) - Number(a.is_official);
     if (officialDelta) return officialDelta;
     const yearDelta = Number(b.year) - Number(a.year);
     if (yearDelta) return yearDelta;
     return Number(b.priority_score ?? 0) - Number(a.priority_score ?? 0);
   });
+}
+
+function questionSignature(question: QuestionRecord) {
+  if (question.is_official && question.question_number) {
+    return normalizeQuestionKey([
+      question.exam_name || "ENEM",
+      question.year,
+      question.exam_day || "",
+      question.question_number,
+      question.language || "",
+    ]);
+  }
+
+  return normalizeQuestionKey([
+    question.statement,
+    question.year,
+    question.source,
+    question.question_number || "",
+  ]);
 }
 
 function normalizeQuestionKey(parts: Array<string | number>) {
