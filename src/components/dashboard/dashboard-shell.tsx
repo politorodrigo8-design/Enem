@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/ui/logo";
+import { RevealController } from "@/components/ui/reveal-controller";
 import { cn } from "@/lib/utils";
 import { signOutAction } from "@/lib/actions/auth";
 import { FeedbackButton } from "@/components/dashboard/feedback-button";
@@ -65,6 +66,7 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen bg-slate-50">
+      <RevealController />
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform lg:translate-x-0",
