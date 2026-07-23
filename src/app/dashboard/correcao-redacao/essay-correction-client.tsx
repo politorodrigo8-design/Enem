@@ -45,6 +45,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { Reveal } from "@/components/ui/reveal";
+import {
+  getActiveWeeklyEssayTopic,
+  weeklyEssayTopics,
+} from "@/data/weekly-essay-topics";
+import { WeeklyEssayTopicCard } from "./weekly-essay-topic-card";
 
 type EssayWithFiles = EssaySubmission & {
   essay_submission_files?: EssaySubmissionFile[];
@@ -76,6 +81,8 @@ const statusTones: Record<EssaySubmission["status"], "blue" | "green" | "red" | 
   upload_failed: "red",
 };
 
+const activeWeeklyEssayTopic = getActiveWeeklyEssayTopic();
+
 function newIdempotencyKey() {
   return crypto.randomUUID();
 }
@@ -96,6 +103,7 @@ export function EssayCorrectionClient({
   const [progress, setProgress] = useState(0);
   const [pending, startTransition] = useTransition();
   const filesRef = useRef(files);
+  const themeInputRef = useRef<HTMLInputElement>(null);
 
   const hasCredits = creditBalance >= ESSAY_CREDIT_COST;
   const totalSize = files.reduce((sum, item) => sum + item.file.size, 0);
@@ -220,8 +228,35 @@ export function EssayCorrectionClient({
     });
   }
 
+  function useSuggestedTopic() {
+    if (!activeWeeklyEssayTopic) return;
+
+    const suggestedTheme = activeWeeklyEssayTopic.title;
+    const currentTheme = theme.trim();
+    if (currentTheme && currentTheme !== suggestedTheme) {
+      const confirmed = window.confirm(
+        "Você já digitou outro tema. Deseja substituir pelo tema sugerido da semana?",
+      );
+      if (!confirmed) return;
+    }
+
+    setTheme(suggestedTheme);
+    window.requestAnimationFrame(() => themeInputRef.current?.focus());
+    toast.success("Tema sugerido preenchido no campo opcional.");
+  }
+
   return (
     <div className="space-y-6">
+      {activeWeeklyEssayTopic ? (
+        <Reveal delay={0}>
+          <WeeklyEssayTopicCard
+            topic={activeWeeklyEssayTopic}
+            topicCount={weeklyEssayTopics.length}
+            onUseTopic={useSuggestedTopic}
+          />
+        </Reveal>
+      ) : null}
+
       <section className="grid gap-6 xl:grid-cols-[1fr_0.72fr]">
         <Reveal delay={0}>
           <Card>
@@ -237,6 +272,7 @@ export function EssayCorrectionClient({
                   Título ou tema opcional
                 </span>
                 <input
+                  ref={themeInputRef}
                   value={theme}
                   onChange={(event) => setTheme(event.target.value)}
                   placeholder="Ex.: Desafios da educacao publica"
