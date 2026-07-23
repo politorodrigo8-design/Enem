@@ -29,7 +29,7 @@ export const dynamic = "force-dynamic";
 const LEDGER_PAGE_SIZE = 8;
 
 const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
-  initial_allowance: "Saldo inicial do ciclo",
+  initial_allowance: "Saldo inicial",
   essay_correction: "Correção de redação",
   essay_refund: "Estorno de redação",
   manual_adjustment: "Ajuste manual",
@@ -125,7 +125,6 @@ export default async function CreditsPage({
     getCreditsData({ ledgerPage, ledgerPageSize: LEDGER_PAGE_SIZE }),
     getDashboardIdentity(),
   ]);
-  const used = Math.max(0, data.account.monthly_allowance - data.account.balance);
   const balancePercentage = data.account.monthly_allowance
     ? Math.round((data.account.balance / data.account.monthly_allowance) * 100)
     : 0;
@@ -138,7 +137,7 @@ export default async function CreditsPage({
     <div>
       <DashboardPageHeader
         title="Créditos"
-        description="Seu saldo do mês e o que dá para fazer com ele."
+        description="Seu saldo atual e o que dá para fazer com ele."
       />
 
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
@@ -158,8 +157,9 @@ export default async function CreditsPage({
                 </span>
               </p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
-                Todo mês você recebe {data.account.monthly_allowance} créditos.
-                Neste ciclo, {used} {used === 1 ? "foi usado" : "foram usados"}.
+                O acesso inclui {data.account.monthly_allowance} créditos iniciais,
+                liberados uma vez. Para usar além desse saldo, compre créditos
+                adicionais.
               </p>
               <div className="mt-auto pt-5">
                 <Progress
