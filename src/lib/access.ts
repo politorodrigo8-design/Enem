@@ -44,7 +44,7 @@ export function getAccessContext(profile: AccessProfile | null): AccessContext {
 
 export function accessLevelLabel(level: AccessLevel) {
   const labels: Record<AccessLevel, string> = {
-    unpaid: "Acesso nao adquirido",
+    unpaid: "Acesso não adquirido",
     paid: "Cliente completo",
     beta: "Beta liberado",
     admin: "Administrador",
@@ -54,5 +54,5 @@ export function accessLevelLabel(level: AccessLevel) {
 }
 
 export function accessRequiredMessage() {
-  return "Seu acesso ao Pontua Enem Completo ainda nao foi adquirido. Finalize a compra para entrar na plataforma.";
+  return "Seu acesso ao Pontua Enem Completo ainda não foi adquirido. Finalize a compra para entrar na plataforma.";
 }

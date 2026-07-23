@@ -1,18 +1,13 @@
 "use client";
 
-import {
-  CalendarDays,
-  CheckCircle2,
-  GripVertical,
-  RefreshCw,
-} from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { CalendarDays, CheckCircle2, PlayCircle, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import { useMemo, useTransition } from "react";
 import { toast } from "sonner";
 import { SmartStudyPlanCreditAction } from "@/components/dashboard/ai-credit-actions";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Notice } from "@/components/ui/notice";
 import { Progress } from "@/components/ui/progress";
 import {
   completeStudyPlanItemAction,
@@ -20,8 +15,8 @@ import {
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
 import type { StudyPlanWithItems } from "@/lib/db/types";
-import { formatAppDateTime } from "@/lib/dates";
-import { statusTone } from "@/lib/utils";
+import { appDateISO, formatAppDateTime } from "@/lib/dates";
+import { cn } from "@/lib/utils";
 
 export function StudyPlanSection({
   plan,
@@ -30,15 +25,17 @@ export function StudyPlanSection({
   plan: StudyPlanWithItems | null;
   access: AccessContext;
 }) {
-  const [reorganize, setReorganize] = useState(false);
   const [pending, startTransition] = useTransition();
-  const tasks = plan?.study_plan_items ?? [];
-  const completed = tasks.filter((task) => task.completed).length;
-  const questionGoal = tasks.reduce((sum, task) => sum + task.question_goal, 0);
-  const progress = useMemo(
-    () => (tasks.length ? Math.round((completed / tasks.length) * 100) : 0),
-    [completed, tasks.length],
+  const today = appDateISO();
+  const tasks = useMemo(
+    () =>
+      (plan?.study_plan_items ?? [])
+        .slice()
+        .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date)),
+    [plan],
   );
+  const completed = tasks.filter((task) => task.completed).length;
+  const progress = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
 
   function generate() {
     startTransition(async () => {
@@ -56,11 +53,11 @@ export function StudyPlanSection({
 
   if (!tasks.length) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-4">
         <EmptyState
           icon={CalendarDays}
-          title="Nenhum plano gerado"
-          description="Gere sua primeira semana para receber atividades organizadas por prioridade, dentro das horas e dias que você informou no diagnóstico."
+          title="Sua semana ainda não tem plano"
+          description="O plano distribui seus assuntos prioritários pelos dias que você marcou como disponíveis, com uma meta de questões por dia."
           action={
             <Button onClick={generate} disabled={pending || !access.hasPlatformAccess}>
               <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -68,10 +65,6 @@ export function StudyPlanSection({
             </Button>
           }
         />
-        <Notice tone="info">
-          O plano é gerado por regras: tópicos prioritários, horas disponíveis,
-          dias disponíveis e metas de questões.
-        </Notice>
         <SmartStudyPlanCreditAction disabled={!access.hasPlatformAccess} />
       </div>
     );
@@ -81,94 +74,97 @@ export function StudyPlanSection({
     <Card>
       <CardHeader className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <CardTitle>Plano da semana</CardTitle>
-          <p className="tnum mt-1 text-xs leading-5 text-slate-500">
-            Semana de {plan?.week_start ?? "—"} • meta de {questionGoal} questões
+          <CardTitle>Sua semana</CardTitle>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            {completed} de {tasks.length}{" "}
+            {tasks.length === 1 ? "atividade concluída" : "atividades concluídas"} —
+            cada atividade se conclui sozinha quando a meta de questões do dia é
+            atingida.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={reorganize ? "secondary" : "outline"}
-            size="sm"
-            onClick={() => setReorganize((value) => !value)}
-          >
-            <GripVertical className="h-4 w-4" aria-hidden="true" />
-            {reorganize ? "Concluir reorganização" : "Reorganizar"}
-          </Button>
-          <Button
-            size="sm"
-            onClick={generate}
-            disabled={pending || !access.hasPlatformAccess}
-          >
-            <RefreshCw className="h-4 w-4" aria-hidden="true" />
-            Regenerar plano
-          </Button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={generate}
+          disabled={pending || !access.hasPlatformAccess}
+        >
+          <RefreshCw className="h-4 w-4" aria-hidden="true" />
+          Regenerar plano
+        </Button>
       </CardHeader>
       <CardContent>
-        <Progress value={progress} label="Plano concluído" tone="green" />
-        <SmartStudyPlanCreditAction disabled={!access.hasPlatformAccess} />
-        {reorganize ? (
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            Em breve será possível arrastar as atividades para reorganizar a
-            semana. Por enquanto, regenere o plano quando a rotina mudar.
-          </p>
-        ) : null}
+        <Progress value={progress} label="Semana concluída" tone="green" />
         <ul className="mt-4 divide-y divide-slate-100">
           {tasks.map((task) => {
-            const status = task.completed ? "Concluído" : "Pendente";
+            const isToday = task.scheduled_date === today;
+            const isPast = task.scheduled_date < today;
+
             return (
               <li
                 key={task.id}
-                className={`flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between ${
-                  reorganize ? "rounded-lg bg-blue-50/60 px-2" : ""
-                }`}
+                className={cn(
+                  "flex flex-col gap-3 py-3 md:flex-row md:items-center md:justify-between",
+                  isToday && "-mx-2 rounded-lg bg-blue-50/60 px-2",
+                )}
               >
-                <div className="flex min-w-0 gap-3">
-                  {reorganize ? (
-                    <GripVertical
-                      className="mt-0.5 h-4 w-4 shrink-0 text-blue-600"
-                      aria-hidden="true"
-                    />
-                  ) : null}
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-semibold capitalize text-slate-950">
-                        {formatAppDateTime(`${task.scheduled_date}T12:00:00-03:00`, {
-                          weekday: "long",
-                          day: "2-digit",
-                          month: "2-digit",
-                        })}
-                      </p>
-                      <span
-                        className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${statusTone(status)}`}
-                      >
-                        {status}
-                      </span>
-                    </div>
-                    <p className="mt-0.5 truncate text-sm text-slate-600">
-                      {task.topics.subjects.name}: {task.topics.name}
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold capitalize text-slate-950">
+                      {formatAppDateTime(`${task.scheduled_date}T12:00:00-03:00`, {
+                        weekday: "long",
+                        day: "2-digit",
+                        month: "2-digit",
+                      })}
                     </p>
+                    {task.completed ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-inset ring-emerald-200">
+                        <CheckCircle2 className="h-3 w-3" aria-hidden="true" />
+                        Concluída
+                      </span>
+                    ) : isToday ? (
+                      <span className="inline-flex rounded-md bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800">
+                        Hoje
+                      </span>
+                    ) : isPast ? (
+                      <span className="inline-flex rounded-md bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-500">
+                        Não feita
+                      </span>
+                    ) : null}
                   </div>
-                </div>
-                <div className="flex shrink-0 items-center gap-4 md:justify-end">
-                  <p className="tnum text-xs text-slate-500">
-                    {task.duration_minutes} min • {task.question_goal} questões
+                  <p className="mt-0.5 truncate text-sm text-slate-600">
+                    {task.topics.subjects.name}: {task.topics.name}
                   </p>
-                  <Button
-                    variant={task.completed ? "secondary" : "outline"}
-                    size="sm"
-                    disabled={task.completed || pending || !access.hasPlatformAccess}
-                    onClick={() => complete(task.id)}
-                  >
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    {task.completed ? "Concluído" : "Concluir"}
-                  </Button>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 md:justify-end">
+                  <p className="tnum text-xs text-slate-500">
+                    ~{task.duration_minutes} min • {task.question_goal} questões
+                  </p>
+                  {task.completed ? null : isToday ? (
+                    <Link
+                      href={`/dashboard/praticar?topic=${task.topic_id}`}
+                      className={buttonClasses({ variant: "primary", size: "sm" })}
+                    >
+                      <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                      Estudar agora
+                    </Link>
+                  ) : (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pending || !access.hasPlatformAccess}
+                      onClick={() => complete(task.id)}
+                    >
+                      Marcar como feita
+                    </Button>
+                  )}
                 </div>
               </li>
             );
           })}
         </ul>
+        <div className="mt-4 border-t border-slate-100 pt-4">
+          <SmartStudyPlanCreditAction disabled={!access.hasPlatformAccess} />
+        </div>
       </CardContent>
     </Card>
   );

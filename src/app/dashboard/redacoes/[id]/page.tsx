@@ -15,8 +15,8 @@ export const dynamic = "force-dynamic";
 const statusLabels = {
   uploading: "Enviando",
   pending: "Pendente",
-  in_review: "Em analise",
-  completed: "Concluida",
+  in_review: "Em análise",
+  completed: "Concluída",
   cancelled: "Cancelada",
   upload_failed: "Falha no envio",
 } as const;
@@ -65,7 +65,7 @@ export default async function AdminEssayDetailPage({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <FileText className="h-4.5 w-4.5 text-blue-700" aria-hidden="true" />
-            Redacao enviada
+            Redação enviada
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -73,11 +73,11 @@ export default async function AdminEssayDetailPage({
             <Info label="Aluno" value={essay.profiles?.full_name || "Aluno sem nome"} />
             <Info label="E-mail" value={essay.profiles?.email || essay.user_id} />
             <Info
-              label="Responsavel"
+              label="Responsável"
               value={
                 essay.assigned_admin_profile?.full_name ||
                 essay.assigned_admin_profile?.email ||
-                "Nao assumida"
+                "Não assumida"
               }
             />
           </div>

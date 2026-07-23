@@ -7,13 +7,14 @@ const difficultyWeight: Record<string, number> = {
   Alta: 4.5,
 };
 
+// Espelho documental do cálculo abaixo — se mudar a fórmula, atualize aqui e
+// na página /dashboard/desempenho/metodologia.
 export const PRIORITY_SCORE_WEIGHTS = {
   historical_recurrence_weight: "historical_recurrence / 10",
-  skill_frequency_weight: "topic.priority_weight / 2 quando disponível",
-  recent_exam_weight: "metadado editorial futuro, default 0 nesta beta",
-  user_error_rate_weight: "(100 - accuracy_percentage) / 10",
-  target_score_weight: "ajuste futuro por nota-alvo, default 0 nesta beta",
-  editorial_confidence_weight: "question.priority_score quando revisada",
+  user_error_rate_weight: "(100 - accuracy_percentage) / 10; 5,5 sem respostas",
+  strategic_importance_weight: "strategic_importance do assunto",
+  difficulty_weight: "Baixa 1,5 · Média 3 · Alta 4,5",
+  diagnosis_boost: "autopercepção da área × 1,2 (semeada no diagnóstico)",
 } as const;
 
 export const PRIORITY_SCORE_NOTE =

@@ -163,7 +163,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (orderError || !order) {
-      throw new Error(orderError?.message ?? "Pedido nao encontrado.");
+      throw new Error(orderError?.message ?? "Pedido não encontrado.");
     }
 
     const checkedOrder = order as OrderWithProduct;
@@ -171,16 +171,16 @@ export async function POST(request: NextRequest) {
       ? checkedOrder.products[0]
       : checkedOrder.products;
     if (!product || payment.metadata?.product_id && payment.metadata.product_id !== product.id) {
-      throw new Error("Produto do pagamento nao confere com o pedido.");
+      throw new Error("Produto do pagamento não confere com o pedido.");
     }
 
     if (payment.metadata?.user_id && payment.metadata.user_id !== checkedOrder.user_id) {
-      throw new Error("Usuario do pagamento nao confere com o pedido.");
+      throw new Error("Usuário do pagamento não confere com o pedido.");
     }
 
     const paidCents = Math.round(Number(payment.transaction_amount) * 100);
     if (payment.currency_id !== "BRL" || paidCents !== checkedOrder.amount_cents) {
-      throw new Error("Valor ou moeda do pagamento nao confere com o pedido.");
+      throw new Error("Valor ou moeda do pagamento não confere com o pedido.");
     }
 
     await admin

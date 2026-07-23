@@ -31,7 +31,7 @@ import {
 
 async function getAuthenticatedContext() {
   if (!isSupabaseConfigured()) {
-    return { error: "Configure o Supabase para salvar redacoes." } as const;
+    return { error: "Configure o Supabase para salvar redações." } as const;
   }
 
   const supabase = await createClient();
@@ -40,7 +40,7 @@ async function getAuthenticatedContext() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Sessao expirada. Entre novamente." } as const;
+    return { error: "Sessão expirada. Entre novamente." } as const;
   }
 
   const { data: profile, error } = await supabase
@@ -64,43 +64,43 @@ async function getAuthenticatedContext() {
 
 function mapEssaySubmitError(message: string) {
   if (message.includes("insufficient credits")) {
-    return "Saldo insuficiente para enviar a redacao.";
+    return "Saldo insuficiente para enviar a redação.";
   }
   if (message.includes("missing uploaded files")) {
-    return "Nao foi possivel confirmar todos os arquivos enviados.";
+    return "Não foi possível confirmar todos os arquivos enviados.";
   }
   if (message.includes("pdf must be a single file")) {
-    return "PDF deve ser enviado como arquivo unico.";
+    return "PDF deve ser enviado como arquivo único.";
   }
   if (message.includes("total upload size exceeded")) {
-    return "A submissao deve ter no maximo 30 MB no total.";
+    return "A submissão deve ter no máximo 30 MB no total.";
   }
   if (message.includes("platform access required")) {
     return accessRequiredMessage();
   }
   if (message.includes("invalid file count")) {
-    return "Envie de 1 a 4 arquivos por redacao.";
+    return "Envie de 1 a 4 arquivos por redação.";
   }
-  return "Nao foi possivel enviar a redacao agora.";
+  return "Não foi possível enviar a redação agora.";
 }
 
 function mapAdminEssayError(message: string) {
   if (message.includes("admin access required")) {
-    return "Apenas administradores podem executar esta operacao.";
+    return "Apenas administradores podem executar esta operação.";
   }
   if (message.includes("not available")) {
-    return "Esta redacao ja foi assumida ou saiu da fila.";
+    return "Esta redação já foi assumida ou saiu da fila.";
   }
   if (message.includes("target admin access required")) {
-    return "O responsavel informado nao e administrador ativo.";
+    return "O responsável informado não é administrador ativo.";
   }
   if (message.includes("completed submission cannot be cancelled")) {
-    return "Redacao concluida nao pode ser cancelada.";
+    return "Redação concluída não pode ser cancelada.";
   }
   if (message.includes("cancelled submission cannot be completed")) {
-    return "Redacao cancelada nao pode ser concluida.";
+    return "Redação cancelada não pode ser concluída.";
   }
-  return "Nao foi possivel atualizar a redacao agora.";
+  return "Não foi possível atualizar a redação agora.";
 }
 
 function mapWeeklyTopicUnlockError(message: string) {
@@ -111,9 +111,9 @@ function mapWeeklyTopicUnlockError(message: string) {
     return accessRequiredMessage();
   }
   if (message.includes("invalid weekly essay topic")) {
-    return "Tema sugerido invalido para liberacao.";
+    return "Tema sugerido inválido para liberação.";
   }
-  return "Nao foi possivel liberar a proposta completa agora.";
+  return "Não foi possível liberar a proposta completa agora.";
 }
 
 export async function unlockWeeklyEssayTopicAction(input: {
@@ -121,7 +121,7 @@ export async function unlockWeeklyEssayTopicAction(input: {
   topicTitle: string;
 }): Promise<ActionResult & { balanceAfter?: number; cost?: number }> {
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
   if (!context.access.hasPlatformAccess) {
     return {
       ok: false,
@@ -134,7 +134,7 @@ export async function unlockWeeklyEssayTopicAction(input: {
   const topicId = input.topicId.trim().toLowerCase();
   const topicTitle = input.topicTitle.trim();
   if (!/^[a-z0-9][a-z0-9_-]{2,119}$/.test(topicId) || !topicTitle) {
-    return { ok: false, message: "Tema sugerido invalido para liberacao." };
+    return { ok: false, message: "Tema sugerido inválido para liberação." };
   }
 
   const rateLimit = await checkRateLimit({
@@ -154,7 +154,7 @@ export async function unlockWeeklyEssayTopicAction(input: {
     if (error) logServerError("credits.unlockWeeklyEssayTopic", error, { topicId });
     return {
       ok: false,
-      message: mapWeeklyTopicUnlockError(error?.message ?? "Nao foi possivel liberar."),
+      message: mapWeeklyTopicUnlockError(error?.message ?? "Não foi possível liberar."),
     };
   }
 
@@ -174,7 +174,7 @@ export async function submitEssayCorrectionAction(
   formData: FormData,
 ): Promise<ActionResult & { submissionId?: string }> {
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
   if (!context.access.hasPlatformAccess) {
     return {
       ok: false,
@@ -193,7 +193,7 @@ export async function submitEssayCorrectionAction(
   if (!parsed.success) {
     return {
       ok: false,
-      message: parsed.error.issues[0]?.message ?? "Dados invalidos.",
+      message: parsed.error.issues[0]?.message ?? "Dados inválidos.",
     };
   }
 
@@ -209,7 +209,7 @@ export async function submitEssayCorrectionAction(
   if (!filesParsed.success) {
     return {
       ok: false,
-      message: filesParsed.error.issues[0]?.message ?? "Arquivos invalidos.",
+      message: filesParsed.error.issues[0]?.message ?? "Arquivos inválidos.",
     };
   }
 
@@ -236,14 +236,14 @@ export async function submitEssayCorrectionAction(
   if (attemptError || !attempt?.submission_id) {
     return {
       ok: false,
-      message: mapEssaySubmitError(attemptError?.message ?? "Nao foi possivel iniciar o envio."),
+      message: mapEssaySubmitError(attemptError?.message ?? "Não foi possível iniciar o envio."),
     };
   }
 
   if (attempt.already_confirmed) {
     return {
       ok: true,
-      message: "Redacao ja registrada anteriormente.",
+      message: "Redação já registrada anteriormente.",
       submissionId: attempt.submission_id,
     };
   }
@@ -266,7 +266,7 @@ export async function submitEssayCorrectionAction(
     }
     return {
       ok: false,
-      message: "Esta tentativa ja tem arquivos em andamento. Inicie um novo envio.",
+      message: "Esta tentativa já tem arquivos em andamento. Inicie um novo envio.",
     };
   }
 
@@ -348,7 +348,7 @@ export async function submitOnlineEssayCorrectionAction(
   formData: FormData,
 ): Promise<ActionResult & { submissionId?: string }> {
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
   if (!context.access.hasPlatformAccess) {
     return {
       ok: false,
@@ -368,7 +368,7 @@ export async function submitOnlineEssayCorrectionAction(
   if (!parsed.success) {
     return {
       ok: false,
-      message: parsed.error.issues[0]?.message ?? "Dados invalidos.",
+      message: parsed.error.issues[0]?.message ?? "Dados inválidos.",
     };
   }
 
@@ -382,7 +382,7 @@ export async function submitOnlineEssayCorrectionAction(
 
   const { data, error } = await context.supabase.rpc("submit_essay_for_correction", {
     input_client_token: parsed.data.idempotencyKey,
-    input_theme: parsed.data.theme || "Redacao sem tema",
+    input_theme: parsed.data.theme || "Redação sem tema",
     input_delivery_type: "online",
     input_essay_text: parsed.data.essayText,
     input_file_name: null,
@@ -396,7 +396,7 @@ export async function submitOnlineEssayCorrectionAction(
   if (error || !data) {
     return {
       ok: false,
-      message: mapEssaySubmitError(error?.message ?? "Nao foi possivel enviar a redacao."),
+      message: mapEssaySubmitError(error?.message ?? "Não foi possível enviar a redação."),
     };
   }
 
@@ -406,7 +406,7 @@ export async function submitOnlineEssayCorrectionAction(
 
   return {
     ok: true,
-    message: `Redacao enviada para a fila. Foram debitados ${ESSAY_CREDIT_COST} creditos.`,
+    message: `Redação enviada para a fila. Foram debitados ${ESSAY_CREDIT_COST} créditos.`,
     submissionId: data,
   };
 }
@@ -417,7 +417,7 @@ async function confirmEssayAttempt(
   fileCount: number,
 ): Promise<ActionResult & { submissionId?: string }> {
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { data, error } = await context.supabase.rpc("confirm_essay_submission", {
     input_submission_id: submissionId,
@@ -428,7 +428,7 @@ async function confirmEssayAttempt(
   if (error || !data) {
     return {
       ok: false,
-      message: mapEssaySubmitError(error?.message ?? "Nao foi possivel confirmar o envio."),
+      message: mapEssaySubmitError(error?.message ?? "Não foi possível confirmar o envio."),
     };
   }
 
@@ -438,7 +438,7 @@ async function confirmEssayAttempt(
 
   return {
     ok: true,
-    message: `Redacao enviada para a fila. Foram debitados ${ESSAY_CREDIT_COST} creditos.`,
+    message: `Redação enviada para a fila. Foram debitados ${ESSAY_CREDIT_COST} créditos.`,
     submissionId: data,
   };
 }
@@ -447,10 +447,10 @@ export async function createEssayFileSignedUrlAction(
   fileId: string,
 ): Promise<ActionResult & { url?: string; mimeType?: string; fileName?: string }> {
   const parsed = essayFileSignedUrlSchema.safeParse({ fileId });
-  if (!parsed.success) return { ok: false, message: "Arquivo invalido." };
+  if (!parsed.success) return { ok: false, message: "Arquivo inválido." };
 
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { data: file, error } = await context.supabase
     .from("essay_submission_files")
@@ -460,7 +460,7 @@ export async function createEssayFileSignedUrlAction(
 
   if (error || !file) {
     if (error) logServerError("credits.createEssayFileSignedUrl.file", error);
-    return { ok: false, message: "Arquivo nao encontrado." };
+    return { ok: false, message: "Arquivo não encontrado." };
   }
 
   const { data, error: signedError } = await context.supabase.storage
@@ -469,7 +469,7 @@ export async function createEssayFileSignedUrlAction(
 
   if (signedError || !data?.signedUrl) {
     if (signedError) logServerError("credits.createEssayFileSignedUrl.signedUrl", signedError);
-    return { ok: false, message: "Nao foi possivel abrir o arquivo." };
+    return { ok: false, message: "Não foi possível abrir o arquivo." };
   }
 
   return {
@@ -485,10 +485,10 @@ export async function startEssayReviewAction(
   submissionId: string,
 ): Promise<ActionResult> {
   const parsed = essayStatusActionSchema.safeParse({ submissionId });
-  if (!parsed.success) return { ok: false, message: "Redacao invalida." };
+  if (!parsed.success) return { ok: false, message: "Redação inválida." };
 
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { error } = await context.supabase.rpc("admin_claim_essay_submission", {
     input_submission_id: parsed.data.submissionId,
@@ -497,17 +497,17 @@ export async function startEssayReviewAction(
 
   revalidatePath("/dashboard/redacoes");
   revalidatePath(`/dashboard/redacoes/${parsed.data.submissionId}`);
-  return { ok: true, message: "Redacao assumida para revisao." };
+  return { ok: true, message: "Redação assumida para revisão." };
 }
 
 export async function releaseEssaySubmissionAction(
   submissionId: string,
 ): Promise<ActionResult> {
   const parsed = essayStatusActionSchema.safeParse({ submissionId });
-  if (!parsed.success) return { ok: false, message: "Redacao invalida." };
+  if (!parsed.success) return { ok: false, message: "Redação inválida." };
 
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { error } = await context.supabase.rpc("admin_release_essay_submission", {
     input_submission_id: parsed.data.submissionId,
@@ -516,7 +516,7 @@ export async function releaseEssaySubmissionAction(
 
   revalidatePath("/dashboard/redacoes");
   revalidatePath(`/dashboard/redacoes/${parsed.data.submissionId}`);
-  return { ok: true, message: "Redacao devolvida para a fila." };
+  return { ok: true, message: "Redação devolvida para a fila." };
 }
 
 export async function transferEssaySubmissionAction(
@@ -524,11 +524,11 @@ export async function transferEssaySubmissionAction(
 ): Promise<ActionResult> {
   const parsed = essayTransferSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Transferencia invalida." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Transferência inválida." };
   }
 
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { error } = await context.supabase.rpc("admin_transfer_essay_submission", {
     input_submission_id: parsed.data.submissionId,
@@ -545,10 +545,10 @@ export async function completeEssaySubmissionAction(
   submissionId: string,
 ): Promise<ActionResult> {
   const parsed = essayStatusActionSchema.safeParse({ submissionId });
-  if (!parsed.success) return { ok: false, message: "Redacao invalida." };
+  if (!parsed.success) return { ok: false, message: "Redação inválida." };
 
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { error } = await context.supabase.rpc("admin_complete_essay_submission", {
     input_submission_id: parsed.data.submissionId,
@@ -558,7 +558,7 @@ export async function completeEssaySubmissionAction(
   revalidatePath("/dashboard/redacoes");
   revalidatePath("/dashboard/correcao-redacao");
   revalidatePath(`/dashboard/redacoes/${parsed.data.submissionId}`);
-  return { ok: true, message: "Redacao marcada como concluida." };
+  return { ok: true, message: "Redação marcada como concluída." };
 }
 
 export async function cancelEssaySubmissionAction(
@@ -566,11 +566,11 @@ export async function cancelEssaySubmissionAction(
 ): Promise<ActionResult> {
   const parsed = essayCancelSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Cancelamento invalido." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Cancelamento inválido." };
   }
 
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { error } = await context.supabase.rpc("admin_cancel_essay_submission", {
     input_submission_id: parsed.data.submissionId,
@@ -583,14 +583,14 @@ export async function cancelEssaySubmissionAction(
   revalidatePath("/dashboard/correcao-redacao");
   revalidatePath("/dashboard/creditos");
   revalidatePath(`/dashboard/redacoes/${parsed.data.submissionId}`);
-  return { ok: true, message: "Redacao cancelada e creditos estornados quando aplicavel." };
+  return { ok: true, message: "Redação cancelada e créditos estornados quando aplicável." };
 }
 
 export async function cleanupAbandonedEssayUploadsAction(): Promise<
   ActionResult & { removedFiles?: number }
 > {
   const context = await getAuthenticatedContext();
-  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticacao." };
+  if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { data, error } = await context.supabase.rpc("admin_mark_abandoned_essay_uploads", {
     input_older_than: "24 hours",
@@ -641,7 +641,7 @@ function trimFileName(fileName: string) {
 }
 
 function errorMessage(error: unknown) {
-  return error instanceof Error ? error.message : "Nao foi possivel enviar a redacao.";
+  return error instanceof Error ? error.message : "Não foi possível enviar a redação.";
 }
 
 async function removeUploadedFiles(paths: string[]) {

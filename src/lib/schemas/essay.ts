@@ -26,16 +26,16 @@ export const essayStatuses = [
 ] as const;
 
 export const essaySubmissionSchema = z.object({
-  idempotencyKey: z.string().uuid("Chave de envio invalida."),
+  idempotencyKey: z.string().uuid("Chave de envio inválida."),
   theme: z
     .string()
     .trim()
-    .max(180, "O tema deve ter no maximo 180 caracteres.")
+    .max(180, "O tema deve ter no máximo 180 caracteres.")
     .optional(),
   studentNote: z
     .string()
     .trim()
-    .max(1000, "A observacao deve ter no maximo 1000 caracteres.")
+    .max(1000, "A observação deve ter no máximo 1000 caracteres.")
     .optional(),
 });
 
@@ -44,7 +44,7 @@ export const onlineEssaySubmissionSchema = essaySubmissionSchema.extend({
     .string()
     .trim()
     .min(MIN_ONLINE_ESSAY_LENGTH, "Digite ao menos 400 caracteres para enviar online.")
-    .max(MAX_ONLINE_ESSAY_LENGTH, "A redacao deve ter no maximo 12000 caracteres.")
+    .max(MAX_ONLINE_ESSAY_LENGTH, "A redação deve ter no máximo 12000 caracteres.")
     .refine((value) => countWords(value) >= MIN_ONLINE_ESSAY_WORDS, {
       message: "Digite ao menos 80 palavras para enviar online.",
     }),
@@ -54,13 +54,13 @@ export const essayUploadMetadataSchema = z.object({
   fileName: z
     .string()
     .trim()
-    .min(3, "Selecione um arquivo valido.")
+    .min(3, "Selecione um arquivo válido.")
     .max(180, "Nome de arquivo muito longo."),
   fileSize: z
     .number()
     .int()
     .positive("Arquivo vazio.")
-    .max(MAX_ESSAY_UPLOAD_SIZE_BYTES, "O arquivo deve ter no maximo 10 MB."),
+    .max(MAX_ESSAY_UPLOAD_SIZE_BYTES, "O arquivo deve ter no máximo 10 MB."),
   fileType: z.string().refine((value) => acceptedEssayUploadTypes.has(value), {
     message: "Use PDF, PNG, JPG ou JPEG.",
   }),
@@ -69,20 +69,20 @@ export const essayUploadMetadataSchema = z.object({
 export const essayUploadFilesSchema = z
   .array(essayUploadMetadataSchema)
   .min(1, "Selecione pelo menos um arquivo.")
-  .max(MAX_ESSAY_UPLOAD_FILES, "Envie no maximo 4 arquivos por redacao.")
+  .max(MAX_ESSAY_UPLOAD_FILES, "Envie no máximo 4 arquivos por redação.")
   .superRefine((files, context) => {
     const totalSize = files.reduce((sum, file) => sum + file.fileSize, 0);
     if (totalSize > MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES) {
       context.addIssue({
         code: "custom",
-        message: "A submissao deve ter no maximo 30 MB no total.",
+        message: "A submissão deve ter no máximo 30 MB no total.",
       });
     }
 
     if (files.some((file) => file.fileType === "application/pdf") && files.length > 1) {
       context.addIssue({
         code: "custom",
-        message: "PDF deve ser enviado como arquivo unico.",
+        message: "PDF deve ser enviado como arquivo único.",
       });
     }
   });
@@ -97,7 +97,7 @@ export const essayFileSignedUrlSchema = z.object({
 
 export const essayTransferSchema = z.object({
   submissionId: z.string().uuid(),
-  targetAdminId: z.string().uuid("Administrador invalido."),
+  targetAdminId: z.string().uuid("Administrador inválido."),
 });
 
 export const essayCancelSchema = z.object({

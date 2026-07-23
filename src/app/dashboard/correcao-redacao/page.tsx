@@ -23,7 +23,7 @@ export default async function EssayCorrectionPage() {
         action={
           <Badge tone="blue" className="gap-1.5">
             <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-            {data.account.balance} creditos disponiveis
+            {data.account.balance} créditos disponíveis
           </Badge>
         }
       />

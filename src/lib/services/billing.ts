@@ -92,7 +92,7 @@ export async function getActiveProductForCheckout(
     .single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "Produto ativo nao encontrado.");
+    throw new Error(error?.message ?? "Produto ativo não encontrado.");
   }
 
   return withCurrentProductBrand(data as Product);

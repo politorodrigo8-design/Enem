@@ -69,7 +69,7 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <Badge tone={index === 0 ? "blue" : "slate"}>
-                  Pagina {file.page_order}
+                  Página {file.page_order}
                 </Badge>
                 <p className="mt-2 truncate text-sm font-semibold text-slate-950">
                   {file.original_name || `pagina-${file.page_order}`}
@@ -106,7 +106,7 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-slate-950">
-                  Pagina {activeFile.page_order}
+                  Página {activeFile.page_order}
                 </p>
                 <p className="truncate text-xs text-slate-500">
                   {activeFile.original_name || activeFile.storage_path}
@@ -138,7 +138,7 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
                 onClick={() => navigate(1)}
                 disabled={activeIndex === orderedFiles.length - 1}
               >
-                Proxima
+                Próxima
                 <ChevronRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>

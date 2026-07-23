@@ -208,7 +208,7 @@ export async function POST(request: NextRequest) {
         ok: false,
         message: publicDatabaseErrorMessage(
           orderError,
-          "Nao foi possivel criar o pedido agora.",
+          "Não foi possível criar o pedido agora.",
         ),
       },
       { status: 500 },
@@ -265,7 +265,7 @@ export async function POST(request: NextRequest) {
   if (updateError || !preference.checkoutUrl) {
     logServerError("payments.create.update", updateError, { orderId: createdOrder.id });
     return NextResponse.json(
-      { ok: false, message: "Nao foi possivel preparar o checkout agora." },
+      { ok: false, message: "Não foi possível preparar o checkout agora." },
       { status: 500 },
     );
   }

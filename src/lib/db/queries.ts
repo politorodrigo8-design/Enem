@@ -2,11 +2,9 @@ import { redirect } from "next/navigation";
 import { getAccessContext } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
-import {
-  calculatePriorityScore,
-  formatDateTime,
-  getWeekStart,
-} from "@/lib/db/scoring";
+import { formatDateTime, getWeekStart } from "@/lib/db/scoring";
+import { prioritizeTopics } from "@/lib/study/priorities";
+import { appDateISO } from "@/lib/dates";
 import {
   getFallbackQuestionRecords,
   getFallbackSimulations,
@@ -276,17 +274,7 @@ export async function getDashboardData() {
   const correct = answers.filter((answer) => answer.is_correct).length;
   const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
 
-  const priorities = topics
-    .map((topic) => {
-      const performance = topic.user_topic_performance?.[0];
-      return {
-        topic,
-        performance,
-        score: performance?.priority_score || calculatePriorityScore(topic, performance),
-      };
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, 4);
+  const priorities = prioritizeTopics(topics).slice(0, 4);
 
   const recentActivities: ActivityRecord[] = answers
     .slice(-5)
@@ -404,6 +392,84 @@ export async function getCurrentStudyPlan(): Promise<StudyPlanWithItems | null> 
   return data as unknown as StudyPlanWithItems | null;
 }
 
+export type TodayStudyData = {
+  todayItem: StudyPlanWithItems["study_plan_items"][number] | null;
+  nextItem: StudyPlanWithItems["study_plan_items"][number] | null;
+  dailyGoal: number;
+  answeredToday: number;
+  streak: number;
+};
+
+/** Dados da meta diária: item do plano de hoje, questões de hoje e sequência de dias. */
+export async function getTodayStudy(
+  plan: StudyPlanWithItems | null,
+  profile: Profile | null,
+): Promise<TodayStudyData> {
+  const { supabase, user } = await requireUser();
+  const today = appDateISO();
+
+  const items = (plan?.study_plan_items ?? [])
+    .slice()
+    .sort((a, b) => a.scheduled_date.localeCompare(b.scheduled_date));
+  const todayItem = items.find((item) => item.scheduled_date === today) ?? null;
+  const nextItem =
+    items.find((item) => item.scheduled_date > today && !item.completed) ?? null;
+
+  const since = new Date();
+  since.setDate(since.getDate() - 120);
+  const { data: recentAnswers, error } = await supabase
+    .from("user_question_answers")
+    .select("answered_at")
+    .eq("user_id", user.id)
+    .gte("answered_at", since.toISOString())
+    .order("answered_at", { ascending: false })
+    .limit(3000);
+
+  if (error) {
+    logQueryError("user_question_answers.recent_for_streak", error);
+  }
+
+  const answerDates = new Set(
+    (recentAnswers ?? []).map((answer) => appDateISO(answer.answered_at)),
+  );
+  const answeredToday = (recentAnswers ?? []).filter(
+    (answer) => appDateISO(answer.answered_at) === today,
+  ).length;
+
+  // Sequência: dias consecutivos com pelo menos uma questão respondida.
+  // Se hoje ainda não estudou, a sequência vigente termina ontem (não zera).
+  let streak = 0;
+  const cursor = new Date();
+  if (!answerDates.has(today)) cursor.setDate(cursor.getDate() - 1);
+  while (answerDates.has(appDateISO(cursor))) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+
+  return {
+    todayItem,
+    nextItem,
+    dailyGoal: getDailyQuestionGoal(profile, todayItem?.question_goal),
+    answeredToday,
+    streak,
+  };
+}
+
+export function getDailyQuestionGoal(
+  profile: Profile | null,
+  planGoal?: number | null,
+) {
+  const preferences = profile?.study_preferences;
+  const stored =
+    preferences && typeof preferences === "object" && !Array.isArray(preferences)
+      ? Number(preferences.daily_question_goal)
+      : NaN;
+
+  if (Number.isFinite(stored) && stored >= 5 && stored <= 60) return stored;
+  if (planGoal && planGoal > 0) return planGoal;
+  return 10;
+}
+
 export async function getReviewQuestions() {
   const questions = await getQuestionRecords();
   return questions.filter((question) => {
@@ -413,44 +479,6 @@ export async function getReviewQuestions() {
     const isMarked = Boolean(question.user_question_reviews?.length);
     return hasWrongAnswer || isMarked;
   });
-}
-
-export async function getHighPriorityQuestionRecords() {
-  const questions = await getQuestionRecords();
-
-  const reviewedHighPriority = questions.filter(
-    (question) => hasHighPrioritySignal(question),
-  );
-  const source = reviewedHighPriority.length
-    ? reviewedHighPriority
-    : questions.filter((question) => question.is_demo);
-
-  return (source.length ? source : questions)
-    .map((question) => {
-      const topicScore = calculatePriorityScore(question.topics);
-      const editorialScore = Number(question.priority_score ?? 0);
-      return {
-        question,
-        score: Number((topicScore + editorialScore).toFixed(2)),
-      };
-    })
-    .sort((a, b) => b.score - a.score)
-    .map((item) => item.question);
-}
-
-function hasHighPrioritySignal(question: QuestionRecord) {
-  const recurrenceCategory = question.recurrence_category;
-  const recurrenceIsHigh = [
-    "Potencial muito alto de recorrencia do conteudo",
-    "Alta prioridade",
-  ].includes(recurrenceCategory);
-  const editorialScoreIsHigh = Number(question.priority_score ?? 0) >= 70;
-  const topicRecurrenceIsHigh = Number(question.topics.historical_recurrence ?? 0) >= 75;
-
-  return (
-    Boolean(question.priority_reason || question.is_demo) &&
-    (recurrenceIsHigh || editorialScoreIsHigh || topicRecurrenceIsHigh)
-  );
 }
 
 function mergeTopicSources(primary: TopicWithSubject[], fallback: TopicWithSubject[]) {
@@ -586,7 +614,7 @@ export async function getCreditsData(): Promise<CreditsData> {
   );
   if (accountError || !account) {
     logQueryError("credit_accounts.ensure", accountError);
-    throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
+    throw new Error(accountError?.message ?? "Não foi possível carregar créditos.");
   }
 
   const [ledgerResult, essaysResult] = await Promise.all([
@@ -627,7 +655,7 @@ export async function getDashboardEssayCreditData(): Promise<DashboardEssayCredi
   );
   if (accountError || !account) {
     logQueryError("credit_accounts.ensure_for_dashboard", accountError);
-    throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
+    throw new Error(accountError?.message ?? "Não foi possível carregar créditos.");
   }
 
   const [
@@ -701,7 +729,7 @@ export async function getEssayCorrectionData(): Promise<EssayCorrectionData> {
   );
   if (accountError || !account) {
     logQueryError("credit_accounts.ensure_for_essay", accountError);
-    throw new Error(accountError?.message ?? "Nao foi possivel carregar creditos.");
+    throw new Error(accountError?.message ?? "Não foi possível carregar créditos.");
   }
 
   const [submissionsResult, topicUnlocksResult] = await Promise.all([

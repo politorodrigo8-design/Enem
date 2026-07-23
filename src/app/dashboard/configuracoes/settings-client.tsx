@@ -81,6 +81,10 @@ export function SettingsClient({
       ? String(form.study_preferences.notes)
       : "",
   );
+  const [dailyGoalText, setDailyGoalText] = useState(() => {
+    const stored = Number(form.study_preferences?.daily_question_goal);
+    return Number.isFinite(stored) && stored > 0 ? String(stored) : "";
+  });
   const profilePhotoUrl = getProfilePhotoUrl(form.study_preferences);
   const profilePhotoChanged = profilePhotoUrl !== confirmedProfilePhotoUrl;
 
@@ -159,6 +163,14 @@ export function SettingsClient({
         study_preferences: {
           ...form.study_preferences,
           notes: preferencesText,
+          ...(dailyGoalText.trim()
+            ? {
+                daily_question_goal: Math.min(
+                  60,
+                  Math.max(5, Math.round(Number(dailyGoalText))),
+                ),
+              }
+            : { daily_question_goal: undefined }),
         },
         onboarding_completed: true,
       });
@@ -319,6 +331,17 @@ export function SettingsClient({
               max={80}
               value={form.weekly_hours}
               onChange={(weekly_hours) => setForm((current) => ({ ...current, weekly_hours }))}
+            />
+            <Input
+              id={`${formId}-daily-goal`}
+              name="daily_question_goal"
+              label="Meta diária de questões"
+              type="number"
+              inputMode="numeric"
+              min={5}
+              max={60}
+              value={dailyGoalText}
+              onChange={setDailyGoalText}
             />
             <WeekdaySelector
               id={`${formId}-available-days`}

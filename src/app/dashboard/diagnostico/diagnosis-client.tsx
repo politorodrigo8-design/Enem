@@ -188,11 +188,11 @@ function DiagnosisResult({
         <CardHeader className="flex flex-row items-center justify-between gap-4">
           <CardTitle>Suas prioridades agora</CardTitle>
           <Link
-            href="/dashboard/radar"
+            href="/dashboard/desempenho"
             className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 transition-colors hover:text-blue-800"
           >
             <Radar className="h-4 w-4" aria-hidden="true" />
-            Ver Radar completo
+            Ver no Desempenho
           </Link>
         </CardHeader>
         <CardContent>

@@ -15,8 +15,8 @@ const statusLabels = {
   all: "Todos",
   uploading: "Enviando",
   pending: "Pendente",
-  in_review: "Em analise",
-  completed: "Concluida",
+  in_review: "Em análise",
+  completed: "Concluída",
   cancelled: "Cancelada",
   upload_failed: "Falha no envio",
 } as const;
@@ -47,8 +47,8 @@ export default async function AdminEssaysPage({
   return (
     <div>
       <DashboardPageHeader
-        title="Fila de redacoes"
-        description="Envios recebidos, arquivos privados e atribuicao administrativa para correcao externa."
+        title="Fila de redações"
+        description="Envios recebidos, arquivos privados e atribuição administrativa para correção externa."
         action={<EssayCleanupButton />}
       />
 
@@ -106,7 +106,7 @@ export default async function AdminEssaysPage({
             </label>
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Ate
+                Até
               </span>
               <input
                 name="to"
@@ -177,7 +177,7 @@ export default async function AdminEssaysPage({
                   <span className="truncate text-slate-600">
                     {essay.assigned_admin_profile?.full_name ||
                       essay.assigned_admin_profile?.email ||
-                      "Nao assumida"}
+                      "Não assumida"}
                   </span>
                   <span className="flex items-center justify-between gap-2">
                     <Badge tone={statusTones[essay.status]}>
@@ -193,7 +193,7 @@ export default async function AdminEssaysPage({
       ) : (
         <EmptyState
           icon={FileText}
-          title="Nenhuma redacao encontrada"
+          title="Nenhuma redação encontrada"
           description="Ajuste os filtros ou aguarde novos envios dos alunos."
         />
       )}

@@ -294,7 +294,7 @@ const MIN_PERFORMANCE_ANSWERS = 5;
 
 async function getUserContext(): Promise<UserContext> {
   if (!isSupabaseConfigured()) {
-    return { error: "Configure o Supabase para usar a IA com creditos." };
+    return { error: "Configure o Supabase para usar a IA com créditos." };
   }
 
   const supabase = await createClient();
@@ -303,7 +303,7 @@ async function getUserContext(): Promise<UserContext> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return { error: "Sessao expirada. Entre novamente." };
+    return { error: "Sessão expirada. Entre novamente." };
   }
 
   const { data: profile, error } = await supabase
@@ -314,7 +314,7 @@ async function getUserContext(): Promise<UserContext> {
 
   if (error) {
     logServerError("ai.getUserContext.profile", error, { userId: user.id });
-    return { error: "Nao foi possivel carregar seu perfil agora." };
+    return { error: "Não foi possível carregar seu perfil agora." };
   }
 
   const access = getAccessContext((profile as Profile | null) ?? null);
@@ -339,7 +339,7 @@ export async function generateQuestionExplanationAction(
 
   const parsed = questionExplanationSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: "Questao invalida para explicacao." };
+    return { ok: false, message: "Questão inválida para explicação." };
   }
 
   const rateLimit = await checkRateLimit({
@@ -355,7 +355,7 @@ export async function generateQuestionExplanationAction(
 
   const question = await getQuestionForAi(context.supabase, parsed.data.questionId);
   if (!question) {
-    return { ok: false, message: "Questao nao encontrada ou ainda em revisao editorial." };
+    return { ok: false, message: "Questão não encontrada ou ainda em revisão editorial." };
   }
 
   const reservation = await reserveAiCredits({
@@ -507,7 +507,7 @@ export async function generatePerformanceAnalysisAction(): Promise<PerformanceAn
     supabase: context.supabase,
     userId: context.user.id,
     eventName: "ai_performance_analysis_generated",
-    route: "/dashboard/radar?tab=desempenho",
+    route: "/dashboard/desempenho",
     metadata: {
       answers_analyzed: answerRows.answers.length,
       cost: AI_PERFORMANCE_ANALYSIS_CREDIT_COST,
@@ -735,7 +735,7 @@ async function reserveAiCredits({
     return {
       ok: false,
       message: mapCreditError(
-        error?.message ?? "Nao foi possivel reservar creditos para a IA.",
+        error?.message ?? "Não foi possível reservar créditos para a IA.",
       ),
     };
   }
@@ -834,7 +834,7 @@ async function getRecentAnswerRows(
 
   if (error) {
     logServerError("ai.recentAnswers", error, { userId });
-    return { ok: false, message: "Nao foi possivel carregar seu desempenho recente." };
+    return { ok: false, message: "Não foi possível carregar seu desempenho recente." };
   }
 
   const answers = ((data ?? []) as unknown as Array<{
@@ -937,15 +937,15 @@ async function getStudyPlanContext(
 
   if (profileResult.error) {
     logServerError("ai.studyPlanContext.profile", profileResult.error, { userId });
-    return { ok: false, message: "Nao foi possivel carregar seu perfil de estudos." };
+    return { ok: false, message: "Não foi possível carregar seu perfil de estudos." };
   }
   if (planResult.error) {
     logServerError("ai.studyPlanContext.plan", planResult.error, { userId });
-    return { ok: false, message: "Nao foi possivel carregar seu plano atual." };
+    return { ok: false, message: "Não foi possível carregar seu plano atual." };
   }
   if (performanceResult.error) {
     logServerError("ai.studyPlanContext.performance", performanceResult.error, { userId });
-    return { ok: false, message: "Nao foi possivel carregar seu desempenho por assunto." };
+    return { ok: false, message: "Não foi possível carregar seu desempenho por assunto." };
   }
 
   const profile = profileResult.data as
@@ -1641,18 +1641,18 @@ function formatMinutes(minutes: number) {
 function revalidateCreditViews() {
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/creditos");
-  revalidatePath("/dashboard/radar");
+  revalidatePath("/dashboard/desempenho");
   revalidatePath("/dashboard/praticar");
 }
 
 function mapCreditError(message: string) {
   if (message.includes("insufficient credits")) {
-    return "Saldo insuficiente para usar esta acao de IA.";
+    return "Saldo insuficiente para usar esta ação de IA.";
   }
   if (message.includes("platform access required")) {
     return accessRequiredMessage();
   }
-  return "Nao foi possivel reservar creditos para a IA.";
+  return "Não foi possível reservar créditos para a IA.";
 }
 
 function aiFailureReason(error: unknown) {

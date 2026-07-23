@@ -19,7 +19,8 @@ import type { AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
-import { formatAppDateTime } from "@/lib/dates";
+import { appDateISO, formatAppDateTime } from "@/lib/dates";
+import { parseSelectedWeekdays, weekdayOffsetFromMonday } from "@/lib/weekdays";
 import {
   buildQuestionAnswerRecord,
   nextReviewToggle,
@@ -70,7 +71,7 @@ async function getUserContext(): Promise<UserContext> {
   };
 }
 
-function learningError(scope: string, error: unknown, fallback = "Nao foi possivel salvar agora.") {
+function learningError(scope: string, error: unknown, fallback = "Não foi possível salvar agora.") {
   logServerError(scope, error);
   return { ok: false, message: publicDatabaseErrorMessage(error, fallback) };
 }
@@ -187,7 +188,7 @@ export async function submitQuestionAnswerAction(input: {
 
   if (questionError || !question) {
     if (questionError) logServerError("learning.submitQuestionAnswer.question", questionError);
-    return { ok: false, message: "Questao nao encontrada." };
+    return { ok: false, message: "Questão não encontrada." };
   }
 
   if (!isStudentReadyQuestion(question)) {
@@ -208,6 +209,7 @@ export async function submitQuestionAnswerAction(input: {
   if (error) return learningError("learning.saveDiagnosis", error);
 
   await refreshTopicPerformance(user.id, question.topic_id);
+  await autoCompleteStudyPlanItem(supabase, user.id, question.topic_id);
   await recordProductEvent({
     supabase,
     userId: user.id,
@@ -334,7 +336,7 @@ export async function startSimulationAction(simulationId: string): Promise<{
 
   if (simulationError || !simulation) {
     if (simulationError) logServerError("learning.submitSimulationAnswer.simulation", simulationError);
-    return { ok: false, message: "Simulado nao encontrado." };
+    return { ok: false, message: "Simulado não encontrado." };
   }
 
   const isDiagnostic = simulation.title.toLowerCase().includes("diagn");
@@ -451,19 +453,19 @@ export async function finishSimulationAction(
 
   if (simulationError || !simulation) {
     if (simulationError) logServerError("learning.finishSimulation.simulation", simulationError);
-    return { ok: false, message: "Simulado nao encontrado." };
+    return { ok: false, message: "Simulado não encontrado." };
   }
 
   const { data: questionRows, error: questionError } = await supabase
     .from("simulation_questions")
     .select(
-      "question_id, questions (correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
+      "question_id, questions (topic_id, correct_option, is_demo, reviewed, review_status, source_verified, answer_verified, media_required, media_url, statement, question_options (option_key, option_text), question_media (url))",
     )
     .eq("simulation_id", simulation.simulation_id);
 
   if (questionError) return learningError("learning.finishSimulation.questions", questionError);
 
-  const questionById = new Map<string, SimulationAnswerQuestion>();
+  const questionById = new Map<string, SimulationAnswerQuestion & { topic_id?: string }>();
   for (const row of questionRows ?? []) {
     const question = Array.isArray(row.questions) ? row.questions[0] : row.questions;
     if (question && isStudentReadyQuestion(question)) {
@@ -521,6 +523,34 @@ export async function finishSimulationAction(
     .eq("user_id", user.id);
 
   if (error) return learningError("learning.finishSimulation.update", error);
+
+  // Simulado não é uma ilha: as respostas entram no mesmo histórico da
+  // prática, alimentando desempenho, revisão de erros e sequência de estudo.
+  if (results.length) {
+    const answerRows = results.map(({ questionId, isCorrect }) => ({
+      user_id: user.id,
+      question_id: questionId,
+      selected_option: selectedByQuestion.get(questionId) ?? "",
+      is_correct: isCorrect,
+      response_time_seconds: 0,
+    }));
+    const { error: logError } = await supabase
+      .from("user_question_answers")
+      .insert(answerRows);
+    if (logError) {
+      logServerError("learning.finishSimulation.answerLog", logError);
+    } else {
+      const topicIds = new Set(
+        results
+          .map(({ questionId }) => questionById.get(questionId)?.topic_id)
+          .filter((topicId): topicId is string => Boolean(topicId)),
+      );
+      for (const topicId of topicIds) {
+        await refreshTopicPerformance(user.id, topicId);
+      }
+    }
+  }
+
   await recordProductEvent({
     supabase,
     userId: user.id,
@@ -529,6 +559,7 @@ export async function finishSimulationAction(
     metadata: { total_questions: totalQuestions, correct_answers: correct },
   });
   revalidatePath("/dashboard/simulados");
+  revalidatePath("/dashboard", "layout");
   return {
     ok: true,
     message: "Simulado finalizado.",
@@ -572,7 +603,7 @@ async function getSimulationAttemptQuestion({
     return {
       error: {
         ok: false,
-        message: "Tentativa de simulado nao encontrada. Inicie o simulado novamente.",
+        message: "Tentativa de simulado não encontrada. Inicie o simulado novamente.",
       },
     };
   }
@@ -581,7 +612,7 @@ async function getSimulationAttemptQuestion({
     return {
       error: {
         ok: false,
-        message: "Este simulado ja foi finalizado. Inicie uma nova tentativa.",
+        message: "Este simulado já foi finalizado. Inicie uma nova tentativa.",
       },
     };
   }
@@ -607,7 +638,7 @@ async function getSimulationAttemptQuestion({
     return {
       error: {
         ok: false,
-        message: "Esta questao nao faz parte desta tentativa. Reabra o simulado.",
+        message: "Esta questão não faz parte desta tentativa. Reabra o simulado.",
       },
     };
   }
@@ -731,8 +762,51 @@ export async function generateSimulationAction(
 ): Promise<{ ok: boolean; message: string; simulationId?: string }> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
+  return createGeneratedSimulation(context.supabase, context.user, criteria);
+}
+
+/** Refaz um simulado gerado com um sorteio novo de questões (mesmos critérios). */
+export async function regenerateSimulationAction(
+  simulationId: string,
+): Promise<{ ok: boolean; message: string; simulationId?: string }> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
   const { supabase, user } = context;
 
+  const { data: simulation, error } = await supabase
+    .from("simulations")
+    .select("id, title, is_generated, created_by, criteria")
+    .eq("id", simulationId)
+    .single();
+
+  if (error || !simulation) {
+    if (error) logServerError("learning.regenerateSimulation.load", error);
+    return { ok: false, message: "Simulado não encontrado." };
+  }
+  if (!simulation.is_generated || simulation.created_by !== user.id) {
+    return { ok: false, message: "Este simulado não pode ser refeito com novo sorteio." };
+  }
+
+  const stored = (simulation.criteria ?? {}) as Record<string, unknown>;
+  return createGeneratedSimulation(supabase, user, {
+    title: simulation.title,
+    areas: Array.isArray(stored.areas) ? (stored.areas as string[]) : [],
+    topics: Array.isArray(stored.topics) ? (stored.topics as string[]) : undefined,
+    questionCount: Number(stored.question_count) || 30,
+    difficulty:
+      stored.difficulty === "Baixa" || stored.difficulty === "Média" || stored.difficulty === "Alta"
+        ? stored.difficulty
+        : null,
+    prioritizeWeaknesses: Boolean(stored.prioritize_weaknesses),
+    foreignLanguage: stored.foreign_language === "es" ? "es" : "en",
+  });
+}
+
+async function createGeneratedSimulation(
+  supabase: SupabaseClient,
+  user: User,
+  criteria: GenerateSimulationCriteria,
+): Promise<{ ok: boolean; message: string; simulationId?: string }> {
   const areas = Array.from(
     new Set(
       (criteria.areas ?? [])
@@ -913,20 +987,33 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
 
   if (planError || !plan) {
     if (planError) logServerError("learning.generateStudyPlan.create", planError);
-    return { ok: false, message: "Nao foi possivel criar plano." };
+    return { ok: false, message: "Não foi possível criar o plano." };
   }
 
-  const availableDays = parseAvailableDays(profile?.available_days);
+  const parsedDays = parseSelectedWeekdays(profile?.available_days);
+  const availableDays = parsedDays.length
+    ? parsedDays
+    : (["Segunda-feira", "Quarta-feira", "Sexta-feira"] as const);
   const weeklyHours = profile?.weekly_hours ?? 7;
-  const duration = Math.max(35, Math.round((weeklyHours * 60) / Math.max(availableDays.length, 1)));
+  // Sessão diária de questões entre 25 e 120 min — o restante da rotina do
+  // aluno (aulas, resumos) acontece fora do app e não entra na conta.
+  const duration = Math.min(
+    120,
+    Math.max(25, Math.round((weeklyHours * 60) / availableDays.length)),
+  );
+  const questionGoal = Math.min(25, Math.max(8, Math.round(duration / 4)));
 
-  const items = topics.slice(0, availableDays.length).map((topic, index) => ({
-    study_plan_id: plan.id,
-    topic_id: topic.id,
-    scheduled_date: addDays(weekStart, index).toISOString().slice(0, 10),
-    duration_minutes: duration,
-    question_goal: 10 + index * 2,
-  }));
+  const items = topics.slice(0, availableDays.length).map((topic, index) => {
+    const day = availableDays[index];
+    const offset = weekdayOffsetFromMonday(day) ?? index;
+    return {
+      study_plan_id: plan.id,
+      topic_id: topic.id,
+      scheduled_date: appDateISO(addDays(weekStart, offset)),
+      duration_minutes: duration,
+      question_goal: questionGoal,
+    };
+  });
 
   if (items.length) {
     const { error } = await supabase.from("study_plan_items").insert(items);
@@ -941,7 +1028,7 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     route: "/dashboard",
     metadata: { item_count: items.length },
   });
-  return { ok: true, message: "Plano semanal gerado com regras." };
+  return { ok: true, message: "Plano da semana gerado." };
 }
 
 export async function completeStudyPlanItemAction(itemId: string): Promise<ActionResult> {
@@ -963,6 +1050,40 @@ export async function completeStudyPlanItemAction(itemId: string): Promise<Actio
   });
   revalidatePath("/dashboard");
   return { ok: true, message: "Atividade concluída." };
+}
+
+// Fecha o loop plano → prática: quando a meta de questões do assunto agendado
+// para hoje é atingida, a atividade do plano é concluída sem clique manual.
+async function autoCompleteStudyPlanItem(
+  supabase: SupabaseClient,
+  userId: string,
+  topicId: string,
+) {
+  const today = appDateISO();
+  const { data: item } = await supabase
+    .from("study_plan_items")
+    .select("id, question_goal, study_plans!inner(user_id, status)")
+    .eq("study_plans.user_id", userId)
+    .eq("study_plans.status", "Ativo")
+    .eq("topic_id", topicId)
+    .eq("scheduled_date", today)
+    .eq("completed", false)
+    .maybeSingle();
+  if (!item) return;
+
+  const { count } = await supabase
+    .from("user_question_answers")
+    .select("id, questions!inner(topic_id)", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("questions.topic_id", topicId)
+    .gte("answered_at", `${today}T00:00:00-03:00`);
+
+  if ((count ?? 0) >= item.question_goal) {
+    await supabase
+      .from("study_plan_items")
+      .update({ completed: true, completed_at: new Date().toISOString() })
+      .eq("id", item.id);
+  }
 }
 
 async function refreshTopicPerformance(userId: string, topicId: string) {
@@ -1015,15 +1136,6 @@ function normalizeSimulationArea(value: string): SimulationArea | null {
       SIMULATION_AREA_ALIASES[area].includes(normalized),
     ) ?? null
   );
-}
-
-function parseAvailableDays(value?: string | null) {
-  const days = value
-    ?.split(/,| e /)
-    .map((day) => day.trim())
-    .filter(Boolean);
-
-  return days?.length ? days.slice(0, 7) : ["Segunda", "Terça", "Quarta", "Quinta", "Sexta"];
 }
 
 function addDays(value: string, days: number) {

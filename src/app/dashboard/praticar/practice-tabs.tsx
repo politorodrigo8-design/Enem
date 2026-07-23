@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Notice } from "@/components/ui/notice";
-import { QuestionBankClient, type FocusMode } from "../questoes/question-bank-client";
+import { QuestionBankClient } from "../questoes/question-bank-client";
 import { ReviewClient } from "../revisao/review-client";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord } from "@/lib/db/types";
@@ -17,7 +16,6 @@ const tabs: Array<{ id: PracticeTab; label: string }> = [
 
 export function PracticeTabs({
   initialTab,
-  initialFocus,
   questions,
   reviewQuestions,
   access,
@@ -25,7 +23,6 @@ export function PracticeTabs({
   initialTopic,
 }: {
   initialTab: PracticeTab;
-  initialFocus?: FocusMode;
   questions: QuestionRecord[];
   reviewQuestions: QuestionRecord[];
   access: AccessContext;
@@ -86,16 +83,11 @@ export function PracticeTabs({
 
       {tab === "banco" ? (
         <div key="banco" className="animate-rise">
-          <Notice tone="info" className="mb-6">
-            Este banco mostra apenas questões aprovadas, com fonte e gabarito
-            verificados. Itens pendentes ficam fora do treino até a revisão.
-          </Notice>
           <QuestionBankClient
             questions={questions}
             access={access}
             initialQuestionId={initialQuestionId}
             initialTopic={initialTopic}
-            initialFocus={initialFocus}
           />
         </div>
       ) : null}

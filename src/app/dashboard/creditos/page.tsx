@@ -85,7 +85,7 @@ const creditTools = [
     description: "Entenda seus erros recentes, identifique padrões e veja quais conteúdos devem ser priorizados nos próximos estudos.",
     cost: "Custo: 2 créditos",
     status: "Disponível",
-    href: "/dashboard/radar?tab=desempenho",
+    href: "/dashboard/desempenho",
     cta: "Ver desempenho",
     available: true,
   },

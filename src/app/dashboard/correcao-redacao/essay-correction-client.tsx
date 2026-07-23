@@ -150,6 +150,12 @@ export function EssayCorrectionClient({
     return "";
   }, [deliveryMode, essayText, essayWordCount, files, hasCredits, selectedHasPdf, totalSize]);
 
+  // O aviso só aparece depois que o aluno começou a preencher — um formulário
+  // vazio não é um erro.
+  const showValidation =
+    !hasCredits ||
+    (deliveryMode === "online" ? essayText.trim().length > 0 : files.length > 0);
+
   function addFiles(fileList: FileList | null) {
     if (!fileList?.length) return;
 
@@ -282,7 +288,7 @@ export function EssayCorrectionClient({
                   ref={themeInputRef}
                   value={theme}
                   onChange={(event) => setTheme(event.target.value)}
-                  placeholder="Ex.: Desafios da educacao publica"
+                  placeholder="Ex.: Desafios da educação pública"
                   className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 />
               </label>
@@ -471,7 +477,7 @@ export function EssayCorrectionClient({
                   Enviar
                 </Button>
               </div>
-              {validationMessage ? (
+              {validationMessage && showValidation ? (
                 <p className="text-sm font-medium text-rose-600">{validationMessage}</p>
               ) : null}
             </CardContent>

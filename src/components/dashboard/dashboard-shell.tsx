@@ -4,15 +4,15 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   BookOpen,
   ChevronDown,
   Coins,
   FileCheck2,
-  FileText,
   LayoutDashboard,
   LogOut,
   Menu,
-  Radar,
+  PenLine,
   Target,
   UserRound,
   X,
@@ -34,8 +34,8 @@ const navigation = [
       { label: "Hoje", href: "/dashboard", icon: LayoutDashboard },
       { label: "Praticar", href: "/dashboard/praticar", icon: BookOpen },
       { label: "Simulados", href: "/dashboard/simulados", icon: Target },
-      { label: "Radar ENEM", href: "/dashboard/radar", icon: Radar },
-      { label: "Correção de redação", href: "/dashboard/correcao-redacao", icon: FileText },
+      { label: "Redação", href: "/dashboard/correcao-redacao", icon: PenLine },
+      { label: "Desempenho", href: "/dashboard/desempenho", icon: BarChart3 },
     ],
   },
   {

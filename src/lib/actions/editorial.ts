@@ -69,14 +69,14 @@ type AdminWriter = {
   from: (table: string) => AdminQuery;
 };
 
-function editorialError(scope: string, error: unknown, fallback = "Nao foi possivel salvar agora.") {
+function editorialError(scope: string, error: unknown, fallback = "Não foi possível salvar agora.") {
   logServerError(scope, error);
   return { ok: false, message: publicDatabaseErrorMessage(error, fallback) };
 }
 
 async function requireAdminEditor(): Promise<{ user: { id: string } } | { error: string }> {
   if (!isSupabaseConfigured()) {
-    return { error: "Supabase nao configurado." };
+    return { error: "Supabase não configurado." };
   }
 
   const supabase = await createClient();
@@ -84,7 +84,7 @@ async function requireAdminEditor(): Promise<{ user: { id: string } } | { error:
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return { error: "Sessao expirada. Entre novamente." };
+  if (!user) return { error: "Sessão expirada. Entre novamente." };
 
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -97,11 +97,11 @@ async function requireAdminEditor(): Promise<{ user: { id: string } } | { error:
     return { error: publicDatabaseErrorMessage(error) };
   }
   if (!canEditEditorial(profile?.access_level)) {
-    return { error: "Apenas administradores podem editar questoes." };
+    return { error: "Apenas administradores podem editar questões." };
   }
 
   if (!isSupabaseAdminConfigured()) {
-    return { error: "Configure SUPABASE_SERVICE_ROLE_KEY para salvar edicoes editoriais." };
+    return { error: "Configure SUPABASE_SERVICE_ROLE_KEY para salvar edições editoriais." };
   }
 
   return { user };
@@ -115,7 +115,7 @@ export async function updateEditorialQuestionAction(
 
   const parsed = editorialQuestionSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
   const value = parsed.data;
@@ -125,7 +125,7 @@ export async function updateEditorialQuestionAction(
   ) {
     return {
       ok: false,
-      message: "Aprovacao exige reviewed, source_verified e answer_verified.",
+      message: "Aprovação exige reviewed, source_verified e answer_verified.",
     };
   }
 
@@ -158,7 +158,7 @@ export async function updateEditorialQuestionAction(
     return editorialError(
       "editorial.subject.upsert",
       subjectError,
-      "Nao foi possivel salvar disciplina.",
+      "Não foi possível salvar disciplina.",
     );
   }
   const subjectId = String(subject.id);
@@ -199,7 +199,7 @@ export async function updateEditorialQuestionAction(
       return editorialError(
         "editorial.topic.insert",
         topicError,
-        "Nao foi possivel salvar topico.",
+        "Não foi possível salvar tópico.",
       );
     }
     topicId = String(topic.id);
@@ -246,7 +246,7 @@ export async function updateEditorialQuestionAction(
 
   revalidatePath("/dashboard/editorial");
   revalidatePath("/dashboard/praticar");
-  return { ok: true, message: "Questao salva com sucesso." };
+  return { ok: true, message: "Questão salva com sucesso." };
 }
 
 function slugify(value: string) {

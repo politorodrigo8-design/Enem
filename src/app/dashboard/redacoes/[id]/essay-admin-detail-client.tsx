@@ -19,8 +19,8 @@ import { formatAppDateTime } from "@/lib/dates";
 const statusLabels = {
   uploading: "Enviando",
   pending: "Pendente",
-  in_review: "Em analise",
-  completed: "Concluida",
+  in_review: "Em análise",
+  completed: "Concluída",
   cancelled: "Cancelada",
   upload_failed: "Falha no envio",
 } as const;
@@ -58,13 +58,13 @@ export function EssayAdminDetailClient({ essay }: { essay: EssaySubmissionDetail
         </CardHeader>
         <CardContent className="space-y-5">
           <div className="grid gap-3 md:grid-cols-3">
-            <Info label="Creditos cobrados" value={`${essay.credit_cost} creditos`} />
+            <Info label="Créditos cobrados" value={`${essay.credit_cost} créditos`} />
             <Info
               label="Assumida em"
-              value={essay.assigned_at ? formatDate(essay.assigned_at) : "Nao assumida"}
+              value={essay.assigned_at ? formatDate(essay.assigned_at) : "Não assumida"}
             />
             <Info
-              label="Concluida em"
+              label="Concluída em"
               value={essay.completed_at ? formatDate(essay.completed_at) : "Em aberto"}
             />
           </div>
@@ -157,7 +157,7 @@ export function EssayAdminDetailClient({ essay }: { essay: EssaySubmissionDetail
             disabled={pending || essay.status === "completed" || essay.status === "cancelled"}
           >
             {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Ban className="h-4 w-4" />}
-            Cancelar e estornar 10 creditos
+            Cancelar e estornar 10 créditos
           </Button>
         </CardContent>
       </Card>

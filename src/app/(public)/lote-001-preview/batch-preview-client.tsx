@@ -48,7 +48,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
         <p className="text-sm font-semibold uppercase text-blue-700">Preview editorial</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Lote 001 aprovado</h1>
         <p className="mt-2 text-sm text-slate-600">
-          {questions.length} questoes approved carregadas dos JSONs de importacao. Areas: {areas}.
+          {questions.length} questões approved carregadas dos JSONs de importação. Áreas: {areas}.
         </p>
       </div>
 
@@ -57,7 +57,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
               <CardTitle>
-                Questao {index + 1} de {questions.length}
+                Questão {index + 1} de {questions.length}
               </CardTitle>
               <p className="mt-2 text-sm text-slate-500">
                 {question.source} | Q{question.question_number} | {question.year}
@@ -75,7 +75,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
             <figure className="mb-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
               <Image
                 src={question.media_url}
-                alt={question.media_alt || "Midia da questao"}
+                alt={question.media_alt || "Mídia da questão"}
                 width={Number(question.media_width) || 900}
                 height={Number(question.media_height) || 500}
                 className="h-auto w-full object-contain"
@@ -124,7 +124,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
                 Anterior
               </Button>
               <Button variant="outline" onClick={() => move(Math.min(questions.length - 1, index + 1))} disabled={index === questions.length - 1}>
-                Proxima
+                Próxima
                 <ArrowRight className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>

@@ -1,7 +1,7 @@
 import "server-only";
 
 export const GENERIC_PUBLIC_ERROR =
-  "Nao foi possivel concluir a operacao agora. Tente novamente em instantes.";
+  "Não foi possível concluir a operação agora. Tente novamente em instantes.";
 
 type LogContext = Record<string, string | number | boolean | null | undefined>;
 
@@ -30,16 +30,16 @@ export function publicDatabaseErrorMessage(
 
   if (!message) return fallback;
   if (message.includes("row-level security") || message.includes("violates row-level security")) {
-    return "Nao foi possivel salvar agora. Aguarde alguns minutos e tente novamente.";
+    return "Não foi possível salvar agora. Aguarde alguns minutos e tente novamente.";
   }
   if (message.includes("duplicate key")) {
-    return "Este registro ja existe.";
+    return "Este registro já existe.";
   }
   if (message.includes("invalid input syntax")) {
-    return "Dados invalidos.";
+    return "Dados inválidos.";
   }
   if (message.includes("permission denied")) {
-    return "Voce nao tem permissao para executar esta operacao.";
+    return "Você não tem permissão para executar esta operação.";
   }
 
   return fallback;

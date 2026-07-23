@@ -2,50 +2,14 @@
 
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  formatSelectedWeekdays,
+  parseSelectedWeekdays,
+  weekdayOptions,
+  type WeekdayValue,
+} from "@/lib/weekdays";
 
-const weekdayOptions = [
-  { value: "Segunda-feira", label: "Segunda", shortLabel: "Seg" },
-  { value: "Terça-feira", label: "Terça", shortLabel: "Ter" },
-  { value: "Quarta-feira", label: "Quarta", shortLabel: "Qua" },
-  { value: "Quinta-feira", label: "Quinta", shortLabel: "Qui" },
-  { value: "Sexta-feira", label: "Sexta", shortLabel: "Sex" },
-  { value: "Sábado", label: "Sábado", shortLabel: "Sáb" },
-  { value: "Domingo", label: "Domingo", shortLabel: "Dom" },
-];
-
-const weekdayAliases = new Map(
-  weekdayOptions.flatMap((day) => {
-    const normalizedValue = normalizeWeekday(day.value);
-    const normalizedLabel = normalizeWeekday(day.label);
-
-    return [
-      [normalizedValue, day.value],
-      [normalizedValue.replace(" feira", ""), day.value],
-      [normalizedLabel, day.value],
-    ];
-  }),
-);
-
-export function formatSelectedWeekdays(selectedDays: string[]) {
-  return weekdayOptions
-    .filter((day) => selectedDays.includes(day.value))
-    .map((day) => day.value)
-    .join(", ");
-}
-
-export function parseSelectedWeekdays(value?: string | null) {
-  if (!value) return [];
-
-  const selected = new Set<string>();
-  for (const item of value.split(/\s*(?:,|;|\||\be\b)\s*/i)) {
-    const day = weekdayAliases.get(normalizeWeekday(item));
-    if (day) selected.add(day);
-  }
-
-  return weekdayOptions
-    .filter((day) => selected.has(day.value))
-    .map((day) => day.value);
-}
+export { formatSelectedWeekdays, parseSelectedWeekdays };
 
 export function WeekdaySelector({
   id,
@@ -62,7 +26,7 @@ export function WeekdaySelector({
 }) {
   const selectedDays = parseSelectedWeekdays(value);
 
-  function toggleDay(day: string) {
+  function toggleDay(day: WeekdayValue) {
     const next = selectedDays.includes(day)
       ? selectedDays.filter((selectedDay) => selectedDay !== day)
       : [...selectedDays, day];
@@ -99,14 +63,4 @@ export function WeekdaySelector({
       </div>
     </fieldset>
   );
-}
-
-function normalizeWeekday(value: string) {
-  return value
-    .trim()
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/-/g, " ")
-    .replace(/\s+/g, " ");
 }

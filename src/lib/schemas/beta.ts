@@ -12,7 +12,7 @@ export const onboardingSchema = z.object({
   target_score: z.coerce.number().min(0).max(1000),
   previous_score: optionalScore,
   weekly_hours: z.coerce.number().min(1).max(80),
-  available_days: z.string().min(3, "Informe seus dias disponiveis."),
+  available_days: z.string().min(3, "Informe seus dias disponíveis."),
   perceived_difficulties: z.record(z.string(), z.coerce.number().min(1).max(5)),
   study_preferences: z.record(z.string(), z.unknown()).default({}),
 });
@@ -23,7 +23,7 @@ export const profileSettingsSchema = onboardingSchema.extend({
 
 export const betaApplicationSchema = z.object({
   full_name: z.string().min(3, "Informe seu nome."),
-  email: z.string().email("Informe um e-mail valido.").transform((value) => value.toLowerCase()),
+  email: z.string().email("Informe um e-mail válido.").transform((value) => value.toLowerCase()),
   city: z.string().min(2, "Informe sua cidade."),
   school_year: z.string().min(2, "Informe seu ano escolar."),
   previous_score: optionalScore,

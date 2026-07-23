@@ -100,7 +100,7 @@ export async function generateGroqText({
 
     const content = payload.choices?.[0]?.message?.content?.trim();
     if (!content) {
-      throw new GroqGenerationError("A Groq nao retornou texto para esta solicitacao.");
+      throw new GroqGenerationError("A Groq não retornou texto para esta solicitação.");
     }
 
     return {
@@ -124,7 +124,7 @@ export async function generateGroqText({
     }
 
     throw new GroqGenerationError(
-      error instanceof Error ? error.message : "Nao foi possivel chamar a Groq.",
+      error instanceof Error ? error.message : "Não foi possível chamar a Groq.",
     );
   } finally {
     clearTimeout(timeout);

@@ -67,7 +67,7 @@ export async function createMercadoPagoPreference({
 
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(payload?.message ?? "Mercado Pago recusou a preferencia.");
+    throw new Error(payload?.message ?? "Mercado Pago recusou a preferência.");
   }
 
   // Produção deve usar init_point. sandbox_init_point só quando explicitamente
@@ -77,7 +77,7 @@ export async function createMercadoPagoPreference({
     ? String(payload.sandbox_init_point || payload.init_point || "")
     : String(payload.init_point || "");
   if (!checkoutUrl.startsWith("https://")) {
-    throw new Error("Mercado Pago retornou URL de checkout invalida.");
+    throw new Error("Mercado Pago retornou URL de checkout inválida.");
   }
 
   return {
@@ -98,7 +98,7 @@ export async function fetchMercadoPagoPayment(paymentId: string) {
   const payload = await response.json();
   if (!response.ok) {
     throw new MercadoPagoApiError(
-      payload?.message ?? "Nao foi possivel consultar o pagamento.",
+      payload?.message ?? "Não foi possível consultar o pagamento.",
       {
         paymentId,
         status: response.status,
@@ -167,11 +167,11 @@ function safeEqual(left: string, right: string) {
 function getMercadoPagoAccessToken() {
   const problem = getMercadoPagoConfigurationProblem();
   if (problem === "missing_access_token") {
-    throw new MercadoPagoConfigurationError("MERCADO_PAGO_ACCESS_TOKEN nao configurado.");
+    throw new MercadoPagoConfigurationError("MERCADO_PAGO_ACCESS_TOKEN não configurado.");
   }
   if (problem === "public_key_matches_access_token") {
     throw new MercadoPagoConfigurationError(
-      "MERCADO_PAGO_ACCESS_TOKEN nao pode ser igual a NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY.",
+      "MERCADO_PAGO_ACCESS_TOKEN não pode ser igual a NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY.",
     );
   }
 

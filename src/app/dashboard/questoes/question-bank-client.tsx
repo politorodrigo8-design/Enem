@@ -5,17 +5,12 @@ import {
   ArrowRight,
   BookmarkCheck,
   BookmarkPlus,
-  Check,
   CheckCircle2,
-  Filter,
   ImageIcon,
-  ListChecks,
-  PlayCircle,
   Search,
-  Target,
+  X,
   XCircle,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useMemo, useState, useTransition } from "react";
@@ -32,6 +27,7 @@ import {
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord } from "@/lib/db/types";
+import { cn } from "@/lib/utils";
 
 type Props = {
   questions: QuestionRecord[];
@@ -39,41 +35,28 @@ type Props = {
   answerSource?: "question_bank" | "high_priority";
   initialQuestionId?: string;
   initialTopic?: string;
-  initialFocus?: FocusMode;
 };
 
-const pageSize = 1;
-const sessionSizes = ["10", "15", "20", "30", "Todas"] as const;
-const quickSessionSizes = ["10", "15", "20"] as const;
-export type FocusMode = "recommended" | "priority" | "unanswered" | "review" | "all";
+export type FocusMode = "recommended" | "unanswered" | "review" | "all";
 
-const focusModes: Array<{ id: FocusMode; label: string; helper: string }> = [
-  {
-    id: "recommended",
-    label: "Recomendadas",
-    helper: "Prioridade alta e questões novas primeiro",
-  },
-  {
-    id: "priority",
-    label: "Alta prioridade",
-    helper: "Assuntos com maior potencial de ganho",
-  },
-  {
-    id: "unanswered",
-    label: "Novas",
-    helper: "Questões que você ainda não respondeu",
-  },
-  {
-    id: "review",
-    label: "Favoritas",
-    helper: "Questões salvas para revisar depois",
-  },
-  {
-    id: "all",
-    label: "Explorar banco",
-    helper: "Use filtros quando quiser procurar algo específico",
-  },
+const sessionSizes = ["10", "15", "20", "Todas"] as const;
+type SessionSize = (typeof sessionSizes)[number];
+
+const focusModes: Array<{ id: FocusMode; label: string }> = [
+  { id: "recommended", label: "Recomendadas" },
+  { id: "unanswered", label: "Novas" },
+  { id: "review", label: "Favoritas" },
+  { id: "all", label: "Explorar banco" },
 ];
+
+const defaultFilters = {
+  area: "Todas",
+  discipline: "Todas",
+  topic: "Todos",
+  difficulty: "Todas",
+  year: "Todos",
+  origin: "Todas",
+};
 
 export function QuestionBankClient({
   questions,
@@ -81,43 +64,28 @@ export function QuestionBankClient({
   answerSource = "question_bank",
   initialQuestionId,
   initialTopic,
-  initialFocus,
 }: Props) {
   const router = useRouter();
-  const initialTopicName =
-    !initialQuestionId && initialTopic
-      ? questions.find(
-          (question) =>
-            question.topics.id === initialTopic ||
-            question.topics.name === initialTopic,
-        )?.topics.name ?? "Todos"
-      : "Todos";
-  const [area, setArea] = useState("Todas");
-  const [discipline, setDiscipline] = useState("Todas");
-  const [topic, setTopic] = useState(initialTopicName);
-  const [difficulty, setDifficulty] = useState("Todas");
-  const [year, setYear] = useState("Todos");
-  const [origin, setOrigin] = useState("Todas");
-  const [board, setBoard] = useState("Todas");
-  const [status, setStatus] = useState("Todas");
-  const defaultFocusMode =
-    answerSource === "question_bank"
-      ? initialTopicName === "Todos"
-        ? "recommended"
-        : "all"
-      : "priority";
-  const startingFocusMode = initialFocus ?? defaultFocusMode;
-  const [sessionSize, setSessionSize] = useState<(typeof sessionSizes)[number]>(
-    "15",
+  const initialTopicName = useMemo(() => {
+    if (!initialTopic) return null;
+    return (
+      questions.find(
+        (question) =>
+          question.topics.id === initialTopic ||
+          question.topics.name === initialTopic,
+      )?.topics.name ?? null
+    );
+  }, [initialTopic, questions]);
+
+  const [focusMode, setFocusMode] = useState<FocusMode>(
+    initialTopicName ? "all" : "recommended",
   );
-  const [draftSessionSize, setDraftSessionSize] =
-    useState<(typeof sessionSizes)[number]>("15");
-  const [focusMode, setFocusMode] = useState<FocusMode>(startingFocusMode);
-  const [draftFocusMode, setDraftFocusMode] =
-    useState<FocusMode>(startingFocusMode);
-  const [sessionConfirmed, setSessionConfirmed] = useState(
-    answerSource === "high_priority" || Boolean(initialQuestionId),
+  const [filters, setFilters] = useState(() =>
+    initialTopicName
+      ? { ...defaultFilters, topic: initialTopicName }
+      : defaultFilters,
   );
+  const [sessionSize, setSessionSize] = useState<SessionSize>("15");
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState("");
   const [result, setResult] = useState<{
@@ -130,7 +98,7 @@ export function QuestionBankClient({
     Object.fromEntries(
       questions.flatMap((question) => {
         const answer = latestAnswer(question);
-        // O gabarito e a resolução não vêm mais no payload; para respostas já
+        // O gabarito e a resolução não vêm no payload; para respostas já
         // persistidas eles só reaparecem se o aluno responder de novo.
         return answer
           ? [
@@ -156,11 +124,13 @@ export function QuestionBankClient({
       ]),
     ),
   );
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [pending, startTransition] = useTransition();
+
   const orderedQuestions = useMemo(() => {
     if (!initialQuestionId) return questions;
-    const selectedQuestion = questions.find((question) => question.id === initialQuestionId);
+    const selectedQuestion = questions.find(
+      (question) => question.id === initialQuestionId,
+    );
     if (!selectedQuestion) return questions;
     return [
       selectedQuestion,
@@ -168,98 +138,25 @@ export function QuestionBankClient({
     ];
   }, [initialQuestionId, questions]);
 
-  const questionsByArea = useMemo(
-    () =>
-      area === "Todas"
-        ? orderedQuestions
-        : orderedQuestions.filter((question) => question.subjects.area === area),
-    [area, orderedQuestions],
-  );
-  const questionsByDiscipline = useMemo(
-    () =>
-      discipline === "Todas"
-        ? questionsByArea
-        : questionsByArea.filter((question) => question.subjects.name === discipline),
-    [discipline, questionsByArea],
-  );
-  const areas = useMemo(
-    () => uniqueOptions("Todas", orderedQuestions.map((q) => q.subjects.area)),
-    [orderedQuestions],
-  );
-  const disciplines = useMemo(
-    () => uniqueOptions("Todas", questionsByArea.map((q) => q.subjects.name)),
-    [questionsByArea],
-  );
-  const topics = useMemo(
-    () => uniqueOptions("Todos", questionsByDiscipline.map((q) => q.topics.name)),
-    [questionsByDiscipline],
-  );
-  const years = useMemo(
-    () => [
-      "Todos",
-      ...Array.from(new Set(orderedQuestions.map((q) => String(q.year)))).sort(
-        (a, b) => Number(b) - Number(a),
-      ),
-    ],
-    [orderedQuestions],
-  );
-  const origins = useMemo(
-    () => uniqueOptions("Todas", orderedQuestions.map((q) => questionOrigin(q))),
-    [orderedQuestions],
-  );
-  const boards = useMemo(
-    () => uniqueOptions("Todas", orderedQuestions.map((q) => questionBoard(q))),
-    [orderedQuestions],
-  );
-
   const filtered = useMemo(
     () =>
-      filterQuestionsForFocus({
+      filterQuestions({
         questions: orderedQuestions,
         focusMode,
         answerState,
         reviewState,
-        area,
-        discipline,
-        topic,
-        difficulty,
-        year,
-        origin,
-        board,
-        status,
+        filters,
       }),
-    [answerState, area, board, difficulty, discipline, focusMode, orderedQuestions, origin, reviewState, status, topic, year],
-  );
-  const draftFiltered = useMemo(
-    () =>
-      filterQuestionsForFocus({
-        questions: orderedQuestions,
-        focusMode: draftFocusMode,
-        answerState,
-        reviewState,
-        area,
-        discipline,
-        topic,
-        difficulty,
-        year,
-        origin,
-        board,
-        status,
-      }),
-    [answerState, area, board, difficulty, discipline, draftFocusMode, orderedQuestions, origin, reviewState, status, topic, year],
+    [answerState, filters, focusMode, orderedQuestions, reviewState],
   );
 
-  const sessionQuestions = useMemo(() => {
-    if (sessionSize === "Todas") return filtered;
-    return filtered.slice(0, Number(sessionSize));
-  }, [filtered, sessionSize]);
-  const draftSessionQuestions = useMemo(() => {
-    if (draftSessionSize === "Todas") return draftFiltered;
-    return draftFiltered.slice(0, Number(draftSessionSize));
-  }, [draftFiltered, draftSessionSize]);
+  const sessionQuestions = useMemo(
+    () =>
+      sessionSize === "Todas" ? filtered : filtered.slice(0, Number(sessionSize)),
+    [filtered, sessionSize],
+  );
   const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
   const question = sessionQuestions[currentIndex];
-  const totalPages = Math.max(1, Math.ceil(sessionQuestions.length / pageSize));
   const persistedResult = question ? answerState[question.id] : undefined;
   const currentResult =
     result?.questionId === question?.id
@@ -278,18 +175,45 @@ export function QuestionBankClient({
   const accessBlocked = !access.hasPlatformAccess;
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question?.question_media ?? [];
-  const filtersEnabled = draftFocusMode === "all";
-  const hasPendingSessionChange =
-    draftFocusMode !== focusMode || draftSessionSize !== sessionSize;
-  const sessionVisible = sessionConfirmed && !hasPendingSessionChange;
-  const canConfirmSession = !sessionConfirmed || hasPendingSessionChange;
-  const draftFocusLabel =
-    focusModes.find((mode) => mode.id === draftFocusMode)?.label ?? "sessão";
+  const answeredInSession = sessionQuestions.filter((item) =>
+    Boolean(answerState[item.id]),
+  ).length;
+
+  const filterOptions = useMemo(
+    () => buildFilterOptions(orderedQuestions, filters),
+    [filters, orderedQuestions],
+  );
 
   function move(nextIndex: number) {
     setIndex(nextIndex);
     setSelected("");
     setResult(null);
+  }
+
+  function changeFocus(mode: FocusMode) {
+    setFocusMode(mode);
+    if (mode !== "all") setFilters(defaultFilters);
+    move(0);
+  }
+
+  function updateFilter(key: keyof typeof defaultFilters, value: string) {
+    setFilters((current) => {
+      const next = { ...current, [key]: value };
+      if (key === "area") {
+        next.discipline = "Todas";
+        next.topic = "Todos";
+      }
+      if (key === "discipline") next.topic = "Todos";
+      return next;
+    });
+    move(0);
+  }
+
+  function clearTopicFocus() {
+    setFilters(defaultFilters);
+    setFocusMode("recommended");
+    move(0);
+    router.replace("/dashboard/praticar", { scroll: false });
   }
 
   function submitAnswer() {
@@ -323,43 +247,6 @@ export function QuestionBankClient({
     });
   }
 
-  function resetFilters() {
-    const nextFocusMode = answerSource === "question_bank" ? "recommended" : "priority";
-    setFocusMode(nextFocusMode);
-    setDraftFocusMode(nextFocusMode);
-    setSessionConfirmed(answerSource === "high_priority" || Boolean(initialQuestionId));
-    setArea("Todas");
-    setDiscipline("Todas");
-    setTopic("Todos");
-    setDifficulty("Todas");
-    setYear("Todos");
-    setOrigin("Todas");
-    setBoard("Todas");
-    setStatus("Todas");
-    setSessionSize("15");
-    setDraftSessionSize("15");
-    setFiltersOpen(false);
-    move(0);
-  }
-
-  function applySessionSettings() {
-    setFocusMode(draftFocusMode);
-    setSessionSize(draftSessionSize);
-    setSessionConfirmed(true);
-    if (draftFocusMode !== "all") {
-      setArea("Todas");
-      setDiscipline("Todas");
-      setTopic("Todos");
-      setDifficulty("Todas");
-      setYear("Todos");
-      setOrigin("Todas");
-      setBoard("Todas");
-      setStatus("Todas");
-      setFiltersOpen(false);
-    }
-    move(0);
-  }
-
   function addReview() {
     if (!question) return;
     startTransition(async () => {
@@ -377,175 +264,133 @@ export function QuestionBankClient({
 
   return (
     <>
-      {answerSource === "high_priority" ? (
-        <PriorityExplanation questions={questions} />
+      {initialTopicName ? (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50/70 px-4 py-3">
+          <p className="text-sm font-semibold text-blue-950">
+            Estudando: {initialTopicName}
+            <span className="ml-2 font-normal text-blue-800">
+              — questões deste assunto contam para sua meta de hoje.
+            </span>
+          </p>
+          <Button variant="outline" size="sm" onClick={clearTopicFocus}>
+            <X className="h-4 w-4" aria-hidden="true" />
+            Sair do assunto
+          </Button>
+        </div>
       ) : null}
 
       <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-900/5">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div>
-            <p className="flex items-center gap-2 text-sm font-bold text-slate-950">
-              <PlayCircle className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              Sessão de prática
-            </p>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-600">
-              Em vez de encarar o banco inteiro, resolva um bloco curto. O site
-              monta recomendadas, alta prioridade, novas e favoritas; use filtros
-              somente em Explorar banco.
-            </p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div
+            className="flex flex-wrap gap-2"
+            role="tablist"
+            aria-label="Foco da prática"
+          >
+            {focusModes.map((mode) => (
+              <button
+                key={mode.id}
+                type="button"
+                role="tab"
+                aria-selected={focusMode === mode.id}
+                onClick={() => changeFocus(mode.id)}
+                className={cn(
+                  "rounded-lg border px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+                  focusMode === mode.id
+                    ? "border-blue-300 bg-blue-50 text-blue-900"
+                    : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
+                )}
+              >
+                {mode.label}
+              </button>
+            ))}
           </div>
-          <div className="rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-950 ring-1 ring-inset ring-blue-100">
-            {sessionVisible
-              ? `Questão ${question ? currentIndex + 1 : 0} de ${sessionQuestions.length}`
-              : `${draftSessionQuestions.length} questões na próxima sessão`}
-            <span className="block text-xs font-medium text-blue-700">
-              {sessionVisible
-                ? `${filtered.length} disponíveis neste foco`
-                : `${draftFiltered.length} disponíveis em ${draftFocusLabel}`}
-            </span>
-          </div>
-        </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-          {focusModes.map((mode) => (
-            <button
-              key={mode.id}
-              type="button"
-              onClick={() => setDraftFocusMode(mode.id)}
-              className={`rounded-lg border p-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                draftFocusMode === mode.id
-                  ? "border-blue-300 bg-blue-50 text-blue-950"
-                  : "border-slate-200 bg-white text-slate-700 hover:border-slate-300 hover:bg-slate-50"
-              }`}
-            >
-              <span className="block text-sm font-bold">{mode.label}</span>
-              <span className="mt-1 block text-xs leading-5 text-slate-500">
-                {mode.helper}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-4 flex flex-col gap-3 border-t border-slate-100 pt-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-              Tamanho da sessão
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {quickSessionSizes.map((size) => (
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex gap-1.5" aria-label="Tamanho da sessão">
+              {sessionSizes.map((size) => (
                 <button
                   key={size}
                   type="button"
-                  onClick={() => setDraftSessionSize(size)}
-                  className={`tnum rounded-lg border px-3 py-2 text-sm font-semibold transition-colors ${
-                    draftSessionSize === size
+                  onClick={() => {
+                    setSessionSize(size);
+                    move(0);
+                  }}
+                  className={cn(
+                    "tnum rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                    sessionSize === size
                       ? "border-blue-300 bg-blue-50 text-blue-900"
-                      : "border-slate-200 bg-white text-slate-700 hover:border-slate-300"
-                  }`}
+                      : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
+                  )}
                 >
-                  {size} questões
+                  {size}
                 </button>
               ))}
             </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={applySessionSettings} disabled={!canConfirmSession}>
-              <Check className="h-4 w-4" aria-hidden="true" />
-              Confirmar sessão
-            </Button>
-            {filtersEnabled ? (
-              <Button
-                variant="outline"
-                onClick={() => setFiltersOpen((current) => !current)}
-              >
-                <Filter className="h-4 w-4" aria-hidden="true" />
-                {filtersOpen ? "Ocultar filtros" : "Filtros avançados"}
-              </Button>
-            ) : null}
-            {hasCustomFilters({
-              area,
-              discipline,
-              topic,
-              difficulty,
-              year,
-              origin,
-              board,
-              status,
-              focusMode,
-              sessionSize,
-            }) ? (
-              <Button variant="outline" onClick={resetFilters}>
-                Limpar ajustes
-              </Button>
-            ) : null}
+            <p className="tnum text-sm font-semibold text-slate-700">
+              {filtered.length}{" "}
+              {filtered.length === 1 ? "questão" : "questões"}
+            </p>
           </div>
         </div>
+
+        {focusMode === "all" ? (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+              <Select
+                label="Área"
+                value={filters.area}
+                options={filterOptions.areas}
+                onChange={(value) => updateFilter("area", value)}
+              />
+              <Select
+                label="Disciplina"
+                value={filters.discipline}
+                options={filterOptions.disciplines}
+                onChange={(value) => updateFilter("discipline", value)}
+              />
+              <Select
+                label="Assunto"
+                value={filters.topic}
+                options={filterOptions.topics}
+                onChange={(value) => updateFilter("topic", value)}
+              />
+              <Select
+                label="Dificuldade"
+                value={filters.difficulty}
+                options={["Todas", "Baixa", "Média", "Alta"]}
+                onChange={(value) => updateFilter("difficulty", value)}
+              />
+              <Select
+                label="Ano"
+                value={filters.year}
+                options={filterOptions.years}
+                onChange={(value) => updateFilter("year", value)}
+              />
+              <Select
+                label="Origem"
+                value={filters.origin}
+                options={filterOptions.origins}
+                onChange={(value) => updateFilter("origin", value)}
+              />
+            </div>
+          </div>
+        ) : null}
       </section>
 
-      {filtersEnabled ? (
-      <details
-        className={
-          filtersOpen
-            ? "mb-6 rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-900/5"
-            : "hidden"
-        }
-        open={filtersOpen}
-        onToggle={(event) => setFiltersOpen(event.currentTarget.open)}
-      >
-        <summary className="flex cursor-pointer list-none flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
-          <span className="flex items-center gap-2 text-sm font-semibold text-slate-950">
-            <Filter className="h-4 w-4 text-slate-400" aria-hidden="true" />
-            Filtros e sessão
-          </span>
-          <span className="text-xs font-medium text-slate-500">
-            {sessionVisible ? sessionQuestions.length : draftSessionQuestions.length} na sessão -{" "}
-            {sessionVisible ? filtered.length : draftFiltered.length} no filtro
-          </span>
-        </summary>
-        <div className="border-t border-slate-100 p-4">
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-            <Select label="Área" value={area} options={areas} onChange={(value) => { setArea(value); setDiscipline("Todas"); setTopic("Todos"); move(0); }} />
-            <Select label="Disciplina" value={discipline} options={disciplines} onChange={(value) => { setDiscipline(value); setTopic("Todos"); move(0); }} />
-            <Select label="Tópico" value={topic} options={topics} onChange={(value) => { setTopic(value); move(0); }} />
-            <Select label="Dificuldade" value={difficulty} options={["Todas", "Baixa", "Média", "Alta"]} onChange={(value) => { setDifficulty(value); move(0); }} />
-            <Select label="Ano" value={year} options={years} onChange={(value) => { setYear(value); move(0); }} />
-            <Select label="Origem" value={origin} options={origins} onChange={(value) => { setOrigin(value); move(0); }} />
-            <Select label="Banca/fonte" value={board} options={boards} onChange={(value) => { setBoard(value); move(0); }} />
-            <Select label="Status" value={status} options={["Todas", "Respondida", "Não respondida", "Favoritas"]} onChange={(value) => { setStatus(value); move(0); }} />
-            <Select
-              label="Tamanho da sessão"
-              value={draftSessionSize}
-              options={[...sessionSizes]}
-              onChange={(value) => {
-                setDraftSessionSize(value as (typeof sessionSizes)[number]);
-              }}
-            />
-          </div>
-        </div>
-      </details>
-      ) : null}
-
-      {!sessionVisible ? (
-        <EmptyState
-          icon={PlayCircle}
-          title="Confirme a sessão para ver as questões"
-          description={`A seleção atual está preparada para ${draftFocusLabel.toLowerCase()}. As questões aparecem aqui depois que você confirmar a sessão.`}
-          action={
-            <Button onClick={applySessionSettings}>
-              <Check className="h-4 w-4" aria-hidden="true" />
-              Confirmar sessão
-            </Button>
-          }
-        />
-      ) : !question ? (
+      {!question ? (
         <EmptyState
           icon={Search}
           title="Nenhuma questão encontrada"
-          description="Nenhuma questão corresponde aos filtros escolhidos. Limpe os filtros para voltar a ver todas as questões."
+          description={
+            focusMode === "review"
+              ? "Você ainda não salvou questões como favoritas. Use o marcador na lateral de qualquer questão."
+              : focusMode === "unanswered"
+                ? "Você já respondeu todas as questões deste foco. Explore o banco ou revise seus erros."
+                : "Nenhuma questão corresponde aos filtros escolhidos."
+          }
           action={
-            <Button variant="outline" onClick={resetFilters}>
-              Limpar filtros
+            <Button variant="outline" onClick={() => changeFocus("recommended")}>
+              Voltar às recomendadas
             </Button>
           }
         />
@@ -566,110 +411,121 @@ export function QuestionBankClient({
                   <Badge tone={question.is_official ? "green" : "amber"}>
                     {questionOrigin(question)}
                   </Badge>
-                  <Badge tone="slate">{questionBoard(question)}</Badge>
-                  <Badge tone="slate">{question.year}</Badge>
-                  <Badge tone="blue">{question.subjects.area}</Badge>
-                  <Badge tone="blue">{question.topics.name}</Badge>
-                  <Badge tone="slate">{question.difficulty}</Badge>
-                  <Badge tone={priorityBadgeTone(question)}>
-                    {priorityDisplay(question)}
+                  <Badge tone="slate">
+                    {questionBoard(question)} {question.year}
                   </Badge>
+                  <Badge tone="blue">{question.subjects.area}</Badge>
+                  <Badge tone="slate">{question.difficulty}</Badge>
                 </div>
               </div>
             </CardHeader>
             <CardContent>
               <div key={question.id} className="animate-rise">
-              <p className="text-lg leading-8 text-slate-900">{question.statement}</p>
-              {associatedMedia.length ? (
-                <div className="mt-6 space-y-4">
-                  {associatedMedia
+                <p className="text-lg leading-8 text-slate-900">
+                  {question.statement}
+                </p>
+                {associatedMedia.length ? (
+                  <div className="mt-6 space-y-4">
+                    {associatedMedia
+                      .slice()
+                      .sort((a, b) => a.sort_order - b.sort_order)
+                      .map((media) => (
+                        <figure
+                          key={media.id}
+                          className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
+                        >
+                          <Image
+                            src={media.url}
+                            alt={media.alt_text || "Mídia da questão"}
+                            width={media.width ?? 1000}
+                            height={media.height ?? 600}
+                            unoptimized
+                            className="max-h-[520px] w-full object-contain"
+                          />
+                          <figcaption className="border-t border-slate-200 px-4 py-3 text-xs leading-5 text-slate-600">
+                            {media.caption || media.media_type}
+                            {media.source_pdf || media.source_page ? (
+                              <span>
+                                {" "}
+                                Fonte: {media.source_pdf || "PDF original"}
+                                {media.source_page
+                                  ? `, página ${media.source_page}`
+                                  : ""}
+                                .
+                              </span>
+                            ) : null}
+                          </figcaption>
+                        </figure>
+                      ))}
+                  </div>
+                ) : legacyMedia ? (
+                  <figure className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
+                    <Image
+                      src={legacyMedia.url}
+                      alt={legacyMedia.alt}
+                      width={legacyMedia.width}
+                      height={legacyMedia.height}
+                      className="h-auto w-full object-contain"
+                      unoptimized
+                    />
+                  </figure>
+                ) : question.media_required ? (
+                  <div className="mt-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+                    <ImageIcon
+                      className="mt-0.5 h-5 w-5 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <p>
+                      Esta questão depende de uma imagem que ainda está em
+                      revisão editorial. Assim que a mídia for verificada, ela
+                      aparecerá aqui completa.
+                    </p>
+                  </div>
+                ) : null}
+                <div className="mt-6 space-y-3">
+                  {question.question_options
                     .slice()
-                    .sort((a, b) => a.sort_order - b.sort_order)
-                    .map((media) => (
-                      <figure
-                        key={media.id}
-                        className="overflow-hidden rounded-lg border border-slate-200 bg-slate-50"
-                      >
-                        <Image
-                          src={media.url}
-                          alt={media.alt_text || "Mídia da questão"}
-                          width={media.width ?? 1000}
-                          height={media.height ?? 600}
-                          unoptimized
-                          className="max-h-[520px] w-full object-contain"
-                        />
-                        <figcaption className="border-t border-slate-200 px-4 py-3 text-xs leading-5 text-slate-600">
-                          {media.caption || media.media_type}
-                          {media.source_pdf || media.source_page ? (
-                            <span>
-                              {" "}
-                              Fonte: {media.source_pdf || "PDF original"}
-                              {media.source_page ? `, página ${media.source_page}` : ""}.
-                            </span>
-                          ) : null}
-                        </figcaption>
-                      </figure>
-                    ))}
-                </div>
-              ) : legacyMedia ? (
-                <figure className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white">
-                  <Image
-                    src={legacyMedia.url}
-                    alt={legacyMedia.alt}
-                    width={legacyMedia.width}
-                    height={legacyMedia.height}
-                    className="h-auto w-full object-contain"
-                    unoptimized
-                  />
-                </figure>
-              ) : question.media_required ? (
-                <div className="mt-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
-                  <ImageIcon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-                  <p>
-                    Esta questão depende de uma imagem que ainda está em revisão
-                    editorial. Assim que a mídia for verificada, ela aparecerá
-                    aqui completa.
-                  </p>
-                </div>
-              ) : null}
-              <div className="mt-6 space-y-3">
-                {question.question_options
-                  .slice()
-                  .sort((a, b) => a.option_key.localeCompare(b.option_key))
-                  .map((option) => {
-                    const isSelected = displayedSelected === option.option_key;
-                    const isCorrect =
-                      currentResult && knownCorrectOption &&
-                      currentResult.correctOption === option.option_key;
-                    const isWrong =
-                      currentResult && knownCorrectOption && isSelected &&
-                      currentResult.correctOption !== option.option_key;
+                    .sort((a, b) => a.option_key.localeCompare(b.option_key))
+                    .map((option) => {
+                      const isSelected = displayedSelected === option.option_key;
+                      const isCorrect =
+                        currentResult &&
+                        knownCorrectOption &&
+                        currentResult.correctOption === option.option_key;
+                      const isWrong =
+                        currentResult &&
+                        knownCorrectOption &&
+                        isSelected &&
+                        currentResult.correctOption !== option.option_key;
 
-                    return (
-                      <button
-                        key={option.id}
-                        type="button"
-                        onClick={() => !currentResult && setSelected(option.option_key)}
-                        className={`flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 ${
-                          isCorrect
-                            ? "border-emerald-300 bg-emerald-50"
-                            : isWrong
-                              ? "border-rose-300 bg-rose-50"
-                              : isSelected
-                                ? "border-blue-300 bg-blue-50 text-blue-900"
-                                : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50"
-                        }`}
-                      >
-                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-bold text-slate-700">
-                          {option.option_key}
-                        </span>
-                        <span className="text-sm leading-6 text-slate-800">
-                          {option.option_text}
-                        </span>
-                      </button>
-                    );
-                  })}
-              </div>
+                      return (
+                        <button
+                          key={option.id}
+                          type="button"
+                          onClick={() =>
+                            !currentResult && setSelected(option.option_key)
+                          }
+                          className={cn(
+                            "flex w-full items-start gap-3 rounded-lg border p-3.5 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+                            isCorrect
+                              ? "border-emerald-300 bg-emerald-50"
+                              : isWrong
+                                ? "border-rose-300 bg-rose-50"
+                                : isSelected
+                                  ? "border-blue-300 bg-blue-50 text-blue-900"
+                                  : "border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50",
+                          )}
+                        >
+                          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-bold text-slate-700">
+                            {option.option_key}
+                          </span>
+                          <span className="text-sm leading-6 text-slate-800">
+                            {option.option_text}
+                          </span>
+                        </button>
+                      );
+                    })}
+                </div>
               </div>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -684,7 +540,9 @@ export function QuestionBankClient({
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => move(Math.min(sessionQuestions.length - 1, currentIndex + 1))}
+                    onClick={() =>
+                      move(Math.min(sessionQuestions.length - 1, currentIndex + 1))
+                    }
                     disabled={currentIndex === sessionQuestions.length - 1}
                   >
                     Próxima
@@ -693,7 +551,9 @@ export function QuestionBankClient({
                 </div>
                 <Button
                   onClick={submitAnswer}
-                  disabled={!selected || pending || Boolean(currentResult) || accessBlocked}
+                  disabled={
+                    !selected || pending || Boolean(currentResult) || accessBlocked
+                  }
                 >
                   Responder
                 </Button>
@@ -709,11 +569,12 @@ export function QuestionBankClient({
 
               {currentResult ? (
                 <div
-                  className={`mt-6 rounded-lg border p-5 ${
+                  className={cn(
+                    "mt-6 rounded-lg border p-5",
                     currentResult.isCorrect
                       ? "border-emerald-200 bg-emerald-50"
-                      : "border-rose-200 bg-rose-50"
-                  }`}
+                      : "border-rose-200 bg-rose-50",
+                  )}
                 >
                   <div className="flex items-center gap-2">
                     {currentResult.isCorrect ? (
@@ -722,7 +583,9 @@ export function QuestionBankClient({
                       <XCircle className="h-5 w-5 text-rose-700" />
                     )}
                     <p className="font-bold text-slate-950">
-                      {currentResult.isCorrect ? "Resposta correta" : "Resposta incorreta"}
+                      {currentResult.isCorrect
+                        ? "Resposta correta"
+                        : "Resposta incorreta"}
                     </p>
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-700">
@@ -734,12 +597,14 @@ export function QuestionBankClient({
 
               {currentResult && currentIndex === sessionQuestions.length - 1 ? (
                 <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-5">
-                  <p className="font-bold text-blue-950">Bloco concluído</p>
+                  <p className="font-bold text-blue-950">
+                    Sessão concluída — {answeredInSession} de{" "}
+                    {sessionQuestions.length} respondidas
+                  </p>
                   <p className="mt-2 text-sm leading-6 text-slate-700">
-                    Não é uma trava diária: suas respostas ficam no histórico, e
-                    você pode montar outro bloco agora. Em Novas, as questões
-                    respondidas saem da fila; em Explorar banco, os filtros ficam
-                    disponíveis para buscar mais.
+                    Suas respostas ficam no histórico e alimentam seu desempenho.
+                    Em Novas, as questões respondidas saem da fila; monte outra
+                    sessão quando quiser.
                   </p>
                 </div>
               ) : null}
@@ -754,22 +619,20 @@ export function QuestionBankClient({
               <CardContent>
                 <dl className="divide-y divide-slate-100">
                   <Detail label="Disciplina" value={question.subjects.name} />
-                  <Detail label="Tópico" value={question.topics.name} />
+                  <Detail label="Assunto" value={question.topics.name} />
                   <Detail label="Dificuldade" value={question.difficulty} />
                   <Detail label="Origem" value={questionOrigin(question)} />
-                  <Detail label="Banca/fonte" value={questionBoard(question)} />
                   <Detail label="Prova" value={formatExamDetail(question)} />
                   <Detail label="Fonte" value={question.source} />
                   <Detail
                     label="Histórico"
-                    value={`${Math.max(question.user_question_answers?.length ?? 0, answerState[question.id] ? 1 : 0)} resposta(s)`}
-                  />
-                  <Detail
-                    label="Resultados"
-                    value={`${sessionQuestions.length} na sessão (${filtered.length} no filtro, página ${currentIndex + 1} de ${totalPages})`}
+                    value={`${Math.max(
+                      question.user_question_answers?.length ?? 0,
+                      answerState[question.id] ? 1 : 0,
+                    )} resposta(s)`}
                   />
                 </dl>
-                <PriorityDetails question={question} />
+                <WhyThisQuestion question={question} />
                 <QuestionExplanationCreditAction
                   questionId={question.id}
                   selectedOption={displayedSelected || undefined}
@@ -787,7 +650,9 @@ export function QuestionBankClient({
                   ) : (
                     <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
                   )}
-                  {reviewState[question.id] ? "Remover da revisão" : "Adicionar à revisão"}
+                  {reviewState[question.id]
+                    ? "Remover das favoritas"
+                    : "Salvar nas favoritas"}
                 </Button>
                 {accessBlocked ? (
                   <PremiumGate
@@ -805,256 +670,117 @@ export function QuestionBankClient({
   );
 }
 
-function PriorityExplanation({ questions }: { questions: QuestionRecord[] }) {
-  const withReason = questions.filter((question) => question.priority_reason).length;
-  const topTopics = uniqueOptions(
-    "",
-    questions.map((question) => question.topics.name).filter(Boolean),
-  )
-    .filter(Boolean)
-    .slice(0, 3);
-
-  return (
-    <section className="mb-6 rounded-lg border border-blue-100 bg-blue-50/70 p-4">
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <h2 className="flex items-center gap-2 text-sm font-bold text-blue-950">
-            <Target className="h-4 w-4 text-blue-700" aria-hidden="true" />
-            Por que essas {questions.length} questões são prioritárias?
-          </h2>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
-            Elas combinam recorrência histórica do assunto, prioridade editorial
-            e sinais do seu desempenho. Quando ainda falta dado pessoal, o app usa
-            questões demonstrativas ou revisadas como ponto de partida.
-          </p>
-        </div>
-        {topTopics.length ? (
-          <div className="flex flex-wrap gap-2">
-            {topTopics.map((topic) => (
-              <Badge key={topic} tone="blue">
-                {topic}
-              </Badge>
-            ))}
-          </div>
-        ) : null}
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-3">
-        <PriorityMetric
-          icon={ListChecks}
-          label="Prontas"
-          value={questions.length}
-          helper="aptas para treino nesta fila"
-        />
-        <PriorityMetric
-          icon={Target}
-          label="Com motivo"
-          value={withReason}
-          helper="prioridade editorial registrada"
-        />
-        <PriorityMetric
-          icon={Search}
-          label="Assuntos"
-          value={topTopics.length}
-          helper="tópicos cobertos nesta fila"
-        />
-      </div>
-    </section>
-  );
-}
-
-function PriorityMetric({
-  icon: Icon,
-  label,
-  value,
-  helper,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: number;
-  helper: string;
-}) {
-  return (
-    <div className="rounded-lg bg-white p-3 ring-1 ring-inset ring-blue-100">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-          {label}
-        </p>
-        <Icon className="h-4 w-4 text-blue-700" aria-hidden="true" />
-      </div>
-      <p className="tnum mt-2 text-2xl font-bold tracking-tight text-slate-950">
-        {value}
-      </p>
-      <p className="mt-0.5 text-xs leading-5 text-slate-500">{helper}</p>
-    </div>
-  );
-}
-
-function PriorityDetails({ question }: { question: QuestionRecord }) {
+function WhyThisQuestion({ question }: { question: QuestionRecord }) {
   const reason = question.priority_reason?.trim();
+  const recurrenceLabel = recurrenceDisplay(question);
+  if (!reason && !recurrenceLabel) return null;
 
   return (
     <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-            Prioridade
-          </p>
-          <p className="mt-1 text-sm font-bold text-slate-950">
-            {priorityDisplay(question)}
-          </p>
-        </div>
-        <span className="tnum rounded-md bg-white px-2 py-1 text-xs font-bold text-blue-800 ring-1 ring-inset ring-blue-100">
-          {Math.round(Number(question.priority_score ?? 0))}
-        </span>
-      </div>
-      <p className="mt-2 text-xs leading-5 text-slate-600">
-        {reason ||
-          "Priorização baseada na recorrência do assunto e no peso estratégico do tema."}
+      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+        Por que treinar esta questão
       </p>
-      {question.content_recurrence ? (
-        <p className="mt-2 text-xs font-semibold text-blue-800">
-          {question.content_recurrence}
+      <p className="mt-1.5 text-xs leading-5 text-slate-600">
+        {reason ||
+          "O assunto desta questão aparece com frequência nas últimas provas do ENEM."}
+      </p>
+      {recurrenceLabel ? (
+        <p className="mt-1.5 text-xs font-semibold text-blue-800">
+          {recurrenceLabel}
         </p>
       ) : null}
     </div>
   );
 }
 
+// As categorias vêm do pipeline editorial sem acentos; nunca exibir o valor cru.
+function recurrenceDisplay(question: QuestionRecord) {
+  switch (question.recurrence_category) {
+    case "Potencial muito alto de recorrencia do conteudo":
+      return "Conteúdo muito frequente nas últimas provas";
+    case "Alta prioridade":
+      return "Conteúdo frequente nas últimas provas";
+    case "Prioridade media":
+      return "Conteúdo recorrente no ENEM";
+    default:
+      return null;
+  }
+}
+
+function buildFilterOptions(
+  questions: QuestionRecord[],
+  filters: typeof defaultFilters,
+) {
+  const byArea =
+    filters.area === "Todas"
+      ? questions
+      : questions.filter((question) => question.subjects.area === filters.area);
+  const byDiscipline =
+    filters.discipline === "Todas"
+      ? byArea
+      : byArea.filter((question) => question.subjects.name === filters.discipline);
+
+  return {
+    areas: uniqueOptions("Todas", questions.map((q) => q.subjects.area)),
+    disciplines: uniqueOptions("Todas", byArea.map((q) => q.subjects.name)),
+    topics: uniqueOptions("Todos", byDiscipline.map((q) => q.topics.name)),
+    years: [
+      "Todos",
+      ...Array.from(new Set(questions.map((q) => String(q.year)))).sort(
+        (a, b) => Number(b) - Number(a),
+      ),
+    ],
+    origins: uniqueOptions("Todas", questions.map((q) => questionOrigin(q))),
+  };
+}
+
 function uniqueOptions(first: string, values: string[]) {
   return [first, ...Array.from(new Set(values.filter(Boolean)))];
 }
 
-function filterQuestionsForFocus({
+function filterQuestions({
   questions,
   focusMode,
   answerState,
   reviewState,
-  area,
-  discipline,
-  topic,
-  difficulty,
-  year,
-  origin,
-  board,
-  status,
+  filters,
 }: {
   questions: QuestionRecord[];
   focusMode: FocusMode;
   answerState: Record<string, unknown>;
   reviewState: Record<string, unknown>;
-  area: string;
-  discipline: string;
-  topic: string;
-  difficulty: string;
-  year: string;
-  origin: string;
-  board: string;
-  status: string;
+  filters: typeof defaultFilters;
 }) {
-  const advancedFiltersEnabled = focusMode === "all";
-
   return questions.filter((question) => {
     const answered = Boolean(answerState[question.id]);
     const reviewed = Boolean(reviewState[question.id]);
-    const highPriority = isHighPriority(question);
-    const matchesStatus =
-      status === "Todas" ||
-      (status === "Respondida" && answered) ||
-      (status === "Não respondida" && !answered);
+
     const matchesFocus =
       focusMode === "all" ||
-      (focusMode === "priority" && highPriority) ||
       (focusMode === "unanswered" && !answered) ||
       (focusMode === "review" && reviewed) ||
-      (focusMode === "recommended" && (highPriority || !answered));
-    const matchesAdvancedFilters =
-      !advancedFiltersEnabled ||
-      ((area === "Todas" || question.subjects.area === area) &&
-        (discipline === "Todas" || question.subjects.name === discipline) &&
-        (topic === "Todos" || question.topics.name === topic) &&
-        (difficulty === "Todas" || question.difficulty === difficulty) &&
-        (year === "Todos" || String(question.year) === year) &&
-        (origin === "Todas" || questionOrigin(question) === origin) &&
-        (board === "Todas" || questionBoard(question) === board) &&
-        (status === "Favoritas" ? reviewed : matchesStatus));
+      (focusMode === "recommended" && (isHighPriority(question) || !answered));
 
-    return matchesFocus && matchesAdvancedFilters;
+    const matchesFilters =
+      focusMode !== "all" ||
+      ((filters.area === "Todas" || question.subjects.area === filters.area) &&
+        (filters.discipline === "Todas" ||
+          question.subjects.name === filters.discipline) &&
+        (filters.topic === "Todos" || question.topics.name === filters.topic) &&
+        (filters.difficulty === "Todas" ||
+          question.difficulty === filters.difficulty) &&
+        (filters.year === "Todos" || String(question.year) === filters.year) &&
+        (filters.origin === "Todas" || questionOrigin(question) === filters.origin));
+
+    return matchesFocus && matchesFilters;
   });
 }
 
 function isHighPriority(question: QuestionRecord) {
   return (
-    priorityDisplay(question).includes("máxima") ||
-    priorityDisplay(question).includes("alta") ||
+    Boolean(recurrenceDisplay(question)) ||
     Number(question.priority_score ?? 0) >= 70
   );
-}
-
-function hasCustomFilters({
-  area,
-  discipline,
-  topic,
-  difficulty,
-  year,
-  origin,
-  board,
-  status,
-  focusMode,
-  sessionSize,
-}: {
-  area: string;
-  discipline: string;
-  topic: string;
-  difficulty: string;
-  year: string;
-  origin: string;
-  board: string;
-  status: string;
-  focusMode: FocusMode;
-  sessionSize: (typeof sessionSizes)[number];
-}) {
-  return (
-    focusMode !== "recommended" ||
-    sessionSize !== "15" ||
-    area !== "Todas" ||
-    discipline !== "Todas" ||
-    topic !== "Todos" ||
-    difficulty !== "Todas" ||
-    year !== "Todos" ||
-    origin !== "Todas" ||
-    board !== "Todas" ||
-    status !== "Todas"
-  );
-}
-
-function priorityDisplay(question: QuestionRecord) {
-  if (
-    question.recurrence_category ===
-    "Potencial muito alto de recorrencia do conteudo"
-  ) {
-    return "Prioridade máxima";
-  }
-
-  if (question.recurrence_category === "Alta prioridade") {
-    return "Prioridade alta";
-  }
-
-  if (question.recurrence_category === "Prioridade media") {
-    return "Prioridade média";
-  }
-
-  if (Number(question.priority_score ?? 0) >= 70) {
-    return "Prioridade alta";
-  }
-
-  return "Prioridade complementar";
-}
-
-function priorityBadgeTone(question: QuestionRecord): "blue" | "amber" | "slate" {
-  const label = priorityDisplay(question);
-  if (label.includes("máxima")) return "amber";
-  if (label.includes("alta")) return "blue";
-  return "slate";
 }
 
 function questionOrigin(question: QuestionRecord) {
@@ -1068,11 +794,11 @@ function questionOrigin(question: QuestionRecord) {
 function questionBoard(question: QuestionRecord) {
   if (question.is_official) {
     const examName = question.exam_name?.trim() || "ENEM";
-    return examName.toLowerCase().includes("enem") ? "ENEM/Inep" : examName;
+    return examName.toLowerCase().includes("enem") ? "ENEM" : examName;
   }
 
   if (question.source.toLowerCase().includes("enem")) {
-    return "ENEM/Inep";
+    return "ENEM";
   }
 
   return "Pontua Enem";

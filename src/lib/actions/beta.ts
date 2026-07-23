@@ -40,22 +40,22 @@ function supabaseMissing(): ActionResult {
 
 function publicDbErrorMessage(message: string) {
   if (message.includes("duplicate key") || message.includes("beta_applications_email_unique")) {
-    return "Ja existe uma candidatura beta para este e-mail.";
+    return "Já existe uma candidatura beta para este e-mail.";
   }
 
   if (message.includes("beta_applications_user_unique")) {
-    return "Sua conta ja enviou uma candidatura beta.";
+    return "Sua conta já enviou uma candidatura beta.";
   }
 
   if (message.includes("beta_feedback_duplicate_guard")) {
-    return "Este feedback ja foi registrado. Obrigado por avisar.";
+    return "Este feedback já foi registrado. Obrigado por avisar.";
   }
 
   if (message.includes("row-level security") || message.includes("violates row-level security")) {
-    return "Nao foi possivel salvar agora. Aguarde alguns minutos e tente novamente.";
+    return "Não foi possível salvar agora. Aguarde alguns minutos e tente novamente.";
   }
 
-  return "Nao foi possivel salvar agora. Tente novamente em instantes.";
+  return "Não foi possível salvar agora. Tente novamente em instantes.";
 }
 
 type ServerSupabaseClient = Awaited<ReturnType<typeof createClient>>;
@@ -73,7 +73,7 @@ async function getAuthenticatedContext(): Promise<AuthenticatedContext> {
 
   if (!user) {
     return {
-      error: { ok: false, message: "Sessao expirada. Entre novamente." },
+      error: { ok: false, message: "Sessão expirada. Entre novamente." },
     };
   }
 
@@ -104,7 +104,7 @@ export async function saveOnboardingAction(
 
   const parsed = onboardingSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
   const { supabase, user } = context;
@@ -158,7 +158,7 @@ export async function updateProfileSettingsAction(
 
   const parsed = profileSettingsSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
   const { supabase, user } = context;
@@ -185,7 +185,7 @@ export async function updateProfileSettingsAction(
 
   revalidatePath("/dashboard/configuracoes");
   revalidatePath("/dashboard", "layout");
-  return { ok: true, message: "Configuracoes salvas." };
+  return { ok: true, message: "Configurações salvas." };
 }
 
 export async function updateProfilePhotoAction(input: {
@@ -199,7 +199,7 @@ export async function updateProfilePhotoAction(input: {
     profilePhotoUrl &&
     (!isProfilePhotoDataUrl(profilePhotoUrl) || profilePhotoUrl.length > 900_000)
   ) {
-    return { ok: false, message: "Escolha uma foto valida de ate 6 MB." };
+    return { ok: false, message: "Escolha uma foto válida de até 6 MB." };
   }
 
   const { supabase, user } = context;
@@ -250,7 +250,7 @@ export async function submitBetaApplicationAction(
 
   const parsed = betaApplicationSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
   const rateLimit = await checkRateLimit({
@@ -297,7 +297,7 @@ export async function submitBetaApplicationAction(
 
   return {
     ok: true,
-    message: "Candidatura enviada. A liberacao beta sera feita manualmente quando aplicavel.",
+    message: "Candidatura enviada. A liberação beta será feita manualmente quando aplicável.",
   };
 }
 
@@ -307,7 +307,7 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
 
   const parsed = feedbackSchema.safeParse(input);
   if (!parsed.success) {
-    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados invalidos." };
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
   }
 
   const rateLimit = await checkRateLimit({
