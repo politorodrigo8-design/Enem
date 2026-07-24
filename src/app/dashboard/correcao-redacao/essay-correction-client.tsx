@@ -140,8 +140,8 @@ export function EssayCorrectionClient({
       return "";
     }
     if (!files.length) return "Selecione ao menos um arquivo.";
-    if (files.length > MAX_ESSAY_UPLOAD_FILES) return "Envie no máximo 4 arquivos.";
-    if (totalSize > MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES) return "O total deve ficar em até 30 MB.";
+    if (files.length > MAX_ESSAY_UPLOAD_FILES) return "Envie no máximo 2 arquivos.";
+    if (totalSize > MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES) return "O total deve ficar em até 20 MB.";
     if (selectedHasPdf && files.length > 1) return "PDF deve ser enviado sozinho.";
     const invalid = files.find((item) => !acceptedEssayUploadTypes.has(item.file.type));
     if (invalid) return `${invalid.file.name}: tipo não permitido.`;
@@ -172,7 +172,7 @@ export function EssayCorrectionClient({
     }
     if (nextFiles.length > MAX_ESSAY_UPLOAD_FILES) {
       incoming.forEach((item) => item.previewUrl && URL.revokeObjectURL(item.previewUrl));
-      toast.error("Envie no máximo 4 arquivos por redação.");
+      toast.error("Envie no máximo 2 arquivos por redação.");
       return;
     }
     setFiles(nextFiles);

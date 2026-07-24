@@ -73,13 +73,13 @@ function mapEssaySubmitError(message: string) {
     return "PDF deve ser enviado como arquivo único.";
   }
   if (message.includes("total upload size exceeded")) {
-    return "A submissão deve ter no máximo 30 MB no total.";
+    return "A submissão deve ter no máximo 20 MB no total.";
   }
   if (message.includes("platform access required")) {
     return accessRequiredMessage();
   }
   if (message.includes("invalid file count")) {
-    return "Envie de 1 a 4 arquivos por redação.";
+    return "Envie de 1 a 2 arquivos por redação.";
   }
   return "Não foi possível enviar a redação agora.";
 }

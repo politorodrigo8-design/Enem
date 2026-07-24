@@ -1,7 +1,7 @@
 export const ESSAY_CREDIT_COST = 10;
-export const MAX_ESSAY_UPLOAD_FILES = 4;
+export const MAX_ESSAY_UPLOAD_FILES = 2;
 export const MAX_ESSAY_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-export const MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES = 30 * 1024 * 1024;
+export const MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024;
 export const ACCEPTED_ESSAY_UPLOAD_TYPES = new Set([
   "application/pdf",
   "image/png",
@@ -27,12 +27,12 @@ export function validateEssayFileBatch(files) {
   }
 
   if (files.length > MAX_ESSAY_UPLOAD_FILES) {
-    errors.push("Envie no maximo 4 arquivos por redacao.");
+    errors.push("Envie no maximo 2 arquivos por redacao.");
   }
 
   const totalSize = files.reduce((sum, file) => sum + Number(file.size || 0), 0);
   if (totalSize > MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES) {
-    errors.push("A submissao deve ter no maximo 30 MB no total.");
+    errors.push("A submissao deve ter no maximo 20 MB no total.");
   }
 
   const hasPdf = files.some((file) => file.type === "application/pdf");

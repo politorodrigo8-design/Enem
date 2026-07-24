@@ -3,8 +3,8 @@ import { z } from "zod";
 export const ESSAY_CREDIT_COST = 10;
 export const ESSAY_STORAGE_BUCKET = "essay-submissions";
 export const MAX_ESSAY_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-export const MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES = 30 * 1024 * 1024;
-export const MAX_ESSAY_UPLOAD_FILES = 4;
+export const MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES = 20 * 1024 * 1024;
+export const MAX_ESSAY_UPLOAD_FILES = 2;
 export const ESSAY_SIGNED_URL_EXPIRES_IN_SECONDS = 5 * 60;
 export const MIN_ONLINE_ESSAY_WORDS = 80;
 export const MIN_ONLINE_ESSAY_LENGTH = 400;
@@ -69,13 +69,13 @@ export const essayUploadMetadataSchema = z.object({
 export const essayUploadFilesSchema = z
   .array(essayUploadMetadataSchema)
   .min(1, "Selecione pelo menos um arquivo.")
-  .max(MAX_ESSAY_UPLOAD_FILES, "Envie no máximo 4 arquivos por redação.")
+  .max(MAX_ESSAY_UPLOAD_FILES, "Envie no máximo 2 arquivos por redação.")
   .superRefine((files, context) => {
     const totalSize = files.reduce((sum, file) => sum + file.fileSize, 0);
     if (totalSize > MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES) {
       context.addIssue({
         code: "custom",
-        message: "A submissão deve ter no máximo 30 MB no total.",
+        message: "A submissão deve ter no máximo 20 MB no total.",
       });
     }
 

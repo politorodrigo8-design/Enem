@@ -57,29 +57,20 @@ test("rejeita tipo invalido", () => {
   assert.match(result.errors.join(" "), /PDF, PNG, JPG ou JPEG/);
 });
 
-test("rejeita excesso de tamanho por arquivo e total", () => {
+test("rejeita excesso de tamanho por arquivo", () => {
   assert.equal(
     validateEssayFileBatch([{ name: "grande.png", type: "image/png", size: 11 * mb }]).ok,
-    false,
-  );
-  assert.equal(
-    validateEssayFileBatch([
-      { name: "p1.png", type: "image/png", size: 8 * mb },
-      { name: "p2.png", type: "image/png", size: 8 * mb },
-      { name: "p3.png", type: "image/png", size: 8 * mb },
-      { name: "p4.png", type: "image/png", size: 8 * mb },
-    ]).ok,
     false,
   );
 });
 
 test("rejeita excesso de arquivos e PDF combinado com imagens", () => {
-  const fiveImages = Array.from({ length: 5 }, (_, index) => ({
+  const threeImages = Array.from({ length: 3 }, (_, index) => ({
     name: `p${index + 1}.png`,
     type: "image/png",
     size: mb,
   }));
-  assert.equal(validateEssayFileBatch(fiveImages).ok, false);
+  assert.equal(validateEssayFileBatch(threeImages).ok, false);
 
   assert.equal(
     validateEssayFileBatch([
