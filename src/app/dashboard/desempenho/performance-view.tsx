@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { useMemo } from "react";
 import {
   ArrowRight,
   ListChecks,
@@ -15,6 +18,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal } from "@/components/ui/reveal";
 import type { AccessContext } from "@/lib/access";
 import type { QuestionRecord } from "@/lib/db/types";
+import {
+  mergeLocalProgressIntoQuestions,
+  useLocalQuestionProgress,
+} from "@/lib/local-question-progress";
 
 const statusStyles = {
   Dominado: "text-emerald-600",
@@ -30,14 +37,19 @@ const statusBadgeStyles = {
 
 export function PerformanceView({
   questions,
-  areaMetrics,
+  areaMetrics: _areaMetrics,
   access,
 }: {
   questions: QuestionRecord[];
   areaMetrics: React.ComponentProps<typeof AreaBars>["data"];
   access: AccessContext;
 }) {
-  const answers = questions.flatMap((question) =>
+  const localProgress = useLocalQuestionProgress();
+  const questionsWithLocalProgress = useMemo(
+    () => mergeLocalProgressIntoQuestions(questions, localProgress),
+    [localProgress, questions],
+  );
+  const answers = questionsWithLocalProgress.flatMap((question) =>
     (question.user_question_answers ?? []).map((answer) => ({ question, answer })),
   );
   const correct = answers.filter((item) => item.answer.is_correct).length;
@@ -50,6 +62,7 @@ export function PerformanceView({
     : 0;
   const subjectRows = buildPerformanceRows(answers, "subject");
   const topicRows = buildPerformanceRows(answers, "topic");
+  const combinedAreaMetrics = answers.length ? buildAreaMetrics(answers) : _areaMetrics;
   const dominated = topicRows.filter((item) => item.status === "Dominado");
   const attention = topicRows.filter((item) => item.status === "Atenção");
   const critical = topicRows.filter((item) => item.status === "Crítico");
@@ -132,8 +145,8 @@ export function PerformanceView({
                 <CardTitle>Taxa de acertos por área</CardTitle>
               </CardHeader>
               <CardContent>
-                {areaMetrics.length ? (
-                  <AreaBars data={areaMetrics} />
+                {combinedAreaMetrics.length ? (
+                  <AreaBars data={combinedAreaMetrics} />
                 ) : (
                   <p className="text-sm leading-6 text-slate-500">
                     Sem respostas por área ainda.
@@ -200,6 +213,29 @@ function buildPerformanceRows(
       status: accuracy >= 75 ? "Dominado" : accuracy >= 55 ? "Atenção" : "Crítico",
     } as const;
   });
+}
+
+function buildAreaMetrics(
+  answers: Array<{
+    question: { subjects: { area: string } };
+    answer: { is_correct: boolean };
+  }>,
+) {
+  const map = new Map<string, { answered: number; correct: number }>();
+  answers.forEach(({ question, answer }) => {
+    const current = map.get(question.subjects.area) ?? { answered: 0, correct: 0 };
+    current.answered += 1;
+    current.correct += answer.is_correct ? 1 : 0;
+    map.set(question.subjects.area, current);
+  });
+
+  return Array.from(map.entries()).map(([area, metric]) => ({
+    area,
+    answered: metric.answered,
+    accuracy: metric.answered
+      ? Math.round((metric.correct / metric.answered) * 100)
+      : 0,
+  }));
 }
 
 type PerformanceRow = ReturnType<typeof buildPerformanceRows>[number];

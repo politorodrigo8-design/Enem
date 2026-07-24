@@ -6,6 +6,10 @@ import { ReviewClient } from "../revisao/review-client";
 import type { AccessContext } from "@/lib/access";
 import type { ActivePracticeSession, QuestionRecord } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
+import {
+  mergeLocalProgressIntoQuestions,
+  useLocalQuestionProgress,
+} from "@/lib/local-question-progress";
 
 export type PracticeTab = "banco" | "revisao";
 
@@ -32,6 +36,19 @@ export function PracticeTabs({
   activePracticeSession?: ActivePracticeSession | null;
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialTab);
+  const localProgress = useLocalQuestionProgress();
+  const questionsWithLocalProgress = mergeLocalProgressIntoQuestions(
+    questions,
+    localProgress,
+  );
+  const localWrongQuestions = questionsWithLocalProgress.filter((question) => {
+    const latest = latestAnswer(question);
+    return latest && !latest.is_correct;
+  });
+  const reviewQuestionsWithLocalProgress = mergeReviewQuestions(
+    reviewQuestions,
+    localWrongQuestions,
+  );
 
   return (
     <div>
@@ -43,8 +60,8 @@ export function PracticeTabs({
         {tabs.map((item) => {
           const count =
             item.id === "revisao"
-              ? reviewQuestions.length
-              : questions.length;
+              ? reviewQuestionsWithLocalProgress.length
+              : questionsWithLocalProgress.length;
 
           return (
             <button
@@ -97,9 +114,29 @@ export function PracticeTabs({
 
       {tab === "revisao" ? (
         <div key="revisao" className="animate-rise">
-          <ReviewClient questions={reviewQuestions} />
+          <ReviewClient questions={reviewQuestionsWithLocalProgress} />
         </div>
       ) : null}
     </div>
   );
+}
+
+function mergeReviewQuestions(
+  reviewQuestions: QuestionRecord[],
+  localWrongQuestions: QuestionRecord[],
+) {
+  const seen = new Set(reviewQuestions.map((question) => question.id));
+  return [
+    ...reviewQuestions,
+    ...localWrongQuestions.filter((question) => !seen.has(question.id)),
+  ];
+}
+
+function latestAnswer(question: QuestionRecord) {
+  return question.user_question_answers
+    ?.slice()
+    .sort(
+      (a, b) =>
+        new Date(b.answered_at).getTime() - new Date(a.answered_at).getTime(),
+    )[0];
 }

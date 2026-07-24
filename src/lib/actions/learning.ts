@@ -1058,22 +1058,28 @@ export async function finishSimulationAction(
 
   const { data: answers, error: answersError } = await supabase
     .from("user_simulation_answers")
-    .select("question_id, selected_option, is_correct")
+    .select("question_id, selected_option, is_correct, response_time_seconds")
     .eq("user_simulation_id", userSimulationId);
 
   if (answersError) return learningError("learning.finishSimulation.answers", answersError);
 
-  const selectedByQuestion = new Map<string, string>();
+  const selectedByQuestion = new Map<
+    string,
+    { selectedOption: string; responseTimeSeconds: number }
+  >();
   for (const answer of answers ?? []) {
-    selectedByQuestion.set(answer.question_id, answer.selected_option);
+    selectedByQuestion.set(answer.question_id, {
+      selectedOption: answer.selected_option,
+      responseTimeSeconds: Number(answer.response_time_seconds) || 0,
+    });
   }
 
   if (simulation.status === "Finalizado") {
     const storedResults = Array.from(selectedByQuestion.entries())
       .filter(([questionId]) => questionById.has(questionId))
-      .map(([questionId, selectedOption]) => ({
+      .map(([questionId, answer]) => ({
         questionId,
-        isCorrect: questionById.get(questionId)!.correct_option === selectedOption,
+        isCorrect: questionById.get(questionId)!.correct_option === answer.selectedOption,
       }));
     const storedCorrect = storedResults.filter((answer) => answer.isCorrect).length;
     const storedTotal = simulation.total_questions || questionById.size || storedResults.length;
@@ -1090,7 +1096,11 @@ export async function finishSimulationAction(
   for (const [questionId, selectedOption] of Object.entries(submittedAnswers ?? {})) {
     const question = questionById.get(questionId);
     if (!question) continue;
-    selectedByQuestion.set(questionId, selectedOption);
+    const currentAnswer = selectedByQuestion.get(questionId);
+    selectedByQuestion.set(questionId, {
+      selectedOption,
+      responseTimeSeconds: currentAnswer?.responseTimeSeconds ?? 0,
+    });
     const writeResult = await writeSimulationAnswer({
       supabase,
       userSimulationId,
@@ -1103,9 +1113,9 @@ export async function finishSimulationAction(
 
   const results = Array.from(selectedByQuestion.entries())
     .filter(([questionId]) => questionById.has(questionId))
-    .map(([questionId, selectedOption]) => ({
+    .map(([questionId, answer]) => ({
       questionId,
-      isCorrect: questionById.get(questionId)!.correct_option === selectedOption,
+      isCorrect: questionById.get(questionId)!.correct_option === answer.selectedOption,
     }));
 
   const answered = results.length;
@@ -1145,9 +1155,9 @@ export async function finishSimulationAction(
     const answerRows = results.map(({ questionId, isCorrect }) => ({
       user_id: user.id,
       question_id: questionId,
-      selected_option: selectedByQuestion.get(questionId) ?? "",
+      selected_option: selectedByQuestion.get(questionId)?.selectedOption ?? "",
       is_correct: isCorrect,
-      response_time_seconds: 0,
+      response_time_seconds: selectedByQuestion.get(questionId)?.responseTimeSeconds ?? 0,
     }));
     const { error: logError } = await supabase
       .from("user_question_answers")
@@ -1397,6 +1407,7 @@ export type GenerateSimulationCriteria = {
   difficulty?: "Baixa" | "Média" | "Alta" | null;
   prioritizeWeaknesses?: boolean;
   foreignLanguage?: "en" | "es";
+  excludeQuestionIds?: string[];
 };
 
 type GenerateSimulationResult = {
@@ -1471,6 +1482,9 @@ async function createGeneratedSimulation(
     return { ok: false, message: "O simulado precisa ter entre 5 e 90 questões." };
   }
   const foreignLanguage = criteria.foreignLanguage === "es" ? "es" : "en";
+  const excludedQuestionIds = new Set(
+    normalizePracticeQuestionIds(criteria.excludeQuestionIds ?? []),
+  );
   const queryAreas = Array.from(
     new Set(areas.flatMap((area) => SIMULATION_AREA_ALIASES[area])),
   );
@@ -1490,7 +1504,9 @@ async function createGeneratedSimulation(
   }
   const { data: rawCandidates, error: candidatesError } = await query.limit(2000);
   if (candidatesError) return learningError("learning.generateSimulation.candidates", candidatesError);
-  const candidates = (rawCandidates ?? []).filter(isStudentReadyQuestion);
+  const candidates = (rawCandidates ?? [])
+    .filter(isStudentReadyQuestion)
+    .filter((question) => !excludedQuestionIds.has(String(question.id)));
   if (candidates.length < questionCount) {
     const fallbackSimulation = buildGeneratedFallbackSimulation(criteria, areas, questionCount);
     if (fallbackSimulation) {
@@ -1612,10 +1628,14 @@ function buildGeneratedFallbackSimulation(
 ): SimulationWithQuestions | null {
   const selectedAreas = new Set(areas);
   const foreignLanguage = criteria.foreignLanguage === "es" ? "es" : "en";
+  const excludedQuestionIds = new Set(
+    normalizePracticeQuestionIds(criteria.excludeQuestionIds ?? []),
+  );
   const candidates = getFallbackQuestionRecords()
     .filter((question) => {
       const area = normalizeSimulationArea(question.subjects.area);
       if (!area || !selectedAreas.has(area)) return false;
+      if (excludedQuestionIds.has(question.id)) return false;
       if (criteria.difficulty && question.difficulty !== criteria.difficulty) return false;
       if (criteria.topics?.length && !criteria.topics.includes(question.topics.name)) {
         return false;

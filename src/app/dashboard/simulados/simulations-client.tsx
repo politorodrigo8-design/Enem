@@ -50,6 +50,11 @@ import {
   latestActiveAttempt,
 } from "@/lib/practice-session/rules.mjs";
 import { cn } from "@/lib/utils";
+import {
+  isLocalQuestionId,
+  recordLocalQuestionAnswer,
+  useLocalQuestionProgress,
+} from "@/lib/local-question-progress";
 
 const EXAM_DAY_PRESETS = [
   {
@@ -91,6 +96,11 @@ export function SimulationsClient({
   autoStartId?: string;
 }) {
   const router = useRouter();
+  const localQuestionProgress = useLocalQuestionProgress();
+  const locallyAnsweredQuestionIds = useMemo(
+    () => Object.keys(localQuestionProgress),
+    [localQuestionProgress],
+  );
   const [active, setActive] = useState<SimulationWithQuestions | null>(null);
   const [userSimulationId, setUserSimulationId] = useState("");
   const [questionIndex, setQuestionIndex] = useState(0);
@@ -191,6 +201,7 @@ export function SimulationsClient({
         difficulty: null,
         prioritizeWeaknesses: true,
         foreignLanguage: input.language ?? foreignLanguage,
+        excludeQuestionIds: locallyAnsweredQuestionIds,
       });
       if (!result.ok || !result.simulationId) {
         toast.error(result.message);
@@ -254,6 +265,21 @@ export function SimulationsClient({
         (result.results ?? []).forEach((item) => {
           correctness[item.questionId] = item.isCorrect;
         });
+        if (fallbackAttempt) {
+          const answeredCount = Object.keys(answers).length || 1;
+          const averageSeconds = Math.round(seconds / answeredCount);
+          (result.results ?? []).forEach((item) => {
+            const selectedOption = answers[item.questionId];
+            if (!selectedOption || !isLocalQuestionId(item.questionId)) return;
+            recordLocalQuestionAnswer({
+              questionId: item.questionId,
+              selectedOption,
+              isCorrect: item.isCorrect,
+              responseTimeSeconds: averageSeconds,
+              answeredAt: new Date().toISOString(),
+            });
+          });
+        }
         setFinishData({
           correct: result.correct ?? 0,
           total: result.total ?? examQuestions.length,
@@ -669,6 +695,7 @@ export function SimulationsClient({
           start(simulation);
           router.replace("/dashboard/simulados", { scroll: false });
         }}
+        excludeQuestionIds={locallyAnsweredQuestionIds}
       />
 
       {fallbackCatalog ? (
@@ -823,10 +850,12 @@ function SimulationBuilder({
   locked,
   pending,
   onGeneratedSimulation,
+  excludeQuestionIds,
 }: {
   locked: boolean;
   pending: boolean;
   onGeneratedSimulation: (simulation: SimulationWithQuestions) => void;
+  excludeQuestionIds: string[];
 }) {
   const router = useRouter();
   const [areas, setAreas] = useState<string[]>([
@@ -857,6 +886,7 @@ function SimulationBuilder({
         difficulty: difficulty || null,
         prioritizeWeaknesses,
         foreignLanguage,
+        excludeQuestionIds,
       });
       if (!result.ok || !result.simulationId) {
         toast.error(result.message);

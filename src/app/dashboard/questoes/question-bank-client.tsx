@@ -35,6 +35,11 @@ import {
   getPracticeSessionStats,
 } from "@/lib/practice-session/rules.mjs";
 import { cn } from "@/lib/utils";
+import {
+  isLocalQuestionId,
+  recordLocalQuestionAnswer,
+  useLocalQuestionProgress,
+} from "@/lib/local-question-progress";
 
 type Props = {
   questions: QuestionRecord[];
@@ -96,8 +101,6 @@ type StoredPracticeSession = {
   sessionFinished: boolean;
   updatedAt: string;
 };
-
-const localPracticeQuestionIdPrefix = "fallback-question-";
 
 function sameFilters(a: Filters, b: Filters) {
   return (
@@ -204,6 +207,7 @@ export function QuestionBankClient({
   const [pending, startTransition] = useTransition();
   const [sessionFinished, setSessionFinished] = useState(false);
   const [localSessionHydrated, setLocalSessionHydrated] = useState(false);
+  const localQuestionProgress = useLocalQuestionProgress();
   const localSessionKey = useMemo(
     () => practiceSessionStorageKey(answerSource),
     [answerSource],
@@ -363,6 +367,16 @@ export function QuestionBankClient({
         questionIds.includes(questionId),
       ),
     ) as AnswerState;
+    Object.entries(answers).forEach(([questionId, answer]) => {
+      if (!isLocalQuestionId(questionId)) return;
+      recordLocalQuestionAnswer({
+        questionId,
+        selectedOption: answer.selectedOption,
+        isCorrect: answer.isCorrect,
+        responseTimeSeconds: 0,
+        answeredAt: stored.updatedAt,
+      });
+    });
     const restoredSession = { ...stored.session, questionIds };
 
     setSession(restoredSession);
@@ -384,6 +398,24 @@ export function QuestionBankClient({
     orderedQuestions,
     restoredPracticeSession,
   ]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Syncs local fallback answers into filter state after hydration. */
+  useEffect(() => {
+    const answers = Object.fromEntries(
+      Object.values(localQuestionProgress).map((answer) => [
+        answer.questionId,
+        {
+          selectedOption: answer.selectedOption,
+          isCorrect: answer.isCorrect,
+          explanation: "",
+          correctOption: "",
+        },
+      ]),
+    ) as AnswerState;
+    if (!Object.keys(answers).length) return;
+    setAnswerState((current) => ({ ...current, ...answers }));
+  }, [localQuestionProgress]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -509,6 +541,15 @@ export function QuestionBankClient({
           },
         }));
         if (response.practiceSessionId) setPracticeSessionId(response.practiceSessionId);
+        if (isLocalQuestionId(question.id)) {
+          recordLocalQuestionAnswer({
+            questionId: question.id,
+            selectedOption: selected,
+            isCorrect: Boolean(response.isCorrect),
+            responseTimeSeconds: 0,
+            answeredAt: new Date().toISOString(),
+          });
+        }
         setSessionFinished(false);
         setResult({
           questionId: question.id,
@@ -1172,7 +1213,7 @@ function filterQuestions({
       focusMode === "all" ||
       (focusMode === "unanswered" && !answered) ||
       (focusMode === "review" && reviewed) ||
-      (focusMode === "recommended" && (isHighPriority(question) || !answered));
+      (focusMode === "recommended" && !answered);
 
     const matchesFilters =
       focusMode !== "all" ||
@@ -1187,13 +1228,6 @@ function filterQuestions({
 
     return matchesFocus && matchesFilters;
   });
-}
-
-function isHighPriority(question: QuestionRecord) {
-  return (
-    Boolean(recurrenceDisplay(question)) ||
-    Number(question.priority_score ?? 0) >= 70
-  );
 }
 
 function questionOrigin(question: QuestionRecord) {
@@ -1405,9 +1439,7 @@ function latestAnswer(question: QuestionRecord) {
 }
 
 function hasLocalPracticeQuestions(questionIds: string[]) {
-  return questionIds.some((questionId) =>
-    questionId.startsWith(localPracticeQuestionIdPrefix),
-  );
+  return questionIds.some((questionId) => isLocalQuestionId(questionId));
 }
 
 function practiceSessionStorageKey(source: "question_bank" | "high_priority") {

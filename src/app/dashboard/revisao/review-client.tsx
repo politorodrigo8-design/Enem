@@ -22,6 +22,11 @@ import {
   submitQuestionAnswerAction,
 } from "@/lib/actions/learning";
 import type { QuestionRecord } from "@/lib/db/types";
+import {
+  isLocalQuestionId,
+  recordLocalQuestionAnswer,
+  removeLocalQuestionAnswer,
+} from "@/lib/local-question-progress";
 
 const filters = ["Todas", "Erradas", "Marcadas"] as const;
 
@@ -68,6 +73,15 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
       });
       toast[result.ok ? "success" : "error"](result.message);
       if (result.ok) {
+        if (isLocalQuestionId(question.id)) {
+          recordLocalQuestionAnswer({
+            questionId: question.id,
+            selectedOption: selected,
+            isCorrect: Boolean(result.isCorrect),
+            responseTimeSeconds: 0,
+            answeredAt: new Date().toISOString(),
+          });
+        }
         setResults((current) => ({
           ...current,
           [question.id]: {
@@ -80,6 +94,12 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
   }
 
   function markMastered(questionId: string) {
+    if (isLocalQuestionId(questionId)) {
+      removeLocalQuestionAnswer(questionId);
+      toast.success("Questão removida da revisão local.");
+      return;
+    }
+
     startTransition(async () => {
       const result = await markReviewMasteredAction(questionId);
       toast[result.ok ? "success" : "error"](result.message);
