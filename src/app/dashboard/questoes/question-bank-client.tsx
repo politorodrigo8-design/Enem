@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -85,6 +85,19 @@ type AnswerState = Record<
     correctOption: string;
   }
 >;
+
+type StoredPracticeSession = {
+  version: 1;
+  source: "question_bank" | "high_priority";
+  session: SessionSnapshot;
+  answers: AnswerState;
+  currentIndex: number;
+  practiceSessionId: string;
+  sessionFinished: boolean;
+  updatedAt: string;
+};
+
+const localPracticeQuestionIdPrefix = "fallback-question-";
 
 function sameFilters(a: Filters, b: Filters) {
   return (
@@ -190,6 +203,11 @@ export function QuestionBankClient({
   );
   const [pending, startTransition] = useTransition();
   const [sessionFinished, setSessionFinished] = useState(false);
+  const [localSessionHydrated, setLocalSessionHydrated] = useState(false);
+  const localSessionKey = useMemo(
+    () => practiceSessionStorageKey(answerSource),
+    [answerSource],
+  );
 
   const orderedQuestions = useMemo(() => {
     if (!initialQuestionId) return questions;
@@ -302,11 +320,96 @@ export function QuestionBankClient({
   const sessionSubmittedCorrect = sessionStats.correct;
   const sessionSubmittedWrong = sessionStats.wrong;
   const hasUnfinishedSubmissions = sessionSubmittedCount > 0 && !sessionFinished;
+  const sessionUsesLocalQuestions = hasLocalPracticeQuestions(session.questionIds);
 
   const filterOptions = useMemo(
     () => buildFilterOptions(orderedQuestions, filters),
     [filters, orderedQuestions],
   );
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Restores browser-only session state after hydration. */
+  useEffect(() => {
+    if (initialTopicName) {
+      setLocalSessionHydrated(true);
+      return;
+    }
+
+    const stored = readStoredPracticeSession(localSessionKey, answerSource);
+    if (!stored) {
+      setLocalSessionHydrated(true);
+      return;
+    }
+
+    const storedTime = new Date(stored.updatedAt).getTime();
+    const serverTime = restoredPracticeSession?.updated_at
+      ? new Date(restoredPracticeSession.updated_at).getTime()
+      : 0;
+    if (serverTime > storedTime) {
+      setLocalSessionHydrated(true);
+      return;
+    }
+
+    const availableQuestionIds = new Set(orderedQuestions.map((item) => item.id));
+    const questionIds = stored.session.questionIds.filter((id) =>
+      availableQuestionIds.has(id),
+    );
+    if (!questionIds.length) {
+      setLocalSessionHydrated(true);
+      return;
+    }
+
+    const answers = Object.fromEntries(
+      Object.entries(stored.answers).filter(([questionId]) =>
+        questionIds.includes(questionId),
+      ),
+    ) as AnswerState;
+    const restoredSession = { ...stored.session, questionIds };
+
+    setSession(restoredSession);
+    setFocusMode(restoredSession.focusMode);
+    setSessionSize(restoredSession.sessionSize);
+    setFilters(restoredSession.filters);
+    setIndex(Math.min(Math.max(0, stored.currentIndex), questionIds.length - 1));
+    setPracticeSessionId(stored.practiceSessionId);
+    setSessionAnswerState(answers);
+    setAnswerState((current) => ({ ...current, ...answers }));
+    setSessionFinished(stored.sessionFinished);
+    setSelected("");
+    setResult(null);
+    setLocalSessionHydrated(true);
+  }, [
+    answerSource,
+    initialTopicName,
+    localSessionKey,
+    orderedQuestions,
+    restoredPracticeSession,
+  ]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    if (!localSessionHydrated || initialTopicName) return;
+
+    writeStoredPracticeSession(localSessionKey, {
+      version: 1,
+      source: answerSource,
+      session,
+      answers: sessionAnswerState,
+      currentIndex,
+      practiceSessionId,
+      sessionFinished,
+      updatedAt: new Date().toISOString(),
+    });
+  }, [
+    answerSource,
+    currentIndex,
+    initialTopicName,
+    localSessionHydrated,
+    localSessionKey,
+    practiceSessionId,
+    session,
+    sessionAnswerState,
+    sessionFinished,
+  ]);
 
   function move(nextIndex: number, persistProgress = true) {
     const safeIndex = Math.max(0, nextIndex);
@@ -429,6 +532,14 @@ export function QuestionBankClient({
         questionIds: sessionSubmittedQuestions.map((item) => item.id),
         startedAt: session.startedAt,
         source: answerSource,
+        localSummary: sessionUsesLocalQuestions
+          ? {
+              questionCount: sessionQuestions.length,
+              answered: sessionSubmittedCount,
+              correct: sessionSubmittedCorrect,
+              wrong: sessionSubmittedWrong,
+            }
+          : undefined,
       });
       toast[response.ok ? "success" : "error"](response.message);
       if (response.ok) {
@@ -1291,4 +1402,46 @@ function latestAnswer(question: QuestionRecord) {
       (a, b) =>
         new Date(b.answered_at).getTime() - new Date(a.answered_at).getTime(),
     )[0];
+}
+
+function hasLocalPracticeQuestions(questionIds: string[]) {
+  return questionIds.some((questionId) =>
+    questionId.startsWith(localPracticeQuestionIdPrefix),
+  );
+}
+
+function practiceSessionStorageKey(source: "question_bank" | "high_priority") {
+  return `pontua-enem:practice-session:${source}`;
+}
+
+function readStoredPracticeSession(
+  key: string,
+  source: "question_bank" | "high_priority",
+): StoredPracticeSession | null {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StoredPracticeSession>;
+    if (
+      parsed.version !== 1 ||
+      parsed.source !== source ||
+      !parsed.session ||
+      !Array.isArray(parsed.session.questionIds) ||
+      !parsed.answers ||
+      typeof parsed.answers !== "object"
+    ) {
+      return null;
+    }
+    return parsed as StoredPracticeSession;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredPracticeSession(key: string, session: StoredPracticeSession) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(session));
+  } catch {
+    // localStorage can be blocked or unavailable in some browser modes.
+  }
 }

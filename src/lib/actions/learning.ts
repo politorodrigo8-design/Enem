@@ -9,6 +9,7 @@ import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
 import { recalculateDiagnosisPriorities } from "@/lib/db/diagnosis";
 import { addDaysISO, calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
 import {
+  getFallbackQuestionRecords,
   getFallbackQuestionWithAnswer,
   isFallbackQuestionId,
   isFallbackSimulationId,
@@ -16,7 +17,7 @@ import {
 } from "@/lib/db/fallback-content";
 import type { ActionResult } from "@/lib/actions/auth";
 import type { AccessContext } from "@/lib/access";
-import type { Profile } from "@/lib/db/types";
+import type { Profile, QuestionRecord, SimulationWithQuestions } from "@/lib/db/types";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { logServerError, publicDatabaseErrorMessage } from "@/lib/security/public-errors";
 import { appDateISO, formatAppDateTime } from "@/lib/dates";
@@ -536,6 +537,12 @@ export async function finishPracticeSessionAction(input: {
   questionIds: string[];
   startedAt: string;
   source?: "question_bank" | "review" | "high_priority";
+  localSummary?: {
+    questionCount: number;
+    answered: number;
+    correct: number;
+    wrong: number;
+  };
 }): Promise<
   ActionResult & {
     answered?: number;
@@ -547,6 +554,7 @@ export async function finishPracticeSessionAction(input: {
   if ("error" in context) return { ok: false, message: context.error };
 
   const { supabase, user } = context;
+  const localSummary = normalizePracticeSessionLocalSummary(input.localSummary);
   if (input.practiceSessionId) {
     const { data: session, error: sessionError } = await supabase
       .from("practice_sessions")
@@ -574,7 +582,8 @@ export async function finishPracticeSessionAction(input: {
       practiceSessionId: session.id,
     });
     if (!stats.ok) return stats;
-    if (stats.answered === 0) {
+    const finalStats = stats.answered > 0 ? stats : localSummary;
+    if (!finalStats || finalStats.answered === 0) {
       return {
         ok: false,
         message: "Responda pelo menos uma questÃ£o da sessÃ£o antes de finalizar.",
@@ -588,9 +597,9 @@ export async function finishPracticeSessionAction(input: {
         status: "Finalizado",
         finished_at: finishedAt,
         updated_at: finishedAt,
-        answered_count: stats.answered,
-        correct_count: stats.correct,
-        wrong_count: stats.wrong,
+        answered_count: finalStats.answered,
+        correct_count: finalStats.correct,
+        wrong_count: finalStats.wrong,
       })
       .eq("id", session.id)
       .eq("user_id", user.id)
@@ -603,9 +612,9 @@ export async function finishPracticeSessionAction(input: {
       return {
         ok: true,
         message: "SessÃ£o jÃ¡ finalizada.",
-        answered: stats.answered,
-        correct: stats.correct,
-        wrong: stats.wrong,
+        answered: finalStats.answered,
+        correct: finalStats.correct,
+        wrong: finalStats.wrong,
       };
     }
 
@@ -613,10 +622,10 @@ export async function finishPracticeSessionAction(input: {
       supabase,
       userId: user.id,
       source: input.source ?? session.source,
-      questionCount: session.question_ids.length,
-      answered: stats.answered,
-      correct: stats.correct,
-      wrong: stats.wrong,
+      questionCount: localSummary?.questionCount ?? session.question_ids.length,
+      answered: finalStats.answered,
+      correct: finalStats.correct,
+      wrong: finalStats.wrong,
     });
 
     revalidatePracticeSessionPaths();
@@ -624,12 +633,12 @@ export async function finishPracticeSessionAction(input: {
     return {
       ok: true,
       message:
-        stats.wrong > 0
+        finalStats.wrong > 0
           ? "SessÃ£o finalizada. Seus erros jÃ¡ estÃ£o na revisÃ£o."
           : "SessÃ£o finalizada. Seu desempenho foi atualizado.",
-      answered: stats.answered,
-      correct: stats.correct,
-      wrong: stats.wrong,
+      answered: finalStats.answered,
+      correct: finalStats.correct,
+      wrong: finalStats.wrong,
     };
   }
 
@@ -640,6 +649,28 @@ export async function finishPracticeSessionAction(input: {
         .filter(Boolean),
     ),
   );
+  if (!questionIds.length && localSummary?.answered) {
+    await recordPracticeSessionCompleted({
+      supabase,
+      userId: user.id,
+      source: input.source ?? "question_bank",
+      questionCount: localSummary.questionCount,
+      answered: localSummary.answered,
+      correct: localSummary.correct,
+      wrong: localSummary.wrong,
+    });
+
+    revalidatePracticeSessionPaths();
+
+    return {
+      ok: true,
+      message: "Sessão finalizada e salva neste dispositivo.",
+      answered: localSummary.answered,
+      correct: localSummary.correct,
+      wrong: localSummary.wrong,
+    };
+  }
+
   if (!questionIds.length) {
     return { ok: false, message: "Responda pelo menos uma questão da sessão antes de finalizar." };
   }
@@ -670,7 +701,8 @@ export async function finishPracticeSessionAction(input: {
   const answered = finalizedAnswers.length;
   const correct = finalizedAnswers.filter((answer) => answer.is_correct).length;
   const wrong = answered - correct;
-  if (answered === 0) {
+  const finalStats = answered > 0 ? { answered, correct, wrong } : localSummary;
+  if (!finalStats || finalStats.answered === 0) {
     return { ok: false, message: "Responda pelo menos uma questÃ£o da sessÃ£o antes de finalizar." };
   }
 
@@ -678,10 +710,10 @@ export async function finishPracticeSessionAction(input: {
     supabase,
     userId: user.id,
     source: input.source ?? "question_bank",
-    questionCount: questionIds.length,
-    answered,
-    correct,
-    wrong,
+    questionCount: localSummary?.questionCount ?? questionIds.length,
+    answered: finalStats.answered,
+    correct: finalStats.correct,
+    wrong: finalStats.wrong,
   });
 
   revalidatePracticeSessionPaths();
@@ -689,12 +721,38 @@ export async function finishPracticeSessionAction(input: {
   return {
     ok: true,
     message:
-      wrong > 0
+      finalStats.wrong > 0
         ? "Sessão finalizada. Seus erros já estão na revisão."
         : "Sessão finalizada. Seu desempenho foi atualizado.",
+    answered: finalStats.answered,
+    correct: finalStats.correct,
+    wrong: finalStats.wrong,
+  };
+}
+
+function normalizePracticeSessionLocalSummary(
+  summary?: {
+    questionCount: number;
+    answered: number;
+    correct: number;
+    wrong: number;
+  },
+) {
+  if (!summary) return null;
+
+  const answered = Math.max(0, Math.floor(Number(summary.answered) || 0));
+  const correct = Math.min(
+    answered,
+    Math.max(0, Math.floor(Number(summary.correct) || 0)),
+  );
+  return {
+    questionCount: Math.max(
+      answered,
+      Math.floor(Number(summary.questionCount) || 0),
+    ),
     answered,
     correct,
-    wrong,
+    wrong: answered - correct,
   };
 }
 
@@ -1252,6 +1310,7 @@ async function writeSimulationAnswer({
 export async function finishFallbackSimulationAction(input: {
   simulationId: string;
   answers: Record<string, string>;
+  questionIds?: string[];
 }): Promise<
   ActionResult & {
     results?: Array<{ questionId: string; isCorrect: boolean }>;
@@ -1263,7 +1322,9 @@ export async function finishFallbackSimulationAction(input: {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
 
-  const result = scoreFallbackSimulation(input.simulationId, input.answers);
+  const result =
+    scoreFallbackSimulation(input.simulationId, input.answers) ??
+    scoreFallbackQuestionSet(input.questionIds ?? [], input.answers);
   if (!result) {
     return { ok: false, message: "Simulado não encontrado no acervo local." };
   }
@@ -1285,6 +1346,30 @@ export async function finishFallbackSimulationAction(input: {
     ok: true,
     message: "Simulado finalizado.",
     ...result,
+  };
+}
+
+function scoreFallbackQuestionSet(
+  questionIds: string[],
+  answers: Record<string, string>,
+) {
+  const questions = normalizePracticeQuestionIds(questionIds)
+    .map((questionId) => getFallbackQuestionWithAnswer(questionId))
+    .filter((question): question is QuestionRecord => Boolean(question));
+  if (!questions.length) return null;
+
+  const results = questions.map((question) => ({
+    questionId: question.id,
+    isCorrect: question.correct_option === answers[question.id],
+  }));
+  const correct = results.filter((item) => item.isCorrect).length;
+  const total = questions.length;
+
+  return {
+    results,
+    correct,
+    total,
+    percentage: total ? Math.round((correct / total) * 100) : 0,
   };
 }
 
@@ -1314,9 +1399,16 @@ export type GenerateSimulationCriteria = {
   foreignLanguage?: "en" | "es";
 };
 
+type GenerateSimulationResult = {
+  ok: boolean;
+  message: string;
+  simulationId?: string;
+  simulation?: SimulationWithQuestions;
+};
+
 export async function generateSimulationAction(
   criteria: GenerateSimulationCriteria,
-): Promise<{ ok: boolean; message: string; simulationId?: string }> {
+): Promise<GenerateSimulationResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
   return createGeneratedSimulation(context.supabase, context.user, criteria);
@@ -1325,7 +1417,7 @@ export async function generateSimulationAction(
 /** Refaz um simulado gerado com um sorteio novo de questões (mesmos critérios). */
 export async function regenerateSimulationAction(
   simulationId: string,
-): Promise<{ ok: boolean; message: string; simulationId?: string }> {
+): Promise<GenerateSimulationResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
   const { supabase, user } = context;
@@ -1363,7 +1455,7 @@ async function createGeneratedSimulation(
   supabase: SupabaseClient,
   user: User,
   criteria: GenerateSimulationCriteria,
-): Promise<{ ok: boolean; message: string; simulationId?: string }> {
+): Promise<GenerateSimulationResult> {
   const areas = Array.from(
     new Set(
       (criteria.areas ?? [])
@@ -1400,6 +1492,16 @@ async function createGeneratedSimulation(
   if (candidatesError) return learningError("learning.generateSimulation.candidates", candidatesError);
   const candidates = (rawCandidates ?? []).filter(isStudentReadyQuestion);
   if (candidates.length < questionCount) {
+    const fallbackSimulation = buildGeneratedFallbackSimulation(criteria, areas, questionCount);
+    if (fallbackSimulation) {
+      return {
+        ok: true,
+        message: `Simulado montado com ${fallbackSimulation.simulation_questions.length} questões do acervo local.`,
+        simulation: fallbackSimulation,
+        simulationId: fallbackSimulation.id,
+      };
+    }
+
     return {
       ok: false,
       message: `O banco tem ${candidates?.length ?? 0} questões para esses filtros; reduza a quantidade ou amplie os critérios.`,
@@ -1501,6 +1603,101 @@ async function createGeneratedSimulation(
     message: `Simulado montado com ${picked.length} questões do banco.`,
     simulationId: simulation.id,
   };
+}
+
+function buildGeneratedFallbackSimulation(
+  criteria: GenerateSimulationCriteria,
+  areas: SimulationArea[],
+  questionCount: number,
+): SimulationWithQuestions | null {
+  const selectedAreas = new Set(areas);
+  const foreignLanguage = criteria.foreignLanguage === "es" ? "es" : "en";
+  const candidates = getFallbackQuestionRecords()
+    .filter((question) => {
+      const area = normalizeSimulationArea(question.subjects.area);
+      if (!area || !selectedAreas.has(area)) return false;
+      if (criteria.difficulty && question.difficulty !== criteria.difficulty) return false;
+      if (criteria.topics?.length && !criteria.topics.includes(question.topics.name)) {
+        return false;
+      }
+      return !question.language || question.language === foreignLanguage;
+    })
+    .sort(
+      (a, b) =>
+        Number(b.priority_score ?? 0) - Number(a.priority_score ?? 0) ||
+        Number(b.year) - Number(a.year),
+    );
+
+  if (candidates.length < questionCount) return null;
+
+  const picked = pickBalancedFallbackQuestions(candidates, questionCount);
+  if (picked.length < questionCount) return null;
+
+  const title =
+    criteria.title?.trim() ||
+    `Simulado personalizado — ${formatAppDateTime(new Date(), {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })}`;
+  const createdAt = new Date().toISOString();
+
+  return {
+    id: `fallback-simulation-generated-${createdAt.replace(/[^0-9]/g, "")}-${Math.random().toString(36).slice(2, 8)}`,
+    title,
+    description: `Gerado a partir do acervo local de questões (${areas.join(", ")}).`,
+    duration_minutes: calculateSimulationDurationMinutes(questionCount),
+    difficulty: criteria.difficulty ?? "Média",
+    status: "Disponível",
+    created_by: null,
+    is_generated: true,
+    criteria: {
+      areas,
+      topics: criteria.topics ?? null,
+      question_count: questionCount,
+      difficulty: criteria.difficulty ?? null,
+      prioritize_weaknesses: Boolean(criteria.prioritizeWeaknesses),
+      foreign_language: foreignLanguage,
+      source: "fallback_official_import",
+    },
+    created_at: createdAt,
+    simulation_questions: picked.map((question, index) => ({
+      position: index + 1,
+      questions: question,
+    })),
+    user_simulations: [],
+  };
+}
+
+function pickBalancedFallbackQuestions(questions: QuestionRecord[], count: number) {
+  const groups = new Map<string, QuestionRecord[]>();
+  for (const question of questions) {
+    const key = `${question.subjects.area}:${question.topics.name}`;
+    groups.set(key, [...(groups.get(key) ?? []), question]);
+  }
+
+  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
+    const aScore = Math.max(...a.map((question) => Number(question.priority_score ?? 0)));
+    const bScore = Math.max(...b.map((question) => Number(question.priority_score ?? 0)));
+    return bScore - aScore || b.length - a.length;
+  });
+
+  const picked: QuestionRecord[] = [];
+  let round = 0;
+  while (picked.length < count) {
+    let added = false;
+    for (const group of sortedGroups) {
+      const question = group[round];
+      if (!question) continue;
+      picked.push(question);
+      added = true;
+      if (picked.length >= count) break;
+    }
+    if (!added) break;
+    round += 1;
+  }
+
+  return picked;
 }
 
 export async function generateStudyPlanAction(): Promise<ActionResult> {

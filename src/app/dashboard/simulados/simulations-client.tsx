@@ -49,6 +49,7 @@ import {
   firstUnansweredIndex,
   latestActiveAttempt,
 } from "@/lib/practice-session/rules.mjs";
+import { cn } from "@/lib/utils";
 
 const EXAM_DAY_PRESETS = [
   {
@@ -90,30 +91,11 @@ export function SimulationsClient({
   autoStartId?: string;
 }) {
   const router = useRouter();
-  const restoredAttempt = useMemo(
-    () => findRestorableSimulationAttempt(simulations),
-    [simulations],
-  );
-  const [active, setActive] = useState<SimulationWithQuestions | null>(
-    restoredAttempt?.simulation ?? null,
-  );
-  const [userSimulationId, setUserSimulationId] = useState(
-    restoredAttempt?.attempt.id ?? "",
-  );
-  const [questionIndex, setQuestionIndex] = useState(
-    restoredAttempt
-      ? firstUnansweredSimulationIndex(
-          restoredAttempt.simulation,
-          restoredAttempt.answers,
-        )
-      : 0,
-  );
-  const [answers, setAnswers] = useState<Record<string, string>>(
-    restoredAttempt?.answers ?? {},
-  );
-  const [seconds, setSeconds] = useState(
-    restoredAttempt ? elapsedSeconds(restoredAttempt.attempt.started_at) : 0,
-  );
+  const [active, setActive] = useState<SimulationWithQuestions | null>(null);
+  const [userSimulationId, setUserSimulationId] = useState("");
+  const [questionIndex, setQuestionIndex] = useState(0);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [seconds, setSeconds] = useState(0);
   const [finished, setFinished] = useState(false);
   const [fallbackAttempt, setFallbackAttempt] = useState(false);
   // O gabarito não vem no payload; a correção por questão vem da action.
@@ -215,6 +197,11 @@ export function SimulationsClient({
         return;
       }
       toast.success("Simulado montado com questões novas.");
+      if (result.simulation) {
+        start(result.simulation);
+        router.replace("/dashboard/simulados", { scroll: false });
+        return;
+      }
       router.push(`/dashboard/simulados?iniciar=${result.simulationId}`);
     });
   }
@@ -227,6 +214,11 @@ export function SimulationsClient({
         return;
       }
       toast.success("Novo sorteio pronto — mesmas regras, questões novas.");
+      if (result.simulation) {
+        start(result.simulation);
+        router.replace("/dashboard/simulados", { scroll: false });
+        return;
+      }
       router.push(`/dashboard/simulados?iniciar=${result.simulationId}`);
     });
   }
@@ -253,6 +245,7 @@ export function SimulationsClient({
           ? await finishFallbackSimulationAction({
               simulationId: active.id,
               answers,
+              questionIds: examQuestions.map((question) => question.id),
             })
           : await finishSimulationAction(userSimulationId, answers);
       toast[result.ok ? "success" : "error"](result.message);
@@ -371,7 +364,7 @@ export function SimulationsClient({
                 <CardTitle>Principais erros</CardTitle>
               </CardHeader>
               <CardContent>
-                {wrongQuestions.length ? (
+                {wrongQuestions.length && !fallbackAttempt ? (
                   <ul className="divide-y divide-slate-100">
                     {wrongQuestions.slice(0, 5).map((question) => (
                       <li
@@ -415,7 +408,17 @@ export function SimulationsClient({
           </section>
         </Reveal>
 
-        <Notice tone="success" icon={CheckCircle2} className="mt-6">
+        {fallbackAttempt ? (
+          <Notice tone="success" icon={CheckCircle2} className="mt-6">
+            Simulado local finalizado. O resultado fica visível nesta tela.
+          </Notice>
+        ) : null}
+
+        <Notice
+          tone="success"
+          icon={CheckCircle2}
+          className={cn("mt-6", fallbackAttempt && "hidden")}
+        >
           Seus erros já entraram na Revisão de erros e o seu desempenho por
           assunto foi atualizado.
         </Notice>
@@ -659,7 +662,14 @@ export function SimulationsClient({
         </div>
       </section>
 
-      <SimulationBuilder locked={locked || fallbackCatalog} pending={pending} />
+      <SimulationBuilder
+        locked={locked || fallbackCatalog}
+        pending={pending}
+        onGeneratedSimulation={(simulation) => {
+          start(simulation);
+          router.replace("/dashboard/simulados", { scroll: false });
+        }}
+      />
 
       {fallbackCatalog ? (
         <section>
@@ -772,22 +782,6 @@ type SimulationAttempt = NonNullable<
   SimulationWithQuestions["user_simulations"]
 >[number];
 
-function findRestorableSimulationAttempt(simulations: SimulationWithQuestions[]) {
-  const candidates = simulations
-    .flatMap((simulation) =>
-      (simulation.user_simulations ?? [])
-        .filter((attempt) => attempt.status === "Em andamento")
-        .map((attempt) => ({ simulation, attempt })),
-    )
-    .sort((a, b) => b.attempt.started_at.localeCompare(a.attempt.started_at));
-  const restored = candidates[0];
-  if (!restored) return null;
-  return {
-    ...restored,
-    answers: answersFromSimulationAttempt(restored.attempt),
-  };
-}
-
 function latestInProgressAttempt(simulation: SimulationWithQuestions) {
   return latestActiveAttempt(simulation.user_simulations ?? []) as
     | SimulationAttempt
@@ -825,7 +819,15 @@ const BUILDER_AREAS = [
 
 const SIMULATION_QUESTION_OPTIONS = [15, 30, 45, 60, 90] as const;
 
-function SimulationBuilder({ locked, pending }: { locked: boolean; pending: boolean }) {
+function SimulationBuilder({
+  locked,
+  pending,
+  onGeneratedSimulation,
+}: {
+  locked: boolean;
+  pending: boolean;
+  onGeneratedSimulation: (simulation: SimulationWithQuestions) => void;
+}) {
   const router = useRouter();
   const [areas, setAreas] = useState<string[]>([
     "Linguagens",
@@ -861,6 +863,10 @@ function SimulationBuilder({ locked, pending }: { locked: boolean; pending: bool
         return;
       }
       toast.success(result.message);
+      if (result.simulation) {
+        onGeneratedSimulation(result.simulation);
+        return;
+      }
       router.push(`/dashboard/simulados?iniciar=${result.simulationId}`);
     });
   }
