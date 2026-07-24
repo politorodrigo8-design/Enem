@@ -137,7 +137,7 @@ export default async function AdminEssaysPage({
 
       {essays.length ? (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <div className="grid grid-cols-[1.1fr_1.2fr_130px_120px_150px_130px] gap-4 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+          <div className="hidden grid-cols-[1.1fr_1.2fr_130px_120px_150px_130px] gap-4 border-b border-slate-100 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
             <span>Aluno</span>
             <span>Tema</span>
             <span>Envio</span>
@@ -150,7 +150,7 @@ export default async function AdminEssaysPage({
               <li key={essay.id}>
                 <Link
                   href={`/dashboard/redacoes/${essay.id}`}
-                  className="grid grid-cols-[1.1fr_1.2fr_130px_120px_150px_130px] items-center gap-4 px-4 py-3 text-sm transition-colors hover:bg-slate-50"
+                  className="block px-4 py-4 text-sm transition-colors hover:bg-slate-50 md:grid md:grid-cols-[1.1fr_1.2fr_130px_120px_150px_130px] md:items-center md:gap-4 md:py-3"
                 >
                   <span className="min-w-0">
                     <span className="block truncate font-semibold text-slate-950">
@@ -160,7 +160,7 @@ export default async function AdminEssaysPage({
                       {essay.profiles?.email || essay.user_id}
                     </span>
                   </span>
-                  <span className="min-w-0">
+                  <span className="mt-3 block min-w-0 md:mt-0">
                     <span className="line-clamp-1 text-slate-700">{essay.theme}</span>
                     {essay.student_note ? (
                       <span className="line-clamp-1 text-xs text-slate-500">
@@ -168,18 +168,33 @@ export default async function AdminEssaysPage({
                       </span>
                     ) : null}
                   </span>
-                  <span className="tnum text-slate-600">{formatShortDate(essay.submitted_at)}</span>
-                  <span className="text-slate-600">
-                    {essay.delivery_type === "online"
-                      ? `Online · ${essay.word_count} palavras`
-                      : `${essay.file_count || essay.essay_submission_files?.length || 0} pag. · ${summarizeMimeTypes(essay.essay_submission_files ?? [])}`}
+                  <span className="mt-3 flex items-center justify-between gap-3 text-xs text-slate-600 md:mt-0 md:block md:text-sm">
+                    <span className="font-semibold uppercase tracking-wide text-slate-500 md:hidden">
+                      Envio
+                    </span>
+                    <span className="tnum">{formatShortDate(essay.submitted_at)}</span>
                   </span>
-                  <span className="truncate text-slate-600">
-                    {essay.assigned_admin_profile?.full_name ||
-                      essay.assigned_admin_profile?.email ||
-                      "Não assumida"}
+                  <span className="mt-2 flex items-center justify-between gap-3 text-xs text-slate-600 md:mt-0 md:block md:text-sm">
+                    <span className="font-semibold uppercase tracking-wide text-slate-500 md:hidden">
+                      Arquivos
+                    </span>
+                    <span>
+                      {essay.delivery_type === "online"
+                        ? `Online · ${essay.word_count} palavras`
+                        : `${essay.file_count || essay.essay_submission_files?.length || 0} pag. · ${summarizeMimeTypes(essay.essay_submission_files ?? [])}`}
+                    </span>
                   </span>
-                  <span className="flex items-center justify-between gap-2">
+                  <span className="mt-2 flex min-w-0 items-center justify-between gap-3 text-xs text-slate-600 md:mt-0 md:block md:text-sm">
+                    <span className="shrink-0 font-semibold uppercase tracking-wide text-slate-500 md:hidden">
+                      Responsavel
+                    </span>
+                    <span className="truncate">
+                      {essay.assigned_admin_profile?.full_name ||
+                        essay.assigned_admin_profile?.email ||
+                        "Não assumida"}
+                    </span>
+                  </span>
+                  <span className="mt-4 flex items-center justify-between gap-2 md:mt-0">
                     <Badge tone={statusTones[essay.status]}>
                       {statusLabels[essay.status]}
                     </Badge>
