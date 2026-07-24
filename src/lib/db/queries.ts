@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { formatDateTime, getWeekStart } from "@/lib/db/scoring";
 import { prioritizeTopics } from "@/lib/study/priorities";
+import { calculateStudyStreak } from "@/lib/study/streak.mjs";
 import { appDateISO } from "@/lib/dates";
 import {
   getFallbackQuestionRecords,
@@ -501,6 +502,7 @@ export type TodayStudyData = {
   nextItem: StudyPlanWithItems["study_plan_items"][number] | null;
   dailyGoal: number;
   answeredToday: number;
+  studiedToday: boolean;
   streak: number;
 };
 
@@ -540,22 +542,35 @@ export async function getTodayStudy(
     (answer) => appDateISO(answer.answered_at) === today,
   ).length;
 
-  // Sequência: dias consecutivos com pelo menos uma questão respondida.
+  // Sequência: dias consecutivos com resposta ou atividade do plano concluída.
   // Se hoje ainda não estudou, a sequência vigente termina ontem (não zera).
-  let streak = 0;
-  const cursor = new Date();
-  if (!answerDates.has(today)) cursor.setDate(cursor.getDate() - 1);
-  while (answerDates.has(appDateISO(cursor))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
+  const { data: recentCompletedItems, error: completedItemsError } = await supabase
+    .from("study_plan_items")
+    .select("completed_at, study_plans!inner(user_id)")
+    .eq("study_plans.user_id", user.id)
+    .eq("completed", true)
+    .not("completed_at", "is", null)
+    .gte("completed_at", since.toISOString())
+    .order("completed_at", { ascending: false })
+    .limit(300);
+
+  if (completedItemsError) {
+    logQueryError("study_plan_items.recent_completed_for_streak", completedItemsError);
   }
+
+  const studyDates = new Set(answerDates);
+  for (const item of recentCompletedItems ?? []) {
+    if (item.completed_at) studyDates.add(appDateISO(item.completed_at));
+  }
+  const studiedToday = studyDates.has(today);
 
   return {
     todayItem,
     nextItem,
     dailyGoal: getDailyQuestionGoal(profile, todayItem?.question_goal),
     answeredToday,
-    streak,
+    studiedToday,
+    streak: calculateStudyStreak(studyDates, today),
   };
 }
 

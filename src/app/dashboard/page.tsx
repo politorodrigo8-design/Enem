@@ -42,7 +42,7 @@ export default async function DashboardPage() {
     ? priorities.find((item) => item.topic.id === todayTopic.id) ?? null
     : priorities[0] ?? null;
   const goal = today.dailyGoal;
-  const goalMet = today.answeredToday >= goal;
+  const goalMet = today.answeredToday >= goal || Boolean(today.todayItem?.completed);
   const practiceHref = todayTopic
     ? `/dashboard/praticar?topic=${todayTopic.id}`
     : focusPriority
@@ -62,7 +62,7 @@ export default async function DashboardPage() {
       <DashboardPageHeader
         title="Hoje"
         description={dateLabel}
-        action={<StreakChip streak={today.streak} activeToday={today.answeredToday > 0} />}
+        action={<StreakChip streak={today.streak} activeToday={today.studiedToday} />}
       />
 
       <Reveal>
