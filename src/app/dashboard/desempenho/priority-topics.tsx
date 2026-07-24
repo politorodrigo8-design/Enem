@@ -16,19 +16,22 @@ export type PriorityTopicItem = {
   reason: string;
   accuracy: number | null;
   answered: number;
+  hasPersonalPerformance: boolean;
 };
 
-/** Os 6 assuntos que mais aumentam a nota agora, com motivo e ação direta. */
+/** Os 6 assuntos sugeridos para estudar agora, com motivo e ação direta. */
 export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
   const highlighted = items.slice(0, 6);
+  const hasPersonalPerformance = items.some((item) => item.hasPersonalPerformance);
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Assuntos prioritários</CardTitle>
+        <CardTitle>Assuntos sugeridos para estudar</CardTitle>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          Ordenados pelo que mais aumenta sua nota: o quanto o assunto cai no
-          ENEM e o quanto você ainda erra nele.
+          {hasPersonalPerformance
+            ? "Ordenados por recorrência no ENEM e pelo seu desempenho nas questões que você já respondeu."
+            : "Sem respostas suficientes ainda, a ordem começa pela recorrência histórica no ENEM. Conforme você responde, seus acertos e erros entram no cálculo."}
         </p>
       </CardHeader>
       <CardContent>
@@ -113,7 +116,7 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
           <CardTitle>Todos os assuntos</CardTitle>
           <p className="mt-1 text-sm leading-6 text-slate-600">
             O mapa completo do que o ENEM cobra — {items.length} assuntos com
-            histórico de recorrência, na ordem da sua prioridade.
+            histórico de recorrência, na ordem sugerida de estudo.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
@@ -211,7 +214,12 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
 }
 
 function isMainPriority(item: PriorityTopicItem) {
-  return item.label.includes("máxima") || item.label.includes("alta");
+  const label = normalize(item.label);
+  return (
+    label.includes("maxima") ||
+    label.includes("alta") ||
+    label.includes("alta recorrencia")
+  );
 }
 
 function normalize(value: string) {

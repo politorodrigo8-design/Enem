@@ -7,15 +7,20 @@ export function cn(...classes: Array<string | false | null | undefined>) {
 }
 
 export function priorityTone(priority: string) {
-  if (priority.includes("máxima")) {
+  const normalized = priority
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+
+  if (normalized.includes("maxima")) {
     return "bg-rose-50 text-rose-700 ring-rose-200";
   }
 
-  if (priority.includes("alta")) {
+  if (normalized.includes("alta")) {
     return "bg-amber-50 text-amber-700 ring-amber-200";
   }
 
-  if (priority.includes("média")) {
+  if (normalized.includes("media")) {
     return "bg-blue-50 text-blue-700 ring-blue-200";
   }
 

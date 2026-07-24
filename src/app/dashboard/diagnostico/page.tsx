@@ -1,6 +1,5 @@
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { getDashboardData } from "@/lib/db/queries";
-import { priorityLabel } from "@/lib/db/scoring";
 import { DiagnosisClient, type PrioritySummary } from "./diagnosis-client";
 
 export default async function DiagnosisPage() {
@@ -11,7 +10,7 @@ export default async function DiagnosisPage() {
   );
 
   const priorities: PrioritySummary[] = data.priorities.map(
-    ({ topic, performance, score }) => ({
+    ({ topic, performance, label }) => ({
       id: topic.id,
       name: topic.name,
       subject: topic.subjects.name,
@@ -20,7 +19,7 @@ export default async function DiagnosisPage() {
         performance?.accuracy_percentage != null
           ? Math.round(performance.accuracy_percentage)
           : null,
-      label: priorityLabel(score),
+      label,
     }),
   );
 

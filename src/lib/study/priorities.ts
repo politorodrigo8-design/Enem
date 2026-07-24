@@ -14,6 +14,7 @@ export type PrioritizedTopic = {
   performance: TopicPerformance | undefined;
   score: number;
   label: string;
+  hasPersonalPerformance: boolean;
   /** Explicação em linguagem de aluno — sem jargão de score. */
   reason: string;
 };
@@ -22,6 +23,7 @@ export function prioritizeTopics(topics: TopicWithSubject[]): PrioritizedTopic[]
   return topics
     .map((topic) => {
       const performance = topic.user_topic_performance?.[0];
+      const answered = Number(performance?.total_answers ?? 0);
       const score =
         Number(performance?.priority_score) || calculatePriorityScore(topic, performance);
 
@@ -29,7 +31,8 @@ export function prioritizeTopics(topics: TopicWithSubject[]): PrioritizedTopic[]
         topic,
         performance,
         score,
-        label: priorityLabel(score),
+        label: answered ? priorityLabel(score) : recurrenceLabel(topic),
+        hasPersonalPerformance: answered > 0,
         reason: buildPriorityReason(topic, performance),
       };
     })
@@ -58,7 +61,7 @@ export function buildPriorityReason(
         : "Aparece de vez em quando no ENEM";
 
   if (!answered) {
-    return `${recurrencePart} e você ainda não respondeu questões deste assunto.`;
+    return `${recurrencePart}. Prioridade inicial por recorrência histórica; responda questões para calibrar pelo seu acerto e erro.`;
   }
 
   if (accuracy < 50) {
@@ -70,4 +73,11 @@ export function buildPriorityReason(
   }
 
   return `${recurrencePart}; você já domina (${accuracy}% de acerto). Mantenha com revisões.`;
+}
+
+function recurrenceLabel(topic: TopicWithSubject) {
+  const recurrence = Number(topic.historical_recurrence ?? 0);
+  if (recurrence >= 75) return "Alta recorrência";
+  if (recurrence >= 50) return "Recorrência média";
+  return "Baixa recorrência";
 }

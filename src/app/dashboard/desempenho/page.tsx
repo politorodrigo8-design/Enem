@@ -28,7 +28,7 @@ export default async function PerformancePage() {
   const access = getAccessContext(profile);
 
   const priorityItems: PriorityTopicItem[] = prioritizeTopics(topics).map(
-    ({ topic, performance, label, reason }) => ({
+    ({ topic, performance, label, reason, hasPersonalPerformance }) => ({
       id: topic.id,
       area: topic.subjects.area,
       discipline: topic.subjects.name,
@@ -40,6 +40,7 @@ export default async function PerformancePage() {
           ? Math.round(Number(performance.accuracy_percentage ?? 0))
           : null,
       answered: Number(performance?.total_answers ?? 0),
+      hasPersonalPerformance,
     }),
   );
 
