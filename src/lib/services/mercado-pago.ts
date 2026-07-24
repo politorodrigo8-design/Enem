@@ -28,6 +28,7 @@ export async function createMercadoPagoPreference({
   const accessToken = getMercadoPagoAccessToken();
 
   const siteUrl = getSiteUrl();
+  const orderMetadata = isPlainObject(order.metadata) ? order.metadata : {};
   const response = await fetch(`${API_BASE}/checkout/preferences`, {
     method: "POST",
     headers: {
@@ -53,6 +54,8 @@ export async function createMercadoPagoPreference({
         order_id: order.id,
         product_id: product.id,
         user_id: order.user_id,
+        referral_id: stringOrUndefined(orderMetadata.referral_id),
+        referrer_user_id: stringOrUndefined(orderMetadata.referrer_user_id),
       },
       back_urls: {
         success: `${siteUrl}/pagamento/sucesso?order=${order.id}`,
@@ -186,6 +189,14 @@ function getMercadoPagoAccessToken() {
   return process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? "";
 }
 
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+function stringOrUndefined(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
 export class MercadoPagoConfigurationError extends Error {
   constructor(message: string) {
     super(message);
@@ -227,5 +238,7 @@ export type MercadoPagoPayment = {
     order_id?: string;
     product_id?: string;
     user_id?: string;
+    referral_id?: string;
+    referrer_user_id?: string;
   };
 };

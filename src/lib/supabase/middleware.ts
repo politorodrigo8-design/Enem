@@ -13,6 +13,12 @@ import {
   setSessionStartedResponseCookie,
   supabaseAuthCookieOptions,
 } from "@/lib/auth/session-timeout";
+import {
+  REFERRAL_ATTRIBUTION_COOKIE_NAME,
+  isReferralCodeShape,
+  normalizeReferralCode,
+  referralAttributionCookieOptions,
+} from "@/lib/referrals/cookies";
 
 export async function updateSession(request: NextRequest) {
   if (!isSupabaseConfigured()) {
@@ -50,6 +56,24 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!request.cookies.get(REFERRAL_ATTRIBUTION_COOKIE_NAME)?.value) {
+    const referralCode = normalizeReferralCode(request.nextUrl.searchParams.get("ref"));
+    if (isReferralCodeShape(referralCode)) {
+      const { data, error } = await supabase.rpc("resolve_referral_code", {
+        input_code: referralCode,
+      });
+      const resolvedCode = Array.isArray(data) ? data[0]?.referral_code : null;
+      if (!error && resolvedCode) {
+        request.cookies.set(REFERRAL_ATTRIBUTION_COOKIE_NAME, resolvedCode);
+        response.cookies.set(
+          REFERRAL_ATTRIBUTION_COOKIE_NAME,
+          resolvedCode,
+          referralAttributionCookieOptions(),
+        );
+      }
+    }
+  }
 
   const isDashboard = request.nextUrl.pathname.startsWith("/dashboard");
   const isAuthPage = request.nextUrl.pathname === "/login";

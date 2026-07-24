@@ -193,6 +193,19 @@ export async function POST(request: NextRequest) {
         target_order_id: checkedOrder.id,
       } as never);
       if (error) throw new Error(error.message);
+      const { error: referralError } = await admin.rpc(
+        "process_referral_purchase_for_order" as never,
+        {
+          target_order_id: checkedOrder.id,
+          input_provider_payment_id: String(payment.id),
+        } as never,
+      );
+      if (referralError) throw new Error(referralError.message);
+      const { error: pendingReferralError } = await admin.rpc(
+        "process_pending_referral_rewards" as never,
+        { target_referrer_user_id: null } as never,
+      );
+      if (pendingReferralError) throw new Error(pendingReferralError.message);
       await recordProductEvent({
         supabase: admin,
         userId: checkedOrder.user_id,

@@ -34,6 +34,7 @@ import {
   clearSessionStartedCookie,
   setSessionStartedCookie,
 } from "@/lib/auth/session-timeout";
+import { attachReferralFromCurrentCookie } from "@/lib/referrals/server";
 
 export type ActionResult = {
   ok: boolean;
@@ -183,11 +184,14 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
         };
       }
 
+      const referral = await attachReferralFromCurrentCookie(data.user.id);
+
       await recordProductEvent({
         supabase,
         userId: data.user.id,
         eventName: "signup_completed",
         route: "/login",
+        metadata: referral ? { referral_attributed: true } : undefined,
       });
     }
 

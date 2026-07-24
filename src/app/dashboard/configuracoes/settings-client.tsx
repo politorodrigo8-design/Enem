@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { Check, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import Link from "next/link";
+import { Check, Gift, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -39,9 +40,11 @@ type SettingsFormState = Omit<
 export function SettingsClient({
   profile,
   access,
+  referralCode,
 }: {
   profile: Profile | null;
   access: AccessContext;
+  referralCode: string;
 }) {
   const router = useRouter();
   const formId = useId();
@@ -422,6 +425,41 @@ export function SettingsClient({
                     })}.`
                     : "Sem expiração definida para o acesso atual."}
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Programa de indicação</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-start gap-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                <Gift className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Código de indicação
+                </p>
+                <p className="tnum mt-1 truncate text-lg font-bold tracking-tight text-slate-950">
+                  {referralCode || "Preparando código"}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">
+                  Ganhe 30 créditos quando um amigo assinar. Ele também recebe 20
+                  créditos extras.
+                </p>
+                <Link
+                  href="/dashboard/creditos#indicacoes"
+                  className={buttonClasses({
+                    variant: "outline",
+                    size: "sm",
+                    className: "mt-4",
+                  })}
+                >
+                  Ver indicações
+                </Link>
               </div>
             </div>
           </CardContent>

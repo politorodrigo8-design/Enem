@@ -13,6 +13,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { CreditPackageCheckoutButton } from "@/components/dashboard/credit-package-checkout-button";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
+import { ReferralProgramSection } from "@/components/dashboard/referrals/referral-program-section";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
 import { getCreditsData, getDashboardIdentity } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { formatAppDateTime } from "@/lib/dates";
+import { getSiteUrl } from "@/lib/supabase/config";
 import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
 
 export const dynamic = "force-dynamic";
@@ -43,6 +45,9 @@ const creditReasonLabels: Record<CreditLedgerEntry["reason"], string> = {
   ai_credit_refund: "Estorno automático",
   purchase_refund: "Estorno de compra de créditos",
   weekly_essay_topic: "Proposta de redação semanal",
+  referral_referred_bonus: "Bônus de indicação recebido",
+  referral_referrer_bonus: "Indique e ganhe",
+  referral_bonus_reversal: "Estorno de indicação",
 };
 
 const essayStatusLabels: Record<EssaySubmission["status"], string> = {
@@ -228,6 +233,86 @@ export default async function CreditsPage({
         </Reveal>
       </div>
 
+      <Reveal delay={120}>
+        <section className="mt-10">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold tracking-tight text-slate-950">
+              Precisa de mais créditos?
+            </h2>
+            <p className="mt-1 text-sm leading-6 text-slate-600">
+              Os pacotes completam seu saldo na hora, sem assinatura e sem renovação
+              automática.
+            </p>
+          </div>
+          <div className="grid gap-4 lg:grid-cols-3">
+            {creditPackageProducts.map((pack) => (
+              <Card
+                key={pack.id}
+                className={
+                  pack.highlight
+                    ? "relative h-full border-blue-300 ring-1 ring-inset ring-blue-100"
+                    : "h-full"
+                }
+              >
+                <CardContent className="flex h-full flex-col p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <h3 className="text-base font-bold tracking-tight text-slate-950">
+                      {pack.title}
+                    </h3>
+                    {pack.highlight ? (
+                      <span className="shrink-0 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
+                        Mais escolhido
+                      </span>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-sm leading-6 text-slate-600">
+                    {pack.description}
+                  </p>
+                  <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-slate-100 pt-5">
+                    <p className="tnum text-3xl font-bold tracking-tight text-slate-950">
+                      {pack.credits}
+                      <span className="ml-1.5 text-base font-semibold text-slate-500">
+                        créditos
+                      </span>
+                    </p>
+                    <div className="text-right">
+                      <p className="tnum text-xl font-bold text-blue-800">
+                        {pack.price}
+                      </p>
+                      <p className="tnum text-xs font-semibold text-slate-500">
+                        {formatCreditUnitPrice(pack.priceCents, pack.credits)} por crédito
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-5">
+                    <CreditPackageCheckoutButton
+                      productSlug={pack.productSlug}
+                      credits={pack.credits}
+                      price={pack.price}
+                      accountEmail={identity.email}
+                      variant={pack.highlight ? "primary" : "outline"}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            Pagamento processado pelo Mercado Pago. O saldo é creditado automaticamente
+            após a confirmação.
+          </p>
+          <p className="mt-2 text-xs leading-5 text-slate-500">
+            Os créditos são unidades internas de uso, pessoais e intransferíveis, e não
+            podem ser convertidos em dinheiro. O saldo é liberado após a confirmação do
+            pagamento. Consulte as regras de consumo e reembolso antes de comprar.
+          </p>
+        </section>
+      </Reveal>
+
+      <Reveal delay={160}>
+        <ReferralProgramSection data={data.referrals} siteUrl={getSiteUrl()} />
+      </Reveal>
+
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         <Reveal delay={120}>
           <Card id="historico">
@@ -370,82 +455,6 @@ export default async function CreditsPage({
         </Reveal>
       </div>
 
-      <Reveal delay={200}>
-        <section className="mt-10">
-          <div className="mb-4">
-            <h2 className="text-lg font-bold tracking-tight text-slate-950">
-              Precisa de mais créditos?
-            </h2>
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              Os pacotes completam seu saldo na hora — sem assinatura, sem
-              renovação automática.
-            </p>
-          </div>
-          <div className="grid gap-4 lg:grid-cols-3">
-            {creditPackageProducts.map((pack) => (
-              <Card
-                key={pack.id}
-                className={
-                  pack.highlight
-                    ? "relative h-full border-blue-300 ring-1 ring-inset ring-blue-100"
-                    : "h-full"
-                }
-              >
-                <CardContent className="flex h-full flex-col p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <h3 className="text-base font-bold tracking-tight text-slate-950">
-                      {pack.title}
-                    </h3>
-                    {pack.highlight ? (
-                      <span className="shrink-0 rounded-md bg-blue-50 px-2 py-1 text-xs font-bold text-blue-700 ring-1 ring-inset ring-blue-200">
-                        Mais escolhido
-                      </span>
-                    ) : null}
-                  </div>
-                  <p className="mt-1 text-sm leading-6 text-slate-600">
-                    {pack.description}
-                  </p>
-                  <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-slate-100 pt-5">
-                    <p className="tnum text-3xl font-bold tracking-tight text-slate-950">
-                      {pack.credits}
-                      <span className="ml-1.5 text-base font-semibold text-slate-500">
-                        créditos
-                      </span>
-                    </p>
-                    <div className="text-right">
-                      <p className="tnum text-xl font-bold text-blue-800">
-                        {pack.price}
-                      </p>
-                      <p className="tnum text-xs font-semibold text-slate-500">
-                        {formatCreditUnitPrice(pack.priceCents, pack.credits)} por
-                        crédito
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-5">
-                    <CreditPackageCheckoutButton
-                      productSlug={pack.productSlug}
-                      credits={pack.credits}
-                      price={pack.price}
-                      accountEmail={identity.email}
-                      variant={pack.highlight ? "primary" : "outline"}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            Pagamento processado pelo Mercado Pago. O saldo é creditado
-            automaticamente após a confirmação.
-          </p>
-          <p className="mt-2 text-xs leading-5 text-slate-500">
-            Os créditos são unidades internas de uso, pessoais e intransferíveis, e não
-            podem ser convertidos em dinheiro. O saldo é liberado após a confirmação do
-            pagamento. Consulte as regras de consumo e reembolso antes de comprar.
-          </p>
-        </section>
-      </Reveal>
     </div>
   );
 }

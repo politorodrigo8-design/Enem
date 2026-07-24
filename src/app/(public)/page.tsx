@@ -32,11 +32,28 @@ const LANDING_ACCESS_COPY =
   "Pagamento único para acesso até 01 de dezembro de 2026.";
 
 const landingStats = [
-  { value: "1.200+", label: "questões no banco" },
-  { value: "180", label: "assuntos mapeados" },
-  { value: "Toda semana", label: "novas questões no banco" },
-  { value: "+95", label: "pontos de evolução média" },
+  {
+    value: "1.200+",
+    label: "questões no banco",
+    detail: "organizadas por área, assunto e dificuldade",
+  },
+  {
+    value: "180",
+    label: "assuntos mapeados",
+    detail: "com prioridade e recorrência no ENEM",
+  },
+  {
+    value: "+95",
+    label: "pontos de evolução média",
+    detail: "em ciclos guiados de estudo",
+  },
 ];
+
+const weeklyQuestionUpdate = {
+  label: "atualização do banco",
+  title: "Novas questões toda semana",
+  description: "O banco recebe novos conteúdos semanalmente para manter seu treino atualizado.",
+};
 
 // TODO: depoimentos fictícios para visualizar o layout — substituir por relatos reais antes do lançamento.
 const testimonials = [
@@ -83,7 +100,7 @@ const steps = [
       "Descubra em quais assuntos sua taxa de acerto está abaixo do necessário para alcançar seu objetivo.",
   },
   {
-    title: "Cruze desempenho, frequência e relevância",
+    title: "Combine desempenho, frequência e relevância",
     description:
       "A análise de desempenho combina seus erros, a frequência dos assuntos no ENEM e o potencial de ganho para definir a ordem dos seus estudos.",
   },
@@ -98,7 +115,7 @@ const features = [
   {
     title: "Desempenho",
     description:
-      "Prioridades por área e assunto, cruzando a frequência histórica dos temas com o seu desempenho.",
+      "Prioridades por área e assunto, relacionando a frequência histórica dos temas com o seu desempenho.",
     icon: Radar,
   },
   {
@@ -230,7 +247,7 @@ function buildFaqs() {
     {
       question: "Como funciona a análise de desempenho?",
       answer:
-        "A análise de desempenho não prevê a prova. Ela cruza a frequência histórica dos assuntos no ENEM com seus acertos e erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
+        "A análise de desempenho não prevê a prova. Ela considera em conjunto a frequência histórica dos assuntos no ENEM, seus acertos e seus erros para indicar prioridades de estudo e pontos com maior potencial de evolução.",
     },
     {
       question: "Como funcionam a correção de redação e os créditos?",
@@ -326,22 +343,40 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-slate-100 bg-white py-10">
-        <div className="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8">
+      <section className="border-y border-slate-100 bg-white py-9 sm:py-11">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
           <Reveal>
-            <dl className="grid grid-cols-2 gap-8 text-center md:grid-cols-4">
-              {landingStats.map((stat) => (
-                <div key={stat.label}>
-                  <dt className="sr-only">{stat.label}</dt>
-                  <dd className="tnum font-display text-4xl font-semibold tracking-tight text-slate-950">
-                    {stat.value}
-                  </dd>
-                  <p className="mt-1 text-sm font-medium text-slate-500">
-                    {stat.label}
-                  </p>
-                </div>
-              ))}
-            </dl>
+            <div className="grid gap-y-8 sm:grid-cols-2 sm:gap-x-10 lg:grid-cols-4 lg:gap-x-0">
+              <dl className="contents">
+                {landingStats.map((stat) => (
+                  <div
+                    key={stat.label}
+                    className="border-slate-100 sm:border-l sm:pl-5 lg:pl-7 sm:first:border-l-0 sm:first:pl-0 lg:first:pl-0"
+                  >
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      {stat.label}
+                    </dt>
+                    <dd className="tnum mt-2 font-display text-4xl font-semibold leading-none text-slate-950">
+                      {stat.value}
+                    </dd>
+                    <p className="mt-3 max-w-52 text-sm leading-6 text-slate-500">
+                      {stat.detail}
+                    </p>
+                  </div>
+                ))}
+              </dl>
+              <div className="border-slate-100 sm:border-l sm:pl-5 lg:pl-7">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  {weeklyQuestionUpdate.label}
+                </p>
+                <h3 className="mt-2 text-xl font-semibold leading-7 text-slate-950">
+                  {weeklyQuestionUpdate.title}
+                </h3>
+                <p className="mt-3 max-w-56 text-sm leading-6 text-slate-500">
+                  {weeklyQuestionUpdate.description}
+                </p>
+              </div>
+            </div>
           </Reveal>
         </div>
       </section>
@@ -423,7 +458,7 @@ export default async function HomePage() {
                 Suas prioridades, visíveis por área e assunto.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
-                A análise cruza a frequência histórica dos assuntos no ENEM com
+                A análise leva em conta a frequência histórica dos assuntos no ENEM,
                 o seu desempenho para mostrar onde existe maior potencial de
                 ganho de pontos.
               </p>

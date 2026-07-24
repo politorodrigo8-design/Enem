@@ -32,6 +32,12 @@ export const productEventNames = [
   "ai_performance_analysis_generated",
   "ai_study_plan_generated",
   "credit_package_purchased",
+  "referral_link_copied",
+  "referral_share_started",
+  "signup_with_referral",
+  "referral_purchase_confirmed",
+  "referral_bonus_granted",
+  "referral_bonus_reversed",
 ] as const;
 
 export type ProductEventName = (typeof productEventNames)[number];

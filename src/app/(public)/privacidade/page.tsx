@@ -46,6 +46,7 @@ export default function PrivacyPage() {
                 "Dados de estudo, como respostas, simulados, diagnóstico, desempenho, prioridades, favoritos, revisão de erros e plano semanal.",
                 "Dados de redação, incluindo tema, observações, texto digitado, arquivos enviados, status, eventos da fila, correções e créditos debitados ou estornados.",
                 "Dados de créditos, como saldo, consumo, compra, estorno, razão do lançamento e histórico em ledger.",
+                "Dados de indicação, como código, usuários envolvidos por identificador interno, status da recompensa e pedido associado.",
                 "Dados técnicos necessários, como cookies essenciais de autenticação e sessão, IP, navegador, dispositivo e logs gerados pela infraestrutura.",
                 "Comunicações enviadas ao suporte e registros de aceite dos documentos legais.",
               ]}
@@ -158,8 +159,10 @@ export default function PrivacyPage() {
             <p>
               O Pontua Enem utiliza cookies e tecnologias estritamente necessários à
               autenticação, manutenção da sessão, segurança e funcionamento da plataforma.
-              Atualmente, não utilizamos cookies de publicidade comportamental ou pixels de
-              marketing.
+              Quando houver acesso por link de indicação, também podemos usar um cookie de
+              atribuição por até 30 dias para preservar o código durante cadastro e
+              checkout. Atualmente, não utilizamos cookies de publicidade comportamental ou
+              pixels de marketing.
             </p>
           ),
         },

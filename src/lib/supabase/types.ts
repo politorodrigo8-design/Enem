@@ -26,6 +26,7 @@ export type Database = {
           beta_tester: boolean;
           onboarding_completed: boolean;
           study_preferences: Json;
+          referral_code: string;
           created_at: string;
           updated_at: string;
         };
@@ -45,6 +46,7 @@ export type Database = {
           beta_tester?: boolean;
           onboarding_completed?: boolean;
           study_preferences?: Json;
+          referral_code?: string;
         };
         Update: Partial<Database["public"]["Tables"]["profiles"]["Insert"]>;
       };
@@ -455,7 +457,10 @@ export type Database = {
             | "ai_performance_analysis"
             | "ai_study_plan"
             | "ai_credit_refund"
-            | "weekly_essay_topic";
+            | "weekly_essay_topic"
+            | "referral_referred_bonus"
+            | "referral_referrer_bonus"
+            | "referral_bonus_reversal";
           reference_type: string | null;
           reference_id: string | null;
           related_ledger_id: string | null;
@@ -481,13 +486,87 @@ export type Database = {
             | "ai_performance_analysis"
             | "ai_study_plan"
             | "ai_credit_refund"
-            | "weekly_essay_topic";
+            | "weekly_essay_topic"
+            | "referral_referred_bonus"
+            | "referral_referrer_bonus"
+            | "referral_bonus_reversal";
           reference_type?: string | null;
           reference_id?: string | null;
           related_ledger_id?: string | null;
           metadata?: Json;
         };
         Update: Partial<Database["public"]["Tables"]["credit_ledger"]["Insert"]>;
+      };
+      referrals: {
+        Row: {
+          id: string;
+          referrer_user_id: string;
+          referred_user_id: string;
+          referral_code: string;
+          campaign_slug: string;
+          status:
+            | "registered"
+            | "awaiting_purchase"
+            | "payment_confirmed"
+            | "pending_release"
+            | "reward_granted"
+            | "cancelled"
+            | "refunded"
+            | "blocked";
+          review_status: "clear" | "needs_review" | "blocked";
+          referrer_reward_credits: number;
+          referred_bonus_credits: number;
+          order_id: string | null;
+          provider_payment_id: string | null;
+          attributed_at: string;
+          purchased_at: string | null;
+          reward_available_at: string | null;
+          referred_reward_granted_at: string | null;
+          referrer_reward_granted_at: string | null;
+          cancelled_at: string | null;
+          cancellation_reason: string | null;
+          referred_reward_ledger_id: string | null;
+          referrer_reward_ledger_id: string | null;
+          referred_reversal_ledger_id: string | null;
+          referrer_reversal_ledger_id: string | null;
+          metadata: Json;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          referrer_user_id: string;
+          referred_user_id: string;
+          referral_code: string;
+          campaign_slug?: string;
+          status?:
+            | "registered"
+            | "awaiting_purchase"
+            | "payment_confirmed"
+            | "pending_release"
+            | "reward_granted"
+            | "cancelled"
+            | "refunded"
+            | "blocked";
+          review_status?: "clear" | "needs_review" | "blocked";
+          referrer_reward_credits?: number;
+          referred_bonus_credits?: number;
+          order_id?: string | null;
+          provider_payment_id?: string | null;
+          attributed_at?: string;
+          purchased_at?: string | null;
+          reward_available_at?: string | null;
+          referred_reward_granted_at?: string | null;
+          referrer_reward_granted_at?: string | null;
+          cancelled_at?: string | null;
+          cancellation_reason?: string | null;
+          referred_reward_ledger_id?: string | null;
+          referrer_reward_ledger_id?: string | null;
+          referred_reversal_ledger_id?: string | null;
+          referrer_reversal_ledger_id?: string | null;
+          metadata?: Json;
+        };
+        Update: Partial<Database["public"]["Tables"]["referrals"]["Insert"]>;
       };
       essay_submissions: {
         Row: {
@@ -895,6 +974,33 @@ export type Database = {
       grant_paid_access_for_order: {
         Args: { target_order_id: string };
         Returns: undefined;
+      };
+      resolve_referral_code: {
+        Args: { input_code: string };
+        Returns: Array<{ referral_code: string }>;
+      };
+      ensure_referral_code: {
+        Args: { target_user_id: string };
+        Returns: string;
+      };
+      attach_referral_to_new_user: {
+        Args: {
+          target_referred_user_id: string;
+          input_referral_code: string;
+          input_source?: string;
+        };
+        Returns: Database["public"]["Tables"]["referrals"]["Row"] | null;
+      };
+      process_referral_purchase_for_order: {
+        Args: {
+          target_order_id: string;
+          input_provider_payment_id?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["referrals"]["Row"] | null;
+      };
+      process_pending_referral_rewards: {
+        Args: { target_referrer_user_id?: string | null };
+        Returns: number;
       };
       ensure_credit_account: {
         Args: { target_user_id: string };

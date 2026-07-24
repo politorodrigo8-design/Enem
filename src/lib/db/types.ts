@@ -15,6 +15,7 @@ export type TopicPerformance =
   Database["public"]["Tables"]["user_topic_performance"]["Row"];
 export type CreditAccount = Database["public"]["Tables"]["credit_accounts"]["Row"];
 export type CreditLedgerEntry = Database["public"]["Tables"]["credit_ledger"]["Row"];
+export type Referral = Database["public"]["Tables"]["referrals"]["Row"];
 export type EssaySubmission = Database["public"]["Tables"]["essay_submissions"]["Row"];
 export type EssaySubmissionFile =
   Database["public"]["Tables"]["essay_submission_files"]["Row"];
@@ -50,6 +51,25 @@ export type CreditsData = {
   ledgerPageSize: number;
   ledgerTotal: number;
   recentEssays: EssaySubmission[];
+  referrals: ReferralDashboardData;
+};
+
+export type ReferralHistoryItem = {
+  id: string;
+  referredName: string;
+  date: string;
+  status: Referral["status"];
+  rewardLabel: string;
+  statusReason: string | null;
+};
+
+export type ReferralDashboardData = {
+  referralCode: string;
+  convertedInvites: number;
+  pendingRewards: number;
+  confirmedRewards: number;
+  totalCreditsEarned: number;
+  history: ReferralHistoryItem[];
 };
 
 export type EssayCorrectionData = {

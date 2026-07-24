@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAccessContext } from "@/lib/access";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { formatDateTime, getWeekStart } from "@/lib/db/scoring";
@@ -21,6 +23,8 @@ import type {
   EssaySubmissionWithProfile,
   Profile,
   QuestionRecord,
+  Referral,
+  ReferralDashboardData,
   SimulationWithQuestions,
   StudyPlanWithItems,
   TopicWithSubject,
@@ -28,6 +32,7 @@ import type {
 import { canEditEditorial } from "@/lib/editorial/rules.mjs";
 import { isProfilePhotoDataUrl } from "@/lib/profile-photo";
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
+import { processPendingReferralRewardsForUser } from "@/lib/referrals/server";
 
 type QueryError = {
   code?: string;
@@ -722,6 +727,8 @@ export async function getCreditsData({
     throw new Error(accountError?.message ?? "Não foi possível carregar créditos.");
   }
 
+  await processPendingReferralRewardsForUser(user.id);
+
   const safeLedgerPageSize = Math.max(1, Math.floor(ledgerPageSize));
   const requestedLedgerPage = Math.max(1, Math.floor(ledgerPage));
   const { count: ledgerTotal, error: ledgerCountError } = await supabase
@@ -768,7 +775,140 @@ export async function getCreditsData({
     ledgerPageSize: safeLedgerPageSize,
     ledgerTotal: safeLedgerTotal,
     recentEssays: essaysResult.data ?? [],
+    referrals: await getReferralDashboardData(supabase, user.id),
   };
+}
+
+export async function getReferralAccountSummary() {
+  const { supabase, user } = await requirePlatformAccess();
+  const { data, error } = await supabase.rpc("ensure_referral_code", {
+    target_user_id: user.id,
+  });
+
+  if (error) {
+    logQueryError("referrals.ensure_code.settings", error);
+    return { referralCode: "" };
+  }
+
+  return { referralCode: data ?? "" };
+}
+
+async function getReferralDashboardData(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<ReferralDashboardData> {
+  const [codeResult, referralsResult, ledgerResult] = await Promise.all([
+    supabase.rpc("ensure_referral_code", { target_user_id: userId }),
+    supabase
+      .from("referrals")
+      .select("*")
+      .eq("referrer_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(12),
+    supabase
+      .from("credit_ledger")
+      .select("amount, reason, metadata")
+      .eq("user_id", userId)
+      .in("reason", ["referral_referrer_bonus", "referral_bonus_reversal"]),
+  ]);
+
+  if (codeResult.error) logQueryError("referrals.ensure_code.credits", codeResult.error);
+  if (referralsResult.error) logQueryError("referrals.dashboard", referralsResult.error);
+  if (ledgerResult.error) logQueryError("credit_ledger.referral_totals", ledgerResult.error);
+
+  const referrals = (referralsResult.data ?? []) as Referral[];
+  const referredNames = await getReferredFirstNames(referrals);
+  const totalCreditsEarned = (ledgerResult.data ?? []).reduce((total, entry) => {
+    if (entry.reason === "referral_referrer_bonus") return total + entry.amount;
+    if (
+      entry.reason === "referral_bonus_reversal" &&
+      isObjectRecord(entry.metadata) &&
+      entry.metadata.reward_role === "referrer"
+    ) {
+      return total + entry.amount;
+    }
+    return total;
+  }, 0);
+
+  return {
+    referralCode: codeResult.data ?? "",
+    convertedInvites: referrals.filter((referral) => Boolean(referral.purchased_at)).length,
+    pendingRewards: referrals.filter((referral) =>
+      ["payment_confirmed", "pending_release"].includes(referral.status),
+    ).length,
+    confirmedRewards: referrals.filter(
+      (referral) =>
+        referral.status === "reward_granted" &&
+        Boolean(referral.referrer_reward_granted_at) &&
+        !referral.referrer_reversal_ledger_id,
+    ).length,
+    totalCreditsEarned,
+    history: referrals.map((referral, index) => ({
+      id: referral.id,
+      referredName: referredNames.get(referral.referred_user_id) ?? `Amigo ${index + 1}`,
+      date: referral.purchased_at ?? referral.attributed_at,
+      status: referral.status,
+      rewardLabel: getReferralRewardLabel(referral),
+      statusReason: getReferralStatusReason(referral),
+    })),
+  };
+}
+
+async function getReferredFirstNames(referrals: Referral[]) {
+  const names = new Map<string, string>();
+  const referredIds = Array.from(new Set(referrals.map((referral) => referral.referred_user_id)));
+  if (!referredIds.length || !isSupabaseAdminConfigured()) return names;
+
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("profiles")
+    .select("id, full_name")
+    .in("id", referredIds);
+
+  if (error) {
+    logQueryError("profiles.referrals.first_names", error);
+    return names;
+  }
+
+  const profiles = (data ?? []) as Array<{ id: string; full_name: string | null }>;
+  for (const profile of profiles) {
+    const firstName = String(profile.full_name ?? "").trim().split(/\s+/)[0];
+    names.set(profile.id, firstName || "Amigo indicado");
+  }
+
+  return names;
+}
+
+function getReferralRewardLabel(referral: Referral) {
+  if (referral.status === "reward_granted") {
+    return `+${referral.referrer_reward_credits} créditos`;
+  }
+  if (referral.status === "pending_release" || referral.status === "payment_confirmed") {
+    return `${referral.referrer_reward_credits} créditos pendentes`;
+  }
+  if (referral.status === "awaiting_purchase" || referral.status === "registered") {
+    return `${referral.referrer_reward_credits} créditos após a compra`;
+  }
+  return "Sem recompensa";
+}
+
+function getReferralStatusReason(referral: Referral) {
+  const reason = referral.cancellation_reason;
+  if (!reason) return null;
+  if (reason === "not_first_valid_purchase") {
+    return "Somente a primeira compra válida gera recompensa.";
+  }
+  if (reason === "manual_review_blocked") {
+    return "Caso bloqueado para revisão manual.";
+  }
+  if (reason === "refunded" || reason === "charged_back") {
+    return "Compra estornada pelo provedor de pagamento.";
+  }
+  return "Recompensa cancelada pelas regras do programa.";
+}
+
+function isObjectRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value && typeof value === "object" && !Array.isArray(value));
 }
 
 export async function getDashboardEssayCreditData(): Promise<DashboardEssayCreditData> {

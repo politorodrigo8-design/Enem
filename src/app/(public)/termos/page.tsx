@@ -153,6 +153,14 @@ export default function TermsPage() {
                 a Política de Reembolso e a legislação aplicável.
               </p>
               <p>
+                Revisão jurídica pendente: o programa de indicação pode conceder créditos
+                promocionais quando um novo usuário concluir uma compra válida pelo link de
+                indicação. Autoindicação, fraude, uso abusivo ou tentativa de burlar o
+                pagamento são proibidos. Créditos promocionais não são transferíveis, não
+                são convertíveis em dinheiro e podem ser cancelados ou revertidos em caso
+                de reembolso, fraude, chargeback ou violação das regras do programa.
+              </p>
+              <p>
                 Arquivos ilegíveis, corrompidos, incompletos, ilícitos, ofensivos ou fora
                 das regras podem ser recusados. A redação entra em análise pela equipe de
                 correção, e o usuário deve evitar dados pessoais desnecessários no texto,

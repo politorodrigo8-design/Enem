@@ -1,11 +1,14 @@
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Notice } from "@/components/ui/notice";
 import { getAccessContext } from "@/lib/access";
-import { getProfile } from "@/lib/db/queries";
+import { getProfile, getReferralAccountSummary } from "@/lib/db/queries";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage() {
-  const profile = await getProfile();
+  const [profile, referral] = await Promise.all([
+    getProfile(),
+    getReferralAccountSummary(),
+  ]);
   const access = getAccessContext(profile);
 
   return (
@@ -20,7 +23,7 @@ export default async function SettingsPage() {
         alterados por alunos.
       </Notice>
 
-      <SettingsClient profile={profile} access={access} />
+      <SettingsClient profile={profile} access={access} referralCode={referral.referralCode} />
     </div>
   );
 }

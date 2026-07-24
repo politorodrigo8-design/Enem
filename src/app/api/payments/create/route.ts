@@ -146,6 +146,9 @@ export async function POST(request: NextRequest) {
   }
 
   const amountCents = getCurrentProductPrice(product);
+  const referral = product.product_kind === "access"
+    ? await getCheckoutReferral(admin, user.id)
+    : null;
   const checkoutRoute =
     product.product_kind === "credit_package" ? "/dashboard/creditos" : "/checkout";
   const orderExpiresAt =
@@ -162,6 +165,7 @@ export async function POST(request: NextRequest) {
       product_id: product.id,
       product_kind: product.product_kind,
       credit_amount: product.credit_amount,
+      referral_attributed: Boolean(referral),
     },
   });
 
@@ -199,6 +203,7 @@ export async function POST(request: NextRequest) {
           amount_cents: reusableOrder.amount_cents,
           credit_amount: product.credit_amount,
           reused_order: true,
+          referral_id: referral?.id,
         },
       });
     } catch (error) {
@@ -233,6 +238,8 @@ export async function POST(request: NextRequest) {
         source: product.product_kind === "credit_package" ? "credit_package" : "checkout",
         product_kind: product.product_kind,
         credit_amount: product.credit_amount,
+        referral_id: referral?.id,
+        referrer_user_id: referral?.referrer_user_id,
       },
     } as never)
     .select("*")
@@ -265,6 +272,7 @@ export async function POST(request: NextRequest) {
         product_kind: product.product_kind,
         amount_cents: createdOrder.amount_cents,
         credit_amount: product.credit_amount,
+        referral_id: referral?.id,
       },
     });
   } catch (error) {
@@ -295,6 +303,7 @@ export async function POST(request: NextRequest) {
       order_id: createdOrder.id,
       amount_cents: createdOrder.amount_cents,
       product_kind: product.product_kind,
+      referral_id: referral?.id,
     },
   });
 
@@ -345,7 +354,11 @@ export async function POST(request: NextRequest) {
     userId: user.id,
     eventName: "payment_pending",
     route: checkoutRoute,
-    metadata: { order_id: createdOrder.id, product_kind: product.product_kind },
+    metadata: {
+      order_id: createdOrder.id,
+      product_kind: product.product_kind,
+      referral_id: referral?.id,
+    },
   });
 
   return NextResponse.json({
@@ -377,4 +390,21 @@ function normalizeProductSlug(value: unknown) {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === "object" && !Array.isArray(value));
+}
+
+async function getCheckoutReferral(
+  admin: ReturnType<typeof createAdminClient>,
+  userId: string,
+): Promise<{ id: string; referrer_user_id: string } | null> {
+  const { data } = await admin
+    .from("referrals")
+    .select("id, referrer_user_id, status")
+    .eq("referred_user_id", userId)
+    .in("status", ["registered", "awaiting_purchase", "payment_confirmed", "pending_release"])
+    .maybeSingle();
+
+  if (!data || typeof data !== "object") return null;
+  const row = data as { id?: unknown; referrer_user_id?: unknown };
+  if (typeof row.id !== "string" || typeof row.referrer_user_id !== "string") return null;
+  return { id: row.id, referrer_user_id: row.referrer_user_id };
 }

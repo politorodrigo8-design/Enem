@@ -185,6 +185,9 @@ export function QuestionBankClient({
         : {},
     [restoredPracticeSession],
   );
+  const [sessionAnswerState, setSessionAnswerState] = useState<AnswerState>(
+    () => restoredAnswerState,
+  );
   const [pending, startTransition] = useTransition();
   const [sessionFinished, setSessionFinished] = useState(false);
 
@@ -257,8 +260,9 @@ export function QuestionBankClient({
       questionIds: sliceForSize(filtered, sessionSize).map((item) => item.id),
     });
     setPracticeSessionId("");
+    setSessionAnswerState({});
     setSessionFinished(false);
-    move(0);
+    move(0, false);
   }
 
   function discardSelectionChange() {
@@ -268,29 +272,27 @@ export function QuestionBankClient({
   }
   const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
   const question = sessionQuestions[currentIndex];
-  const persistedResult = question
-    ? restoredAnswerState[question.id] ?? answerState[question.id]
-    : undefined;
+  const sessionAnswer = question ? sessionAnswerState[question.id] : undefined;
   const currentResult =
     result?.questionId === question?.id
       ? result
-      : question && persistedResult
+      : question && sessionAnswer
         ? {
             questionId: question.id,
-            isCorrect: persistedResult.isCorrect,
-            explanation: persistedResult.explanation,
-            correctOption: persistedResult.correctOption,
+            isCorrect: sessionAnswer.isCorrect,
+            explanation: sessionAnswer.explanation,
+            correctOption: sessionAnswer.correctOption,
           }
         : null;
   const knownCorrectOption = Boolean(currentResult?.correctOption);
   const displayedSelected =
-    selected || (question ? persistedResult?.selectedOption ?? "" : "");
+    selected || (question ? sessionAnswer?.selectedOption ?? "" : "");
   const accessBlocked = !access.hasPlatformAccess;
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question?.question_media ?? [];
   const sessionStats = getPracticeSessionStats({
     questionIds: session.questionIds,
-    answerState,
+    answerState: sessionAnswerState,
   });
   const answeredInSession = sessionStats.answered;
   const sessionSubmittedQuestions = sessionStats.answeredQuestionIds
@@ -306,12 +308,12 @@ export function QuestionBankClient({
     [filters, orderedQuestions],
   );
 
-  function move(nextIndex: number) {
+  function move(nextIndex: number, persistProgress = true) {
     const safeIndex = Math.max(0, nextIndex);
     setIndex(safeIndex);
     setSelected("");
     setResult(null);
-    if (practiceSessionId) {
+    if (persistProgress && practiceSessionId) {
       startTransition(async () => {
         await updatePracticeSessionProgressAction({
           practiceSessionId,
@@ -358,8 +360,9 @@ export function QuestionBankClient({
       ).map((item) => item.id),
     });
     setPracticeSessionId("");
+    setSessionAnswerState({});
     setSessionFinished(false);
-    move(0);
+    move(0, false);
     router.replace("/dashboard/praticar", { scroll: false });
   }
 
@@ -385,6 +388,15 @@ export function QuestionBankClient({
       toast[response.ok ? "success" : "error"](response.message);
       if (response.ok) {
         setAnswerState((current) => ({
+          ...current,
+          [question.id]: {
+            selectedOption: selected,
+            isCorrect: Boolean(response.isCorrect),
+            explanation: response.explanation ?? "",
+            correctOption: response.correctOption ?? "",
+          },
+        }));
+        setSessionAnswerState((current) => ({
           ...current,
           [question.id]: {
             selectedOption: selected,
@@ -421,6 +433,7 @@ export function QuestionBankClient({
       toast[response.ok ? "success" : "error"](response.message);
       if (response.ok) {
         setSessionFinished(true);
+        setPracticeSessionId("");
         router.refresh();
       }
     });
