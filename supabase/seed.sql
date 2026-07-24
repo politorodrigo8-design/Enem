@@ -3,7 +3,7 @@
 
 insert into public.subjects (id, name, area, slug) values
   ('00000000-0000-0000-0000-000000000101', 'Matemática', 'Matemática', 'matematica'),
-  ('00000000-0000-0000-0000-000000000102', 'Linguagens', 'Linguagens', 'linguagens'),
+  ('00000000-0000-0000-0000-000000000102', 'Língua Portuguesa', 'Linguagens', 'linguagens'),
   ('00000000-0000-0000-0000-000000000103', 'Sociologia', 'Ciências Humanas', 'sociologia'),
   ('00000000-0000-0000-0000-000000000104', 'Geografia', 'Ciências Humanas', 'geografia'),
   ('00000000-0000-0000-0000-000000000105', 'História', 'Ciências Humanas', 'historia'),
@@ -13,20 +13,22 @@ insert into public.subjects (id, name, area, slug) values
   ('00000000-0000-0000-0000-000000000109', 'Redação', 'Redação', 'redacao')
 on conflict (slug) do update set name = excluded.name, area = excluded.area;
 
+-- Nomes de assunto seguem a taxonomia canônica (src/lib/questions/taxonomy.json)
+-- para que o import de questões reutilize estes tópicos em vez de duplicá-los.
 insert into public.topics (id, subject_id, name, slug, historical_recurrence, priority_weight, difficulty_level, strategic_importance) values
-  ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'Razão e proporção', 'razao-e-proporcao', 92, 9.2, 'Média', 9.5),
+  ('00000000-0000-0000-0000-000000000201', '00000000-0000-0000-0000-000000000101', 'Razão, proporção e porcentagem', 'razao-e-proporcao', 92, 9.2, 'Média', 9.5),
   ('00000000-0000-0000-0000-000000000202', '00000000-0000-0000-0000-000000000101', 'Estatística', 'estatistica', 86, 8.6, 'Média', 8.0),
   ('00000000-0000-0000-0000-000000000203', '00000000-0000-0000-0000-000000000101', 'Funções', 'funcoes', 71, 7.1, 'Alta', 7.4),
-  ('00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000102', 'Interpretação de texto', 'interpretacao-de-texto', 96, 9.6, 'Média', 9.2),
+  ('00000000-0000-0000-0000-000000000204', '00000000-0000-0000-0000-000000000102', 'Interpretação textual', 'interpretacao-de-texto', 96, 9.6, 'Média', 9.2),
   ('00000000-0000-0000-0000-000000000205', '00000000-0000-0000-0000-000000000102', 'Variação linguística', 'variacao-linguistica', 72, 7.2, 'Baixa', 6.4),
   ('00000000-0000-0000-0000-000000000206', '00000000-0000-0000-0000-000000000102', 'Gêneros textuais', 'generos-textuais', 66, 6.6, 'Média', 6.0),
   ('00000000-0000-0000-0000-000000000207', '00000000-0000-0000-0000-000000000103', 'Cidadania e direitos', 'cidadania-e-direitos', 78, 7.8, 'Média', 7.6),
-  ('00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000104', 'Urbanização brasileira', 'urbanizacao-brasileira', 70, 7.0, 'Média', 6.8),
-  ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000105', 'Brasil República', 'brasil-republica', 62, 6.2, 'Alta', 6.0),
-  ('00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000106', 'Ecologia', 'ecologia', 94, 9.4, 'Média', 9.0),
-  ('00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000107', 'Eletricidade', 'eletricidade', 82, 8.2, 'Alta', 8.7),
+  ('00000000-0000-0000-0000-000000000208', '00000000-0000-0000-0000-000000000104', 'Urbanização', 'urbanizacao-brasileira', 70, 7.0, 'Média', 6.8),
+  ('00000000-0000-0000-0000-000000000209', '00000000-0000-0000-0000-000000000105', 'República Velha', 'brasil-republica', 62, 6.2, 'Alta', 6.0),
+  ('00000000-0000-0000-0000-000000000210', '00000000-0000-0000-0000-000000000106', 'Ecologia e meio ambiente', 'ecologia', 94, 9.4, 'Média', 9.0),
+  ('00000000-0000-0000-0000-000000000211', '00000000-0000-0000-0000-000000000107', 'Eletricidade e magnetismo', 'eletricidade', 82, 8.2, 'Alta', 8.7),
   ('00000000-0000-0000-0000-000000000212', '00000000-0000-0000-0000-000000000108', 'Estequiometria', 'estequiometria', 80, 8.0, 'Alta', 8.4),
-  ('00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000107', 'Termologia', 'termologia', 68, 6.8, 'Média', 6.5)
+  ('00000000-0000-0000-0000-000000000213', '00000000-0000-0000-0000-000000000107', 'Termologia e termodinâmica', 'termologia', 68, 6.8, 'Média', 6.5)
 on conflict (slug) do update set
   historical_recurrence = excluded.historical_recurrence,
   priority_weight = excluded.priority_weight,

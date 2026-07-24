@@ -16,6 +16,17 @@ type MinimalQuestionForQuality = Pick<
   question_options?: Array<Pick<QuestionOption, "option_key" | "option_text">>;
 };
 
+// Chave de comparação de nomes da taxonomia (área/disciplina/assunto): ignora
+// acentos e caixa para que variantes históricas não fragmentem o mesmo assunto.
+export function normalizeTaxonomyKey(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, " ");
+}
+
 const requiredOptionKeys = ["A", "B", "C", "D", "E"];
 const brokenTextFragments = [
   "[object object]",

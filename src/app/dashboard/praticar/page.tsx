@@ -5,8 +5,12 @@ import {
   getActivePracticeSession,
   getQuestionRecords,
   getReviewQuestions,
+  getTopicNameById,
 } from "@/lib/db/queries";
 import { PracticeTabs, type PracticeTab } from "./practice-tabs";
+
+const uuidPattern =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export default async function PracticePage({
   searchParams,
@@ -26,6 +30,13 @@ export default async function PracticePage({
       getProfile(),
     ]);
 
+  // topic_id do banco vira nome do assunto: o filtro do cliente casa por nome,
+  // o que inclui as questões do acervo local (tópicos com ids próprios).
+  const initialTopic =
+    topic && uuidPattern.test(topic)
+      ? ((await getTopicNameById(topic)) ?? topic)
+      : topic;
+
   const access = getAccessContext(profile);
   const initialTab: PracticeTab = tab === "revisao" ? tab : "banco";
 
@@ -41,7 +52,7 @@ export default async function PracticePage({
         reviewQuestions={reviewQuestions}
         access={access}
         initialQuestionId={question}
-        initialTopic={topic}
+        initialTopic={initialTopic}
         activePracticeSession={activePracticeSession}
       />
     </div>

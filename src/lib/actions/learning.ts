@@ -30,7 +30,8 @@ import {
   buildShortQuestionFeedback,
   normalizePracticeQuestionIds,
 } from "@/lib/practice-session/rules.mjs";
-import { isStudentReadyQuestion } from "@/lib/questions/quality";
+import { isStudentReadyQuestion, normalizeTaxonomyKey } from "@/lib/questions/quality";
+import { getQuestionRecords } from "@/lib/db/queries";
 import { calculateSimulationDurationMinutes } from "@/lib/simulations/rules";
 
 type UserContext =
@@ -1758,17 +1759,29 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     .select("*, topics (*)")
     .eq("user_id", user.id)
     .order("priority_score", { ascending: false })
-    .limit(7);
+    .limit(14);
   const { data: fallbackTopics } = await supabase
     .from("topics")
     .select("*")
     .order("historical_recurrence", { ascending: false })
-    .limit(7);
+    .limit(14);
 
-  const topics =
+  const candidateTopics =
     performances?.length
-      ? performances.map((item) => item.topics as { id: string })
-      : fallbackTopics ?? [];
+      ? performances.map((item) => item.topics as { id: string; name: string })
+      : ((fallbackTopics ?? []) as Array<{ id: string; name: string }>);
+
+  // O plano só promete o que o Praticar entrega: conta as questões praticáveis
+  // por assunto (mesmo acervo mesclado da página) e descarta assuntos vazios.
+  const questionRecords = await getQuestionRecords();
+  const availableByTopic = new Map<string, number>();
+  for (const record of questionRecords) {
+    const key = normalizeTaxonomyKey(record.topics.name);
+    availableByTopic.set(key, (availableByTopic.get(key) ?? 0) + 1);
+  }
+  const availableFor = (topic: { name: string }) =>
+    availableByTopic.get(normalizeTaxonomyKey(topic.name)) ?? 0;
+  const topics = candidateTopics.filter((topic) => availableFor(topic) > 0);
 
   const { data: plan, error: planError } = await supabase
     .from("study_plans")
@@ -1802,7 +1815,7 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
       topic_id: topic.id,
       scheduled_date: addDaysISO(weekStart, offset),
       duration_minutes: duration,
-      question_goal: questionGoal,
+      question_goal: Math.min(questionGoal, availableFor(topic)),
     };
   });
 

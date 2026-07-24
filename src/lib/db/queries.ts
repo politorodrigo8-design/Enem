@@ -260,6 +260,25 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
   return mergeQuestionRecordSources(readyRecords, getFallbackQuestionRecords());
 }
 
+// Resolve o id de um tópico do banco para o nome canônico do assunto. Links de
+// plano de estudos apontam topic_id, mas o filtro do Praticar casa por nome —
+// inclusive para questões do acervo local, cujos tópicos têm ids próprios.
+export async function getTopicNameById(topicId: string): Promise<string | null> {
+  const { supabase } = await requireUser();
+  const { data, error } = await supabase
+    .from("topics")
+    .select("name")
+    .eq("id", topicId)
+    .maybeSingle();
+
+  if (error) {
+    logQueryError("topics.name.by_id", error);
+    return null;
+  }
+
+  return data?.name ?? null;
+}
+
 export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
   const { supabase, user } = await requireUser();
   const { data, error } = await supabase

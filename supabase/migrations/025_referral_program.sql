@@ -4,7 +4,7 @@
 -- rewards are intentionally processed by SECURITY DEFINER functions so the
 -- browser can never grant credits directly.
 
-create extension if not exists "pgcrypto";
+create extension if not exists "pgcrypto" with schema extensions;
 
 alter table public.profiles
   add column if not exists referral_code text;
@@ -21,7 +21,8 @@ create or replace function public.generate_unique_referral_code(input_seed text 
 returns text
 language plpgsql
 security definer
-set search_path = public
+-- pgcrypto (gen_random_bytes) fica no schema extensions no Supabase.
+set search_path = public, extensions
 as $$
 declare
   alphabet constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
