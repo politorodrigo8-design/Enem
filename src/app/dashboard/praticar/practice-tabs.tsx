@@ -114,7 +114,10 @@ export function PracticeTabs({
 
       {tab === "revisao" ? (
         <div key="revisao" className="animate-rise">
-          <ReviewClient questions={reviewQuestionsWithLocalProgress} />
+          <ReviewClient
+            reviewQuestions={reviewQuestionsWithLocalProgress}
+            answeredQuestions={questionsWithLocalProgress}
+          />
         </div>
       ) : null}
     </div>

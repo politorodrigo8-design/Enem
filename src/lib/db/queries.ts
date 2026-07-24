@@ -595,8 +595,13 @@ export async function getReviewQuestions() {
     const hasWrongAnswer = question.user_question_answers?.some(
       (answer) => !answer.is_correct,
     );
-    const isMarked = Boolean(question.user_question_reviews?.length);
-    return hasWrongAnswer || isMarked;
+    const hasActiveReview = question.user_question_reviews?.some(
+      (review) => !review.mastered,
+    );
+    const wasMarkedMastered = question.user_question_reviews?.some(
+      (review) => review.mastered,
+    );
+    return hasActiveReview || (hasWrongAnswer && !wasMarkedMastered);
   });
 }
 

@@ -301,6 +301,20 @@ export async function submitQuestionAnswerAction(input: {
 
   if (error) return learningError("learning.saveDiagnosis", error);
 
+  if (!result.isCorrect) {
+    const { error: reviewError } = await supabase.from("user_question_reviews").upsert(
+      {
+        user_id: user.id,
+        question_id: question.id,
+        mastered: false,
+      },
+      { onConflict: "user_id,question_id" },
+    );
+    if (reviewError) {
+      logServerError("learning.submitQuestionAnswer.reviewQueue", reviewError);
+    }
+  }
+
   if (practiceSessionResult.id) {
     await refreshPracticeSessionStats(supabase, user.id, practiceSessionResult.id);
   }
@@ -863,11 +877,14 @@ export async function markReviewMasteredAction(questionId: string): Promise<Acti
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
   const { supabase, user } = context;
-  const { error } = await supabase
-    .from("user_question_reviews")
-    .update({ mastered: true })
-    .eq("user_id", user.id)
-    .eq("question_id", questionId);
+  const { error } = await supabase.from("user_question_reviews").upsert(
+    {
+      user_id: user.id,
+      question_id: questionId,
+      mastered: true,
+    },
+    { onConflict: "user_id,question_id" },
+  );
 
   if (error) return learningError("learning.updateReviewToggle", error);
   revalidatePath("/dashboard/praticar");
