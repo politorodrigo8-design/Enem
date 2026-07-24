@@ -44,9 +44,9 @@ export function StudyPlanSection({
     });
   }
 
-  function complete(itemId: string) {
+  function setCompletion(itemId: string, completed: boolean) {
     startTransition(async () => {
-      const result = await completeStudyPlanItemAction(itemId);
+      const result = await completeStudyPlanItemAction(itemId, completed);
       toast[result.ok ? "success" : "error"](result.message);
     });
   }
@@ -139,7 +139,16 @@ export function StudyPlanSection({
                   <p className="tnum text-xs text-slate-500">
                     ~{task.duration_minutes} min • {task.question_goal} questões
                   </p>
-                  {task.completed ? null : isToday ? (
+                  {task.completed ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={pending || !access.hasPlatformAccess}
+                      onClick={() => setCompletion(task.id, false)}
+                    >
+                      Desmarcar
+                    </Button>
+                  ) : isToday ? (
                     <Link
                       href={`/dashboard/praticar?topic=${task.topic_id}`}
                       className={buttonClasses({ variant: "primary", size: "sm" })}
@@ -152,7 +161,7 @@ export function StudyPlanSection({
                       variant="outline"
                       size="sm"
                       disabled={pending || !access.hasPlatformAccess}
-                      onClick={() => complete(task.id)}
+                      onClick={() => setCompletion(task.id, true)}
                     >
                       Marcar como feita
                     </Button>

@@ -1822,24 +1822,33 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
   return { ok: true, message: "Plano da semana gerado." };
 }
 
-export async function completeStudyPlanItemAction(itemId: string): Promise<ActionResult> {
+export async function completeStudyPlanItemAction(
+  itemId: string,
+  completed = true,
+): Promise<ActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
   const { supabase, user } = context;
   const { error } = await supabase
     .from("study_plan_items")
-    .update({ completed: true, completed_at: new Date().toISOString() })
+    .update({
+      completed,
+      completed_at: completed ? new Date().toISOString() : null,
+    })
     .eq("id", itemId);
 
-  if (error) return learningError("learning.generateStudyPlan.plan", error);
-  await recordProductEvent({
-    supabase,
-    userId: user.id,
-    eventName: "study_plan_item_completed",
-    route: "/dashboard",
-    metadata: { item_id: itemId },
-  });
+  if (error) return learningError("learning.updateStudyPlanItem", error);
+  if (completed) {
+    await recordProductEvent({
+      supabase,
+      userId: user.id,
+      eventName: "study_plan_item_completed",
+      route: "/dashboard",
+      metadata: { item_id: itemId },
+    });
+  }
   revalidatePath("/dashboard");
+  if (!completed) return { ok: true, message: "Atividade desmarcada." };
   return { ok: true, message: "Atividade concluída." };
 }
 
