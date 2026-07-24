@@ -2,6 +2,7 @@ import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Notice } from "@/components/ui/notice";
 import { getAccessContext } from "@/lib/access";
 import { getProfile, getReferralAccountSummary } from "@/lib/db/queries";
+import { getSiteUrl } from "@/lib/supabase/config";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage() {
@@ -23,7 +24,12 @@ export default async function SettingsPage() {
         alterados por alunos.
       </Notice>
 
-      <SettingsClient profile={profile} access={access} referralCode={referral.referralCode} />
+      <SettingsClient
+        profile={profile}
+        access={access}
+        referralCode={referral.referralCode}
+        siteUrl={getSiteUrl()}
+      />
     </div>
   );
 }

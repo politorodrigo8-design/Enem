@@ -1,9 +1,12 @@
 "use client";
 
-import { Check, Copy, MessageCircle, Share2 } from "lucide-react";
+import { Check, Copy, Loader2, MessageCircle, RefreshCw, Share2 } from "lucide-react";
 import { useMemo, useState, useTransition } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
-import { recordReferralShareEventAction } from "@/lib/actions/referrals";
+import {
+  ensureReferralCodeAction,
+  recordReferralShareEventAction,
+} from "@/lib/actions/referrals";
 import { buildReferralUrl } from "@/lib/referrals/cookies";
 import { referralProgramCopy } from "@/lib/referrals/constants";
 
@@ -15,19 +18,34 @@ export function ReferralShareLink({
   siteUrl: string;
 }) {
   const [feedback, setFeedback] = useState("");
-  const [isPending, startTransition] = useTransition();
+  const [ensuredReferralCode, setEnsuredReferralCode] = useState("");
+  const [isEventPending, startEventTransition] = useTransition();
+  const [isEnsurePending, startEnsureTransition] = useTransition();
+  const currentReferralCode = referralCode || ensuredReferralCode;
+
   const referralUrl = useMemo(
-    () => buildReferralUrl(siteUrl, referralCode),
-    [siteUrl, referralCode],
+    () => (currentReferralCode ? buildReferralUrl(siteUrl, currentReferralCode) : ""),
+    [siteUrl, currentReferralCode],
   );
   const shareText = `${referralProgramCopy.shortDescription} Use meu link: ${referralUrl}`;
+
+  function ensureLink() {
+    setFeedback("");
+    startEnsureTransition(async () => {
+      const result = await ensureReferralCodeAction();
+      setFeedback(result.message);
+      if (result.ok && result.referralCode) {
+        setEnsuredReferralCode(result.referralCode);
+      }
+    });
+  }
 
   async function copyLink() {
     setFeedback("");
     try {
       await navigator.clipboard.writeText(referralUrl);
       setFeedback("Link copiado");
-      startTransition(() => {
+      startEventTransition(() => {
         void recordReferralShareEventAction("referral_link_copied");
       });
     } catch {
@@ -39,7 +57,7 @@ export function ReferralShareLink({
     setFeedback("");
     if (!navigator.share) {
       window.open(whatsAppUrl(shareText), "_blank", "noopener,noreferrer");
-      startTransition(() => {
+      startEventTransition(() => {
         void recordReferralShareEventAction("referral_share_started");
       });
       return;
@@ -52,7 +70,7 @@ export function ReferralShareLink({
         url: referralUrl,
       });
       setFeedback("Compartilhamento iniciado");
-      startTransition(() => {
+      startEventTransition(() => {
         void recordReferralShareEventAction("referral_share_started");
       });
     } catch {
@@ -60,10 +78,35 @@ export function ReferralShareLink({
     }
   }
 
-  if (!referralCode) {
+  if (!currentReferralCode) {
     return (
-      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm font-medium leading-6 text-amber-900">
-        Seu código está sendo preparado. Atualize a página em instantes.
+      <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="font-semibold">Seu link de indicação ainda não está disponível.</p>
+            <p className="mt-1 text-amber-800">
+              Tente gerar o link agora. Se continuar indisponível, a conexão com a
+              conta precisa ser conferida.
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={ensureLink}
+            disabled={isEnsurePending}
+            className="shrink-0 border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+          >
+            {isEnsurePending ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+            ) : (
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+            )}
+            Gerar link
+          </Button>
+        </div>
+        <p className="mt-3 min-h-5 font-semibold" aria-live="polite">
+          {feedback}
+        </p>
       </div>
     );
   }
@@ -81,7 +124,12 @@ export function ReferralShareLink({
           />
         </label>
         <div className="flex flex-wrap items-end gap-2">
-          <Button type="button" variant="outline" onClick={copyLink} disabled={isPending}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={copyLink}
+            disabled={isEventPending || isEnsurePending}
+          >
             {feedback === "Link copiado" ? (
               <Check className="h-4 w-4" aria-hidden="true" />
             ) : (
@@ -89,7 +137,12 @@ export function ReferralShareLink({
             )}
             Copiar link
           </Button>
-          <Button type="button" variant="primary" onClick={shareLink} disabled={isPending}>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={shareLink}
+            disabled={isEventPending || isEnsurePending}
+          >
             <Share2 className="h-4 w-4" aria-hidden="true" />
             Compartilhar
           </Button>
@@ -110,7 +163,7 @@ export function ReferralShareLink({
           target="_blank"
           rel="noreferrer"
           onClick={() =>
-            startTransition(() => {
+            startEventTransition(() => {
               void recordReferralShareEventAction("referral_share_started");
             })
           }

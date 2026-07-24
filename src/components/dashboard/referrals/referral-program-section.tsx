@@ -32,7 +32,7 @@ export function ReferralProgramSection({
             </div>
             <div className="flex items-center gap-2 rounded-lg bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700 ring-1 ring-inset ring-slate-200">
               <Ticket className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              <span className="tnum">{data.referralCode || "Código pendente"}</span>
+              <span>{data.referralCode ? "Link pronto para copiar" : "Link indisponível"}</span>
             </div>
           </div>
         </CardHeader>

@@ -14,6 +14,10 @@ const authAction = readFileSync(
   new URL("../src/lib/actions/auth.ts", import.meta.url),
   "utf8",
 );
+const referralActions = readFileSync(
+  new URL("../src/lib/actions/referrals.ts", import.meta.url),
+  "utf8",
+);
 const paymentRoute = readFileSync(
   new URL("../src/app/api/payments/create/route.ts", import.meta.url),
   "utf8",
@@ -126,6 +130,12 @@ test("UI de creditos tem link, compartilhamento, indicadores, historico e layout
   assert.ok(creditsPage.indexOf("Precisa de mais créditos?") < creditsPage.indexOf("<ReferralProgramSection"));
   assert.ok(creditsPage.indexOf("<ReferralProgramSection") < creditsPage.indexOf("Histórico recente"));
   assert.match(referralUi, /Copiar link/);
+  assert.match(referralUi, /Gerar link/);
+  assert.match(referralUi, /Link de indicação/);
+  assert.match(referralUi, /ensureReferralCodeAction/);
+  assert.match(referralActions, /ensure_referral_code/);
+  assert.match(referralActions, /revalidatePath\("\/dashboard\/creditos"\)/);
+  assert.doesNotMatch(referralUi, /Atualize a página em instantes/);
   assert.match(referralUi, /navigator\.share/);
   assert.match(referralUi, /https:\/\/wa\.me/);
   assert.match(referralUi, /grid gap-3 sm:grid-cols-2 xl:grid-cols-4/);

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Gift, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import { Check, Copy, Gift, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { accessLevelLabel, type AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
 import { isProfilePhotoDataUrl, PROFILE_PHOTO_UPDATED_EVENT } from "@/lib/profile-photo";
+import { buildReferralUrl } from "@/lib/referrals/cookies";
 import type { OnboardingInput } from "@/lib/schemas/beta";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,13 +42,16 @@ export function SettingsClient({
   profile,
   access,
   referralCode,
+  siteUrl,
 }: {
   profile: Profile | null;
   access: AccessContext;
   referralCode: string;
+  siteUrl: string;
 }) {
   const router = useRouter();
   const formId = useId();
+  const referralUrl = referralCode ? buildReferralUrl(siteUrl, referralCode) : "";
   const initialStudyPreferences = getStudyPreferences(profile);
   const initialProfilePhotoUrl = getProfilePhotoUrl(initialStudyPreferences);
   const storedDifficulties =
@@ -78,6 +82,7 @@ export function SettingsClient({
     password: "",
     confirmPassword: "",
   });
+  const [referralCopied, setReferralCopied] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(false);
   const [preferencesText, setPreferencesText] = useState(
     typeof form.study_preferences?.notes === "string"
@@ -90,6 +95,22 @@ export function SettingsClient({
   });
   const profilePhotoUrl = getProfilePhotoUrl(form.study_preferences);
   const profilePhotoChanged = profilePhotoUrl !== confirmedProfilePhotoUrl;
+
+  async function copyReferralLink() {
+    if (!referralUrl) {
+      toast.error("Seu link de indicação ainda não está disponível.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+      setReferralCopied(true);
+      toast.success("Link de indicação copiado.");
+      window.setTimeout(() => setReferralCopied(false), 1800);
+    } catch {
+      toast.error("Não foi possível copiar o link agora.");
+    }
+  }
 
   async function uploadProfilePhoto(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -441,25 +462,40 @@ export function SettingsClient({
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Código de indicação
+                  Link de indicação
                 </p>
-                <p className="tnum mt-1 truncate text-lg font-bold tracking-tight text-slate-950">
-                  {referralCode || "Preparando código"}
+                <p className="mt-1 truncate text-sm font-semibold tracking-tight text-slate-950">
+                  {referralUrl || "Link indisponível agora"}
                 </p>
                 <p className="mt-3 text-sm leading-6 text-slate-600">
                   Ganhe 30 créditos quando um amigo assinar. Ele também recebe 20
                   créditos extras.
                 </p>
-                <Link
-                  href="/dashboard/creditos#indicacoes"
-                  className={buttonClasses({
-                    variant: "outline",
-                    size: "sm",
-                    className: "mt-4",
-                  })}
-                >
-                  Ver indicações
-                </Link>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={copyReferralLink}
+                    disabled={!referralUrl}
+                  >
+                    {referralCopied ? (
+                      <Check className="h-4 w-4" aria-hidden="true" />
+                    ) : (
+                      <Copy className="h-4 w-4" aria-hidden="true" />
+                    )}
+                    Copiar link
+                  </Button>
+                  <Link
+                    href="/dashboard/creditos#indicacoes"
+                    className={buttonClasses({
+                      variant: "ghost",
+                      size: "sm",
+                    })}
+                  >
+                    Ver detalhes
+                  </Link>
+                </div>
               </div>
             </div>
           </CardContent>
