@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { buttonClasses } from "@/components/ui/button";
 import { EssayFilesViewer } from "@/components/dashboard/essay-files-viewer";
+import { EssayFeedbackView } from "@/components/dashboard/essay-feedback-view";
 import { getStudentEssayDetail } from "@/lib/db/queries";
 import { formatAppDateTime } from "@/lib/dates";
 
@@ -72,10 +73,12 @@ export default async function StudentEssayDetailPage({
 
       {essay.status === "completed" ? (
         <Notice tone="success">
-          A correção desta redação foi concluída. Quando houver resultado
-          detalhado disponível, ele aparecerá neste histórico.
+          A correção desta redação foi concluída e já está disponível neste
+          histórico.
         </Notice>
       ) : null}
+
+      <EssayFeedbackView essay={essay} />
 
       <Card>
         <CardHeader>

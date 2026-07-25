@@ -1131,7 +1131,21 @@ export type Database = {
         Returns: undefined;
       };
       admin_complete_essay_submission: {
-        Args: { input_submission_id: string };
+        Args: {
+          input_submission_id: string;
+          input_competence_1_score: number;
+          input_competence_2_score: number;
+          input_competence_3_score: number;
+          input_competence_4_score: number;
+          input_competence_5_score: number;
+          input_general_feedback: string;
+          input_competence_1_feedback?: string | null;
+          input_competence_2_feedback?: string | null;
+          input_competence_3_feedback?: string | null;
+          input_competence_4_feedback?: string | null;
+          input_competence_5_feedback?: string | null;
+          input_reviewer_notes?: string | null;
+        };
         Returns: undefined;
       };
       admin_cancel_essay_submission: {

@@ -105,10 +105,37 @@ export const essayCancelSchema = z.object({
   reason: z.string().trim().max(1000).optional(),
 });
 
+const essayCompetenceScoreSchema = z.coerce
+  .number()
+  .int("A nota deve ser um número inteiro.")
+  .min(0, "A nota mínima é 0.")
+  .max(200, "A nota máxima por competência é 200.");
+
+export const essayCompletionSchema = z.object({
+  submissionId: z.string().uuid(),
+  generalFeedback: z
+    .string()
+    .trim()
+    .min(10, "Escreva uma correção geral com pelo menos 10 caracteres.")
+    .max(8000, "A correção geral deve ter no máximo 8000 caracteres."),
+  competence1Score: essayCompetenceScoreSchema,
+  competence2Score: essayCompetenceScoreSchema,
+  competence3Score: essayCompetenceScoreSchema,
+  competence4Score: essayCompetenceScoreSchema,
+  competence5Score: essayCompetenceScoreSchema,
+  competence1Feedback: z.string().trim().max(1500).optional(),
+  competence2Feedback: z.string().trim().max(1500).optional(),
+  competence3Feedback: z.string().trim().max(1500).optional(),
+  competence4Feedback: z.string().trim().max(1500).optional(),
+  competence5Feedback: z.string().trim().max(1500).optional(),
+  reviewerNotes: z.string().trim().max(1500).optional(),
+});
+
 export type EssaySubmissionInput = z.infer<typeof essaySubmissionSchema>;
 export type OnlineEssaySubmissionInput = z.infer<typeof onlineEssaySubmissionSchema>;
 export type EssayCancelInput = z.infer<typeof essayCancelSchema>;
 export type EssayTransferInput = z.infer<typeof essayTransferSchema>;
+export type EssayCompletionInput = z.infer<typeof essayCompletionSchema>;
 
 export function countWords(value: string) {
   return value.trim().split(/\s+/).filter(Boolean).length;

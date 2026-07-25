@@ -11,6 +11,7 @@ import {
   ESSAY_STORAGE_BUCKET,
   acceptedEssayUploadTypes,
   essayCancelSchema,
+  essayCompletionSchema,
   essayFileSignedUrlSchema,
   essayStatusActionSchema,
   essaySubmissionSchema,
@@ -18,6 +19,7 @@ import {
   essayUploadFilesSchema,
   onlineEssaySubmissionSchema,
   type EssayCancelInput,
+  type EssayCompletionInput,
   type EssayTransferInput,
 } from "@/lib/schemas/essay";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
@@ -99,6 +101,21 @@ function mapAdminEssayError(message: string) {
   }
   if (message.includes("cancelled submission cannot be completed")) {
     return "Redação cancelada não pode ser concluída.";
+  }
+  if (message.includes("completed submission cannot be completed")) {
+    return "Redação concluída não pode ser concluída novamente.";
+  }
+  if (message.includes("correction feedback required")) {
+    return "Escreva a correção geral antes de devolver a redação.";
+  }
+  if (message.includes("invalid essay score")) {
+    return "Informe notas entre 0 e 200 para cada competência.";
+  }
+  if (message.includes("assigned to another admin")) {
+    return "Esta redação está assumida por outro responsável.";
+  }
+  if (message.includes("essay submission cannot be completed")) {
+    return "Esta redação precisa estar pendente ou em análise para ser concluída.";
   }
   return "Não foi possível atualizar a redação agora.";
 }
@@ -542,23 +559,39 @@ export async function transferEssaySubmissionAction(
 }
 
 export async function completeEssaySubmissionAction(
-  submissionId: string,
+  input: EssayCompletionInput,
 ): Promise<ActionResult> {
-  const parsed = essayStatusActionSchema.safeParse({ submissionId });
-  if (!parsed.success) return { ok: false, message: "Redação inválida." };
+  const parsed = essayCompletionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Correção inválida." };
+  }
 
   const context = await getAuthenticatedContext();
   if ("error" in context) return { ok: false, message: context.error ?? "Erro de autenticação." };
 
   const { error } = await context.supabase.rpc("admin_complete_essay_submission", {
     input_submission_id: parsed.data.submissionId,
+    input_competence_1_score: parsed.data.competence1Score,
+    input_competence_2_score: parsed.data.competence2Score,
+    input_competence_3_score: parsed.data.competence3Score,
+    input_competence_4_score: parsed.data.competence4Score,
+    input_competence_5_score: parsed.data.competence5Score,
+    input_general_feedback: parsed.data.generalFeedback,
+    input_competence_1_feedback: parsed.data.competence1Feedback || null,
+    input_competence_2_feedback: parsed.data.competence2Feedback || null,
+    input_competence_3_feedback: parsed.data.competence3Feedback || null,
+    input_competence_4_feedback: parsed.data.competence4Feedback || null,
+    input_competence_5_feedback: parsed.data.competence5Feedback || null,
+    input_reviewer_notes: parsed.data.reviewerNotes || null,
   });
   if (error) return { ok: false, message: mapAdminEssayError(error.message) };
 
   revalidatePath("/dashboard/redacoes");
   revalidatePath("/dashboard/correcao-redacao");
+  revalidatePath(`/dashboard/correcao-redacao/${parsed.data.submissionId}`);
   revalidatePath(`/dashboard/redacoes/${parsed.data.submissionId}`);
-  return { ok: true, message: "Redação marcada como concluída." };
+  revalidatePath("/dashboard");
+  return { ok: true, message: "Correção enviada e redação concluída." };
 }
 
 export async function cancelEssaySubmissionAction(

@@ -14,6 +14,10 @@ const bridgeMigration = readFileSync(
   new URL("../supabase/migrations/013_essay_review_workflow.sql", import.meta.url),
   "utf8",
 );
+const completionMigration = readFileSync(
+  new URL("../supabase/migrations/027_essay_completion_feedback.sql", import.meta.url),
+  "utf8",
+);
 
 test("migration 013 nao referencia coluna corrected_at inexistente depois da 012", () => {
   assert.doesNotMatch(bridgeMigration, /corrected_at/);
@@ -90,4 +94,17 @@ test("migration 015 restaura redacao online na fila manual com debito auditavel"
   assert.match(onlineMigration, /'pending',\s+0,\s+clean_note/);
   assert.match(onlineMigration, /set debit_ledger_id = inserted_ledger_id/);
   assert.match(onlineMigration, /'delivery_type', 'online'/);
+});
+
+test("migration 027 conclui redacao com notas e feedback publicado", () => {
+  assert.match(completionMigration, /input_competence_1_score integer/);
+  assert.match(completionMigration, /input_general_feedback text/);
+  assert.match(completionMigration, /correction feedback required/);
+  assert.match(completionMigration, /input_competence_5_score not between 0 and 200/);
+  assert.match(completionMigration, /scores = jsonb_build_object/);
+  assert.match(completionMigration, /'total', total_score/);
+  assert.match(completionMigration, /feedback = jsonb_build_object/);
+  assert.match(completionMigration, /insert into public\.essay_correction_results/);
+  assert.match(completionMigration, /'correction_saved'/);
+  assert.match(completionMigration, /'status_changed'/);
 });
