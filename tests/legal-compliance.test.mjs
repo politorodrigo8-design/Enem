@@ -12,6 +12,14 @@ const paymentRoute = readFileSync(
   new URL("../src/app/api/payments/create/route.ts", import.meta.url),
   "utf8",
 );
+const legalAcceptanceLib = readFileSync(
+  new URL("../src/lib/legal/acceptances.ts", import.meta.url),
+  "utf8",
+);
+const legalVersionSyncMigration = readFileSync(
+  new URL("../supabase/migrations/028_sync_current_legal_document_versions.sql", import.meta.url),
+  "utf8",
+);
 const loginPage = readFileSync(
   new URL("../src/app/(auth)/login/page.tsx", import.meta.url),
   "utf8",
@@ -84,4 +92,12 @@ test("documentos públicos não mantêm linguagem provisória interna", () => {
   for (const content of publicLegalPages) {
     assert.doesNotMatch(content, forbidden);
   }
+});
+
+test("servidor sincroniza versoes legais vigentes antes de registrar aceite", () => {
+  assert.match(legalAcceptanceLib, /syncCurrentLegalVersionRows/);
+  assert.match(legalAcceptanceLib, /onConflict: "document_type,version"/);
+  assert.match(legalVersionSyncMigration, /'terms_of_use',\s*'2026-07-24'/);
+  assert.match(legalVersionSyncMigration, /'privacy_policy',\s*'2026-07-24'/);
+  assert.match(legalVersionSyncMigration, /'refund_policy',\s*'2026-07-23'/);
 });

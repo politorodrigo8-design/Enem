@@ -29,6 +29,14 @@ type LegalVersionRow = {
   is_current: boolean;
 };
 
+type LegalVersionUpsertRow = {
+  document_type: LegalDocumentType;
+  version: string;
+  effective_at: string;
+  content_hash: string;
+  is_current: boolean;
+};
+
 const validContexts = new Set<LegalAcceptanceContext>([
   "signup",
   "main_checkout",
@@ -180,6 +188,21 @@ async function getCurrentLegalVersionRows(
 
   const rows = (data ?? []) as LegalVersionRow[];
   const map = new Map(rows.map((row) => [row.document_type, row]));
+  if (!currentLegalVersionRowsAreSynced(map)) {
+    await syncCurrentLegalVersionRows(admin);
+    const { data: syncedData, error: syncedError } = await admin
+      .from("legal_document_versions" as never)
+      .select("id, document_type, version, is_current")
+      .eq("is_current", true);
+
+    if (syncedError) {
+      throw new LegalAcceptanceError("Não foi possível validar as versões legais.");
+    }
+
+    const syncedRows = (syncedData ?? []) as LegalVersionRow[];
+    const syncedMap = new Map(syncedRows.map((row) => [row.document_type, row]));
+    if (currentLegalVersionRowsAreSynced(syncedMap)) return syncedMap;
+  }
   for (const document of currentLegalDocuments) {
     const row = map.get(document.type);
     if (!row || row.version !== document.version) {
@@ -189,6 +212,47 @@ async function getCurrentLegalVersionRows(
     }
   }
   return map;
+}
+
+function currentLegalVersionRowsAreSynced(
+  rows: Map<LegalDocumentType, LegalVersionRow>,
+) {
+  return currentLegalDocuments.every((document) => {
+    const row = rows.get(document.type);
+    return Boolean(row && row.version === document.version);
+  });
+}
+
+async function syncCurrentLegalVersionRows(admin: SupabaseClient<Database>) {
+  const updates = await Promise.all(
+    currentLegalDocuments.map((document) =>
+      admin
+        .from("legal_document_versions" as never)
+        .update({ is_current: false } as never)
+        .eq("document_type", document.type)
+        .neq("version", document.version),
+    ),
+  );
+  const updateError = updates.find((result) => result.error)?.error;
+  if (updateError) {
+    throw new LegalAcceptanceError("Não foi possível sincronizar as versões legais.");
+  }
+
+  const rows = currentLegalDocuments.map((document) => ({
+    document_type: document.type,
+    version: document.version,
+    effective_at: document.effectiveAt,
+    content_hash: document.contentHash,
+    is_current: true,
+  })) satisfies LegalVersionUpsertRow[];
+
+  const { error } = await admin
+    .from("legal_document_versions" as never)
+    .upsert(rows as never, { onConflict: "document_type,version" });
+
+  if (error) {
+    throw new LegalAcceptanceError("Não foi possível sincronizar as versões legais.");
+  }
 }
 
 function buildAcceptanceKey({
