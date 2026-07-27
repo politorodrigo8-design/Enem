@@ -26,6 +26,10 @@ const webhookRoute = readFileSync(
   new URL("../src/app/api/payments/webhook/route.ts", import.meta.url),
   "utf8",
 );
+const mercadoPagoProcessing = readFileSync(
+  new URL("../src/lib/services/mercado-pago-processing.ts", import.meta.url),
+  "utf8",
+);
 const constants = readFileSync(
   new URL("../src/lib/referrals/constants.ts", import.meta.url),
   "utf8",
@@ -92,8 +96,9 @@ test("recompensa do indicador e liberada apos o prazo por rotina idempotente", (
 });
 
 test("webhook duplicado e segunda compra nao duplicam creditos", () => {
-  assert.match(webhookRoute, /process_referral_purchase_for_order/);
-  assert.match(webhookRoute, /process_pending_referral_rewards/);
+  assert.match(webhookRoute, /processApprovedMercadoPagoPayment/);
+  assert.match(mercadoPagoProcessing, /process_referral_purchase_for_order/);
+  assert.match(mercadoPagoProcessing, /process_pending_referral_rewards/);
   assert.match(migration, /credit_ledger_one_referral_referred_bonus_unique/);
   assert.match(migration, /credit_ledger_one_referral_referrer_bonus_unique/);
   assert.match(migration, /o\.id <> target_order\.id[\s\S]*o\.status = 'approved'/);

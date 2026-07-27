@@ -2,18 +2,27 @@ import { NextResponse, type NextRequest } from "next/server";
 import {
   fetchMercadoPagoPayment,
   hashPayload,
-  verifyMercadoPagoWebhookSignature,
 } from "@/lib/services/mercado-pago";
 import type { Order, Product } from "@/lib/services/billing";
 import type { Database } from "@/lib/supabase/types";
+import { processApprovedMercadoPagoPayment } from "@/lib/services/mercado-pago-processing";
 import {
   buildIgnoredPaymentProcessingError,
+  getMercadoPagoNotificationFormat,
+  getMercadoPagoPayloadDataId,
+  getMercadoPagoProviderEventId,
+  getMercadoPagoWebhookQueryParamNames,
+  getMercadoPagoWebhookEventType,
   getMercadoPagoWebhookDisposition,
+  getMercadoPagoWebhookProcessingDataId,
+  getMercadoPagoWebhookSignatureDataId,
+  getMercadoPagoWebhookSignatureFailureStatus,
   getSafeErrorMessage,
   summarizeMercadoPagoError,
   shouldIgnoreMercadoPagoProcessingError,
   summarizeSupabaseError,
   summarizeSupabaseResponse,
+  validateMercadoPagoWebhookSignature,
 } from "@/lib/services/payment-webhook.mjs";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -26,8 +35,20 @@ type OrderWithProduct = Order & { products: Product | Product[] | null };
 type PaymentEvent = Database["public"]["Tables"]["payment_events"]["Row"];
 
 export async function POST(request: NextRequest) {
-  if (!isSupabaseAdminConfigured()) {
-    return NextResponse.json({ ok: false }, { status: 503 });
+  const queryParamNames = getMercadoPagoWebhookQueryParamNames(request.nextUrl.searchParams);
+  const notificationFormat = getMercadoPagoNotificationFormat(request.nextUrl.searchParams);
+
+  if (!notificationFormat.shouldProcess) {
+    logIgnoredMercadoPagoNotification(notificationFormat, {
+      queryParamNames,
+      hasXSignature: Boolean(request.headers.get("x-signature")),
+      hasXRequestId: Boolean(request.headers.get("x-request-id")),
+    });
+    return NextResponse.json({
+      ok: true,
+      ignored: true,
+      reason: notificationFormat.reason,
+    });
   }
 
   const rateLimit = await checkRateLimit({
@@ -43,45 +64,51 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const queryDataId = request.nextUrl.searchParams.get("data.id");
+  const signatureDataId = getMercadoPagoWebhookSignatureDataId({
+    queryDataId,
+    bodyDataId: null,
+  });
+  const rawSecret = process.env.MERCADO_PAGO_WEBHOOK_SECRET;
+  const signatureValidation = validateMercadoPagoWebhookSignature({
+    xSignature: request.headers.get("x-signature"),
+    xRequestId: request.headers.get("x-request-id"),
+    dataId: signatureDataId.dataId,
+    dataIdSource: signatureDataId.source,
+    secret: rawSecret,
+  });
+
+  logWebhookSignatureValidation(signatureValidation, { queryParamNames });
+
+  if (!signatureValidation.valid) {
+    const status = getMercadoPagoWebhookSignatureFailureStatus(signatureValidation);
+    return NextResponse.json({ ok: false, message: "invalid signature" }, { status });
+  }
+
+  if (!isSupabaseAdminConfigured()) {
+    return NextResponse.json({ ok: false }, { status: 503 });
+  }
+
   const rawBody = await request.text();
   const payload = parseJson(rawBody);
   const queryTopic =
     request.nextUrl.searchParams.get("type") ??
     request.nextUrl.searchParams.get("topic");
-  const eventType = String(
-    payload?.type ?? payload?.topic ?? payload?.action ?? queryTopic ?? "unknown",
-  );
-  const dataId =
-    request.nextUrl.searchParams.get("data.id") ??
-    request.nextUrl.searchParams.get("data_id") ??
-    getPayloadDataId(payload) ??
-    request.nextUrl.searchParams.get("id");
-  const providerEventId =
-    dataId && eventType.includes("payment")
-      ? `payment:${dataId}`
-      : stringify(payload?.id) ?? `${eventType}:${dataId ?? hashPayload(rawBody)}`;
   const payloadHash = hashPayload(rawBody);
-  const secret = process.env.MERCADO_PAGO_WEBHOOK_SECRET?.trim();
-
-  if (secret) {
-    const validSignature = verifyMercadoPagoWebhookSignature({
-      xSignature: request.headers.get("x-signature"),
-      xRequestId: request.headers.get("x-request-id"),
-      dataId,
-      secret,
-    });
-
-    if (!validSignature) {
-      return NextResponse.json({ ok: false, message: "invalid signature" }, { status: 401 });
-    }
-  } else if (process.env.NODE_ENV === "production") {
-    // Fail-closed: sem secret em produção, qualquer POST anônimo seria aceito.
-    return NextResponse.json(
-      { ok: false, message: "webhook secret not configured" },
-      { status: 503 },
-    );
-  }
-
+  const bodyDataId = getMercadoPagoPayloadDataId(payload);
+  const eventType = getMercadoPagoWebhookEventType({ payload, queryTopic });
+  const dataId = getMercadoPagoWebhookProcessingDataId({
+    queryDataId,
+    queryDataIdAlternative: request.nextUrl.searchParams.get("data_id"),
+    bodyDataId,
+    queryId: request.nextUrl.searchParams.get("id"),
+  });
+  const providerEventId = getMercadoPagoProviderEventId({
+    eventType,
+    dataId,
+    payloadId: payload?.id,
+    payloadHash,
+  });
   const admin = createAdminClient();
   const eventInsertResult = await admin
     .from("payment_events")
@@ -189,29 +216,10 @@ export async function POST(request: NextRequest) {
       .eq("id", savedPaymentEvent.id);
 
     if (payment.status === "approved") {
-      const { error } = await admin.rpc("grant_paid_access_for_order" as never, {
-        target_order_id: checkedOrder.id,
-      } as never);
-      if (error) throw new Error(error.message);
-      const { error: referralError } = await admin.rpc(
-        "process_referral_purchase_for_order" as never,
-        {
-          target_order_id: checkedOrder.id,
-          input_provider_payment_id: String(payment.id),
-        } as never,
-      );
-      if (referralError) throw new Error(referralError.message);
-      const { error: pendingReferralError } = await admin.rpc(
-        "process_pending_referral_rewards" as never,
-        { target_referrer_user_id: null } as never,
-      );
-      if (pendingReferralError) throw new Error(pendingReferralError.message);
-      await recordProductEvent({
+      await processApprovedMercadoPagoPayment({
         supabase: admin,
-        userId: checkedOrder.user_id,
-        eventName: "payment_approved",
-        route: "/api/payments/webhook",
-        metadata: { order_id: checkedOrder.id },
+        payment,
+        source: "webhook",
       });
     } else if (payment.status === "refunded" || payment.status === "charged_back") {
       const { error } = await admin.rpc("revoke_paid_access_for_order" as never, {
@@ -281,16 +289,6 @@ function parseJson(rawBody: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
-}
-
-function stringify(value: unknown) {
-  return typeof value === "string" || typeof value === "number" ? String(value) : null;
-}
-
-function getPayloadDataId(payload: Record<string, unknown> | null) {
-  const data = payload?.data;
-  if (!data || typeof data !== "object") return null;
-  return stringify((data as Record<string, unknown>).id);
 }
 
 async function markProcessed(
@@ -367,4 +365,65 @@ function logSupabaseFailure(
     statusText: result.statusText ?? null,
     response: summarizeSupabaseResponse(result),
   });
+}
+
+function logIgnoredMercadoPagoNotification(
+  notificationFormat: {
+    kind: string;
+    reason: string;
+  },
+  context: {
+    queryParamNames: string[];
+    hasXSignature: boolean;
+    hasXRequestId: boolean;
+  },
+) {
+  console.info("[payments:webhook] notification ignored", {
+    kind: notificationFormat.kind,
+    reason: notificationFormat.reason,
+    queryParamNames: context.queryParamNames,
+    hasXSignature: context.hasXSignature,
+    hasXRequestId: context.hasXRequestId,
+  });
+}
+
+function logWebhookSignatureValidation(validation: {
+  hasXSignature: boolean;
+  hasXRequestId: boolean;
+  dataIdSource: string;
+  hasTimestamp: boolean;
+  hasSignatureHash: boolean;
+  manifestSegments: string[];
+  secretDiagnostics: {
+    configured: boolean;
+    trimmed: boolean;
+    hadWrappingQuotes: boolean;
+    hasLineBreak: boolean;
+    hasInternalWhitespace: boolean;
+  };
+  valid: boolean;
+  reason: string;
+}, context: { queryParamNames: string[] }) {
+  const summary = {
+    queryParamNames: context.queryParamNames,
+    hasXSignature: validation.hasXSignature,
+    hasXRequestId: validation.hasXRequestId,
+    dataIdSource: validation.dataIdSource,
+    hasTimestamp: validation.hasTimestamp,
+    hasSignatureHash: validation.hasSignatureHash,
+    manifestSegments: validation.manifestSegments,
+    secretConfigured: validation.secretDiagnostics.configured,
+    secretTrimmed: validation.secretDiagnostics.trimmed,
+    secretHadWrappingQuotes: validation.secretDiagnostics.hadWrappingQuotes,
+    secretHasLineBreak: validation.secretDiagnostics.hasLineBreak,
+    secretHasInternalWhitespace: validation.secretDiagnostics.hasInternalWhitespace,
+    failureReason: validation.valid ? null : validation.reason,
+  };
+
+  if (validation.valid) {
+    console.info("[payments:webhook] signature accepted", summary);
+    return;
+  }
+
+  console.warn("[payments:webhook] signature rejected", summary);
 }

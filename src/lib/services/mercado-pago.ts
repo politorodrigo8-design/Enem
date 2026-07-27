@@ -1,7 +1,12 @@
 import crypto from "node:crypto";
 import { getSiteUrl } from "@/lib/supabase/config";
 import type { Order, Product } from "@/lib/services/billing";
-import { getMercadoPagoCredentialProblem } from "@/lib/services/payment-security.mjs";
+import {
+  getMercadoPagoCredentialAudit,
+  getMercadoPagoCredentialProblem,
+} from "@/lib/services/payment-security.mjs";
+
+export { validateMercadoPagoWebhookSignature } from "@/lib/services/payment-webhook.mjs";
 
 const API_BASE = "https://api.mercadopago.com";
 
@@ -25,14 +30,20 @@ export async function createMercadoPagoPreference({
   order: Order;
   userEmail: string;
 }) {
-  const accessToken = getMercadoPagoAccessToken();
+  const credentials = getMercadoPagoAccessTokenDetails();
 
   const siteUrl = getSiteUrl();
+  const useSandbox = process.env.MERCADO_PAGO_SANDBOX === "true";
+  logMercadoPagoCredentialAudit("preference.create", {
+    ...credentials.audit,
+    sandboxEnabled: useSandbox,
+    hasNotificationUrl: false,
+  });
   const orderMetadata = isPlainObject(order.metadata) ? order.metadata : {};
   const response = await fetch(`${API_BASE}/checkout/preferences`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${credentials.accessToken}`,
       "Content-Type": "application/json",
       "X-Idempotency-Key": order.id,
     },
@@ -62,7 +73,6 @@ export async function createMercadoPagoPreference({
         pending: `${siteUrl}/pagamento/pendente?order=${order.id}`,
         failure: `${siteUrl}/pagamento/falha?order=${order.id}`,
       },
-      notification_url: `${siteUrl}/api/payments/webhook`,
       auto_return: "approved",
     }),
     cache: "no-store",
@@ -75,7 +85,6 @@ export async function createMercadoPagoPreference({
 
   // Produção deve usar init_point. sandbox_init_point só quando explicitamente
   // habilitado, senão o pagante é enviado para o ambiente de testes do MP.
-  const useSandbox = process.env.MERCADO_PAGO_SANDBOX === "true";
   const checkoutUrl = useSandbox
     ? String(payload.sandbox_init_point || payload.init_point || "")
     : String(payload.init_point || "");
@@ -98,11 +107,15 @@ function getMercadoPagoItemTitle(product: Product) {
 }
 
 export async function fetchMercadoPagoPayment(paymentId: string) {
-  const accessToken = getMercadoPagoAccessToken();
+  const credentials = getMercadoPagoAccessTokenDetails();
+  logMercadoPagoCredentialAudit("payment.fetch", {
+    ...credentials.audit,
+    hasNotificationUrl: false,
+  });
 
   const response = await fetch(`${API_BASE}/v1/payments/${paymentId}`, {
     headers: {
-      Authorization: `Bearer ${accessToken}`,
+      Authorization: `Bearer ${credentials.accessToken}`,
     },
     cache: "no-store",
   });
@@ -126,56 +139,7 @@ export function hashPayload(rawBody: string) {
   return crypto.createHash("sha256").update(rawBody).digest("hex");
 }
 
-export function verifyMercadoPagoWebhookSignature({
-  xSignature,
-  xRequestId,
-  dataId,
-  secret,
-}: {
-  xSignature: string | null;
-  xRequestId: string | null;
-  dataId: string | null;
-  secret: string;
-}) {
-  if (!xSignature || !secret) return false;
-
-  const parts = Object.fromEntries(
-    xSignature.split(",").map((part) => {
-      const [key, value] = part.split("=");
-      return [key?.trim(), value?.trim()];
-    }),
-  );
-  const timestamp = parts.ts;
-  const expected = parts.v1;
-  if (!timestamp || !expected) return false;
-
-  let manifest = "";
-  if (dataId) manifest += `id:${dataId.toLowerCase()};`;
-  if (xRequestId) manifest += `request-id:${xRequestId};`;
-  manifest += `ts:${timestamp};`;
-
-  const digest = crypto
-    .createHmac("sha256", secret)
-    .update(manifest)
-    .digest("hex");
-
-  return safeEqual(digest, expected);
-}
-
-function safeEqual(left: string, right: string) {
-  if (!/^[a-f0-9]{64}$/i.test(left) || !/^[a-f0-9]{64}$/i.test(right)) {
-    return false;
-  }
-
-  const leftBuffer = Buffer.from(left, "hex");
-  const rightBuffer = Buffer.from(right, "hex");
-  return (
-    leftBuffer.length === rightBuffer.length &&
-    crypto.timingSafeEqual(leftBuffer, rightBuffer)
-  );
-}
-
-function getMercadoPagoAccessToken() {
+function getMercadoPagoAccessTokenDetails() {
   const problem = getMercadoPagoConfigurationProblem();
   if (problem === "missing_access_token") {
     throw new MercadoPagoConfigurationError("MERCADO_PAGO_ACCESS_TOKEN não configurado.");
@@ -185,8 +149,42 @@ function getMercadoPagoAccessToken() {
       "MERCADO_PAGO_ACCESS_TOKEN não pode ser igual a NEXT_PUBLIC_MERCADO_PAGO_PUBLIC_KEY.",
     );
   }
+  if (problem === "stripe_secret_key_used_as_mercado_pago_access_token") {
+    throw new MercadoPagoConfigurationError(
+      "MERCADO_PAGO_ACCESS_TOKEN parece conter uma chave secreta Stripe.",
+    );
+  }
+  if (problem === "unexpected_access_token_prefix") {
+    throw new MercadoPagoConfigurationError(
+      "MERCADO_PAGO_ACCESS_TOKEN tem prefixo inesperado para Mercado Pago.",
+    );
+  }
 
-  return process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? "";
+  const accessToken = process.env.MERCADO_PAGO_ACCESS_TOKEN?.trim() ?? "";
+  return {
+    accessToken,
+    audit: getMercadoPagoCredentialAudit({
+      accessToken,
+      accessTokenVariable: "MERCADO_PAGO_ACCESS_TOKEN",
+      sandbox: process.env.MERCADO_PAGO_SANDBOX === "true",
+      notificationUrl: null,
+    }),
+  };
+}
+
+function logMercadoPagoCredentialAudit(
+  operation: string,
+  audit: ReturnType<typeof getMercadoPagoCredentialAudit>,
+) {
+  console.info("[payments:mercado-pago] credential audit", {
+    operation,
+    accessTokenVariable: audit.accessTokenVariable,
+    accessTokenPrefix: audit.accessTokenPrefix,
+    accessTokenLooksLikeMercadoPago: audit.accessTokenLooksLikeMercadoPago,
+    accessTokenLooksLikeStripe: audit.accessTokenLooksLikeStripe,
+    sandboxEnabled: audit.sandboxEnabled,
+    hasNotificationUrl: audit.hasNotificationUrl,
+  });
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
