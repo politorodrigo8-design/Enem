@@ -1,4 +1,4 @@
--- Fase beta NexoENEM.
+-- Fase beta Pontua Enem.
 -- Esta migration adiciona controle de acesso, onboarding, candidaturas beta,
 -- feedback, eventos de produto e campos editoriais para expansao segura do banco.
 
@@ -207,12 +207,12 @@ insert into public.radar_methodology_versions (
 )
 select
   'beta-demo-v1',
-  'Seed demonstrativo NexoENEM',
-  'Periodo demonstrativo sem analise oficial consolidada',
+  'Seed demonstrativo Pontua Enem',
+  'Período demonstrativo sem análise oficial consolidada',
   0,
   0,
-  'Equipe NexoENEM',
-  'Registro inicial para transparência. Dados de recorrencia do seed sao demonstrativos e nao representam previsao exata.',
+  'Equipe Pontua Enem',
+  'Registro inicial para transparência. Dados de recorrência do seed são demonstrativos e não representam previsão exata.',
   true
 where not exists (
   select 1

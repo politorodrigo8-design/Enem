@@ -30,6 +30,10 @@ import {
   buildShortQuestionFeedback,
   normalizePracticeQuestionIds,
 } from "@/lib/practice-session/rules.mjs";
+import {
+  buildSimulationTopicWeaknessScore,
+  selectBalancedSimulationQuestionIds,
+} from "@/lib/simulations/generation-rules.mjs";
 import { isStudentReadyQuestion, normalizeTaxonomyKey } from "@/lib/questions/quality";
 import { getQuestionRecords } from "@/lib/db/queries";
 import { calculateSimulationDurationMinutes } from "@/lib/simulations/rules";
@@ -1546,42 +1550,24 @@ async function createGeneratedSimulation(
   if (criteria.prioritizeWeaknesses) {
     const { data: performance } = await supabase
       .from("user_topic_performance")
-      .select("topic_id, priority_score")
+      .select("topic_id, total_answers, correct_answers, accuracy_percentage, priority_score")
       .eq("user_id", user.id);
     weaknessByTopic = new Map(
-      (performance ?? []).map((row) => [row.topic_id as string, Number(row.priority_score) || 0]),
+      (performance ?? []).map((row) => [
+        row.topic_id as string,
+        buildSimulationTopicWeaknessScore(row),
+      ]),
     );
   }
 
-  // Sorteio balanceado: agrupa por tópico e faz round-robin para não concentrar
-  // o simulado em um único assunto; com prioridade, tópicos mais fracos vêm antes.
-  const byTopic = new Map<string, typeof candidates>();
-  for (const candidate of candidates) {
-    const key = (candidate.topic_id as string) ?? "sem-topico";
-    if (!byTopic.has(key)) byTopic.set(key, []);
-    byTopic.get(key)!.push(candidate);
-  }
-  const groups = Array.from(byTopic.entries());
-  for (const [, group] of groups) group.sort(() => Math.random() - 0.5);
-  groups.sort(([topicA], [topicB]) => {
-    if (!criteria.prioritizeWeaknesses) return Math.random() - 0.5;
-    return (weaknessByTopic.get(topicB) ?? 0) - (weaknessByTopic.get(topicA) ?? 0);
+  // Sorteio balanceado: sem prioridade, espalha por tópicos; com prioridade,
+  // dá mais vagas aos tópicos em que o aluno errou mais, sem concentrar tudo.
+  const picked = selectBalancedSimulationQuestionIds({
+    candidates,
+    count: questionCount,
+    prioritizeWeaknesses: Boolean(criteria.prioritizeWeaknesses),
+    weaknessByTopic,
   });
-  const picked: string[] = [];
-  let round = 0;
-  while (picked.length < questionCount) {
-    let addedThisRound = false;
-    for (const [, group] of groups) {
-      if (picked.length >= questionCount) break;
-      const candidate = group[round];
-      if (candidate) {
-        picked.push(candidate.id as string);
-        addedThisRound = true;
-      }
-    }
-    if (!addedThisRound) break;
-    round += 1;
-  }
   if (picked.length < questionCount) {
     return { ok: false, message: "Não foi possível montar o simulado com os filtros atuais." };
   }
@@ -1708,34 +1694,30 @@ function buildGeneratedFallbackSimulation(
 }
 
 function pickBalancedFallbackQuestions(questions: QuestionRecord[], count: number) {
-  const groups = new Map<string, QuestionRecord[]>();
-  for (const question of questions) {
-    const key = `${question.subjects.area}:${question.topics.name}`;
-    groups.set(key, [...(groups.get(key) ?? []), question]);
-  }
-
-  const sortedGroups = Array.from(groups.values()).sort((a, b) => {
-    const aScore = Math.max(...a.map((question) => Number(question.priority_score ?? 0)));
-    const bScore = Math.max(...b.map((question) => Number(question.priority_score ?? 0)));
-    return bScore - aScore || b.length - a.length;
+  const weaknessByTopic = new Map<string, number>();
+  const candidates = questions.map((question) => {
+    const topicId = `${question.subjects.area}:${question.topics.name}`;
+    weaknessByTopic.set(
+      topicId,
+      Math.max(weaknessByTopic.get(topicId) ?? 0, Number(question.priority_score ?? 0)),
+    );
+    return {
+      ...question,
+      topic_id: topicId,
+    };
   });
 
-  const picked: QuestionRecord[] = [];
-  let round = 0;
-  while (picked.length < count) {
-    let added = false;
-    for (const group of sortedGroups) {
-      const question = group[round];
-      if (!question) continue;
-      picked.push(question);
-      added = true;
-      if (picked.length >= count) break;
-    }
-    if (!added) break;
-    round += 1;
-  }
+  const pickedIds = selectBalancedSimulationQuestionIds({
+    candidates,
+    count,
+    prioritizeWeaknesses: true,
+    weaknessByTopic,
+  });
+  const candidateById = new Map(candidates.map((question) => [question.id, question]));
 
-  return picked;
+  return pickedIds
+    .map((questionId) => candidateById.get(questionId))
+    .filter((question): question is QuestionRecord => Boolean(question));
 }
 
 export async function generateStudyPlanAction(): Promise<ActionResult> {

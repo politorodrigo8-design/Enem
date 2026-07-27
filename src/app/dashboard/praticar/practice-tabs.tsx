@@ -15,7 +15,7 @@ export type PracticeTab = "banco" | "revisao";
 
 const tabs: Array<{ id: PracticeTab; label: string }> = [
   { id: "banco", label: "Banco de questões" },
-  { id: "revisao", label: "Revisão de erros" },
+  { id: "revisao", label: "Já respondidas" },
 ];
 
 export function PracticeTabs({

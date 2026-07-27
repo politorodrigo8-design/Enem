@@ -1,4 +1,4 @@
--- Seed demonstrativo da NexoENEM.
+-- Seed demonstrativo do Pontua Enem.
 -- Recorrências e pesos são fictícios e servem apenas para validar o MVP.
 
 insert into public.subjects (id, name, area, slug) values

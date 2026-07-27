@@ -28,13 +28,15 @@ export default async function PerformancePage() {
   const access = getAccessContext(profile);
 
   const priorityItems: PriorityTopicItem[] = prioritizeTopics(topics).map(
-    ({ topic, performance, label, reason, hasPersonalPerformance }) => ({
+    ({ topic, performance, score, label, reason, hasPersonalPerformance }) => ({
       id: topic.id,
       area: topic.subjects.area,
       discipline: topic.subjects.name,
       name: topic.name,
       label,
       reason,
+      recurrence: Math.round(Number(topic.historical_recurrence ?? 0)),
+      priorityScore: score,
       accuracy:
         performance?.total_answers != null && performance.total_answers > 0
           ? Math.round(Number(performance.accuracy_percentage ?? 0))

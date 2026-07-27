@@ -23,7 +23,7 @@ alter table public.products
 update public.products
 set product_kind = 'access',
     credit_amount = null
-where slug = 'nexoenem-completo-2026';
+where slug = 'pontuaenem-completo-2026';
 
 insert into public.products (
   product_name,

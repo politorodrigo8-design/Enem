@@ -1,4 +1,4 @@
--- Produto pago NexoENEM.
+-- Produto pago Pontua Enem.
 -- Converte o modelo comercial free/full para unpaid/paid/beta/admin sem alterar
 -- migrations ja aplicadas e prepara checkout unico via Mercado Pago.
 
@@ -134,8 +134,8 @@ insert into public.products (
   checkout_provider
 )
 values (
-  'NexoENEM Completo',
-  'nexoenem-completo-2026',
+  'Pontua Enem Completo',
+  'pontuaenem-completo-2026',
   9990,
   null,
   null,

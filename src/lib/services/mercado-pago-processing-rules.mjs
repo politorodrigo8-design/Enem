@@ -1,6 +1,6 @@
 export const PONTUA_ENEM_ACCESS_AMOUNT_CENTS = 9990;
 export const PONTUA_ENEM_ACCESS_CURRENCY = "BRL";
-export const PONTUA_ENEM_ACCESS_PRODUCT_SLUG = "nexoenem-completo-2026";
+export const PONTUA_ENEM_ACCESS_PRODUCT_SLUG = "pontuaenem-completo-2026";
 export const PONTUA_ENEM_ACCESS_PRODUCT_NAME = "Pontua Enem Completo";
 
 const pendingStatuses = new Set(["pending", "in_process"]);

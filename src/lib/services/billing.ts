@@ -9,7 +9,7 @@ export type Order = Database["public"]["Tables"]["orders"]["Row"];
 
 export const DEFAULT_PRODUCT = {
   product_name: PRODUCT_NAME,
-  slug: "nexoenem-completo-2026",
+  slug: "pontuaenem-completo-2026",
   regular_price_cents: 9990,
   sale_price_cents: null,
   sale_starts_at: null,

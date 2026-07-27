@@ -5,9 +5,9 @@ import type { TopicPerformance, TopicWithSubject } from "@/lib/db/types";
  * Motor único de priorização de assuntos.
  *
  * Toda tela que mostra "o que estudar agora" (Hoje, Desempenho, Diagnóstico,
- * plano da semana) deve derivar sua lista deste módulo — nunca reordenar ou
- * recalcular por conta própria. O score combina recorrência histórica no ENEM,
- * taxa de erro do aluno, importância estratégica e dificuldade do assunto.
+ * plano da semana) deve derivar sua lista deste módulo. O score combina
+ * recorrência histórica no ENEM, taxa de erro do aluno, importância estratégica
+ * e dificuldade do assunto.
  */
 export type PrioritizedTopic = {
   topic: TopicWithSubject;
@@ -15,7 +15,7 @@ export type PrioritizedTopic = {
   score: number;
   label: string;
   hasPersonalPerformance: boolean;
-  /** Explicação em linguagem de aluno — sem jargão de score. */
+  /** Explicação em linguagem de aluno, sem jargão de score. */
   reason: string;
 };
 
@@ -61,7 +61,7 @@ export function buildPriorityReason(
         : "Aparece de vez em quando no ENEM";
 
   if (!answered) {
-    return `${recurrencePart}. Prioridade inicial por recorrência histórica; responda questões para calibrar pelo seu acerto e erro.`;
+    return `${recurrencePart}. Use como cobertura de prova enquanto ainda não houver respostas suas nesse assunto.`;
   }
 
   if (accuracy < 50) {
@@ -69,7 +69,7 @@ export function buildPriorityReason(
   }
 
   if (accuracy < 75) {
-    return `${recurrencePart}; você acerta ${accuracy}% — dá para consolidar.`;
+    return `${recurrencePart}; você acerta ${accuracy}%, dá para consolidar.`;
   }
 
   return `${recurrencePart}; você já domina (${accuracy}% de acerto). Mantenha com revisões.`;

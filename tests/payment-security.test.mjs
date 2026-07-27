@@ -763,7 +763,7 @@ function productFixture(overrides = {}) {
   return {
     id: "product-1",
     product_name: "Pontua Enem Completo",
-    slug: "nexoenem-completo-2026",
+    slug: "pontuaenem-completo-2026",
     product_kind: "access",
     ...overrides,
   };

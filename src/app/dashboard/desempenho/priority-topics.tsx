@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronUp, PlayCircle, Search } from "lucide-react";
+import { AlertTriangle, PlayCircle, Search, TrendingUp } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, priorityTone } from "@/lib/utils";
@@ -14,67 +14,95 @@ export type PriorityTopicItem = {
   name: string;
   label: string;
   reason: string;
+  recurrence: number;
+  priorityScore: number;
   accuracy: number | null;
   answered: number;
   hasPersonalPerformance: boolean;
 };
 
-/** Os 6 assuntos sugeridos para estudar agora, com motivo e ação direta. */
+/** Prioridades pessoais e recorrência histórica ficam separadas. */
 export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
-  const highlighted = items.slice(0, 6);
-  const hasPersonalPerformance = items.some((item) => item.hasPersonalPerformance);
+  const personalPriorities = useMemo(
+    () =>
+      items
+        .filter((item) => item.hasPersonalPerformance && (item.accuracy ?? 100) < 75)
+        .sort(
+          (a, b) =>
+            b.priorityScore - a.priorityScore ||
+            (a.accuracy ?? 100) - (b.accuracy ?? 100) ||
+            b.recurrence - a.recurrence ||
+            a.name.localeCompare(b.name),
+        )
+        .slice(0, 4),
+    [items],
+  );
+  const personalIds = useMemo(
+    () => new Set(personalPriorities.map((item) => item.id)),
+    [personalPriorities],
+  );
+  const recurringTopics = useMemo(
+    () =>
+      items
+        .filter((item) => !personalIds.has(item.id))
+        .slice()
+        .sort(
+          (a, b) =>
+            b.recurrence - a.recurrence ||
+            b.priorityScore - a.priorityScore ||
+            a.discipline.localeCompare(b.discipline) ||
+            a.name.localeCompare(b.name),
+        )
+        .slice(0, 10),
+    [items, personalIds],
+  );
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Assuntos sugeridos para estudar</CardTitle>
+        <CardTitle>Prioridades de estudo</CardTitle>
         <p className="mt-1 text-sm leading-6 text-slate-600">
-          {hasPersonalPerformance
-            ? "Ordenados por recorrência no ENEM e pelo seu desempenho nas questões que você já respondeu."
-            : "Sem respostas suficientes ainda, a ordem começa pela recorrência histórica no ENEM. Conforme você responde, seus acertos e erros entram no cálculo."}
+          A lista separa o que vem das suas respostas do que vem do histórico do
+          ENEM. Isso orienta a revisão, mas não garante quais assuntos cairão.
         </p>
       </CardHeader>
-      <CardContent>
-        <ul className="divide-y divide-slate-100">
-          {highlighted.map((item) => (
-            <li
-              key={item.id}
-              className="flex flex-col gap-3 py-4 first:pt-0 last:pb-0 md:flex-row md:items-center md:justify-between"
-            >
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-sm font-bold text-slate-950">
-                    {item.discipline}: {item.name}
-                  </p>
-                  <span
-                    className={`inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset ${priorityTone(item.label)}`}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-                <p className="mt-1 text-sm leading-6 text-slate-600">
-                  {item.reason}
-                </p>
-              </div>
-              <div className="flex shrink-0 items-center gap-4 md:justify-end">
-                <p className="tnum text-xs text-slate-500">
-                  {item.answered
-                    ? `${item.accuracy ?? 0}% de acerto em ${item.answered} ${
-                        item.answered === 1 ? "resposta" : "respostas"
-                      }`
-                    : "Sem respostas ainda"}
-                </p>
-                <Link
-                  href={`/dashboard/praticar?topic=${item.id}`}
-                  className={buttonClasses({ variant: "outline", size: "sm" })}
-                >
-                  <PlayCircle className="h-4 w-4" aria-hidden="true" />
-                  Treinar
-                </Link>
-              </div>
-            </li>
-          ))}
-        </ul>
+      <CardContent className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-rose-600" aria-hidden="true" />
+            <h3 className="text-sm font-bold text-slate-950">
+              Pelo seu desempenho
+            </h3>
+          </div>
+          {personalPriorities.length ? (
+            <ul className="divide-y divide-slate-100">
+              {personalPriorities.map((item) => (
+                <PriorityTopicRow key={item.id} item={item} mode="personal" />
+              ))}
+            </ul>
+          ) : (
+            <div className="rounded-lg border border-dashed border-slate-200 p-4">
+              <p className="text-sm leading-6 text-slate-600">
+                Responda mais questões para aparecerem prioridades ligadas aos
+                seus erros e acertos.
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-amber-600" aria-hidden="true" />
+            <h3 className="text-sm font-bold text-slate-950">
+              Mais recorrentes no ENEM
+            </h3>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {recurringTopics.map((item) => (
+              <PriorityTopicRow key={item.id} item={item} mode="recurrence" />
+            ))}
+          </ul>
+        </section>
       </CardContent>
     </Card>
   );
@@ -84,7 +112,6 @@ export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
 export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
   const [query, setQuery] = useState("");
   const [area, setArea] = useState("Todas");
-  const [showAll, setShowAll] = useState(false);
 
   const areas = useMemo(
     () => ["Todas", ...Array.from(new Set(items.map((item) => item.area)))],
@@ -101,13 +128,6 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       );
     });
   }, [area, items, query]);
-  const displayed = useMemo(
-    () => (showAll ? visible : visible.filter(isMainPriority)),
-    [showAll, visible],
-  );
-  const hiddenCount = visible.filter((item) => !isMainPriority(item)).length;
-  const toggleLabel = showAll ? "Ver menos" : "Ver todos";
-  const ToggleIcon = showAll ? ChevronUp : ChevronDown;
 
   return (
     <Card>
@@ -115,8 +135,8 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
         <div>
           <CardTitle>Todos os assuntos</CardTitle>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            O mapa completo do que o ENEM cobra — {items.length} assuntos com
-            histórico de recorrência, na ordem sugerida de estudo.
+            O mapa completo do que o ENEM cobra: {items.length} assuntos com
+            recorrência histórica, desempenho e ação direta.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
@@ -147,61 +167,43 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       </CardHeader>
       <CardContent>
         {visible.length ? (
-          <>
-            {displayed.length ? (
-              <ul className="divide-y divide-slate-100">
-                {displayed.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-slate-800">
-                        {item.discipline}: {item.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span
-                        className={cn(
-                          "hidden rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset sm:inline-flex",
-                          priorityTone(item.label),
-                        )}
-                      >
-                        {item.label}
-                      </span>
-                      <span className="tnum w-12 text-right text-xs text-slate-500">
-                        {item.answered ? `${item.accuracy ?? 0}%` : "—"}
-                      </span>
-                      <Link
-                        href={`/dashboard/praticar?topic=${item.id}`}
-                        className="text-sm font-semibold text-blue-700 hover:text-blue-800"
-                      >
-                        Treinar
-                      </Link>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-
-            {hiddenCount > 0 && (
-              <div className={cn("flex justify-center", displayed.length > 0 && "mt-4")}>
-                <button
-                  type="button"
-                  onClick={() => setShowAll((current) => !current)}
-                  className="inline-flex h-9 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                  aria-expanded={showAll}
-                >
-                  <span>
-                    {toggleLabel}
-                    {!showAll && hiddenCount > 0 ? ` (${hiddenCount})` : ""}
+          <ul className="divide-y divide-slate-100">
+            {visible.map((item) => (
+              <li
+                key={item.id}
+                className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
+              >
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-slate-800">
+                    {item.discipline}: {item.name}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3">
+                  <span className="tnum hidden w-16 text-right text-xs font-semibold text-slate-600 sm:inline-block">
+                    {item.recurrence}%
                   </span>
-                  <ToggleIcon className="h-4 w-4" aria-hidden="true" />
-                </button>
-              </div>
-            )}
-          </>
+                  <span
+                    className={cn(
+                      "hidden rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset md:inline-flex",
+                      priorityTone(item.label),
+                    )}
+                  >
+                    {item.label}
+                  </span>
+                  <span className="tnum w-12 text-right text-xs text-slate-500">
+                    {item.answered ? `${item.accuracy ?? 0}%` : "-"}
+                  </span>
+                  <Link
+                    href={`/dashboard/praticar?topic=${item.id}`}
+                    className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+                  >
+                    Treinar
+                  </Link>
+                </div>
+              </li>
+            ))}
+          </ul>
         ) : (
           <p className="py-6 text-center text-sm leading-6 text-slate-500">
             Nenhum assunto corresponde à busca. Tente outro termo ou limpe o
@@ -213,12 +215,45 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
   );
 }
 
-function isMainPriority(item: PriorityTopicItem) {
-  const label = normalize(item.label);
+function PriorityTopicRow({
+  item,
+  mode,
+}: {
+  item: PriorityTopicItem;
+  mode: "personal" | "recurrence";
+}) {
   return (
-    label.includes("maxima") ||
-    label.includes("alta") ||
-    label.includes("alta recorrencia")
+    <li className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-sm font-bold text-slate-950">
+            {item.discipline}: {item.name}
+          </p>
+          <span
+            className={cn(
+              "inline-flex rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset",
+              priorityTone(item.label),
+            )}
+          >
+            {item.label}
+          </span>
+        </div>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          {mode === "personal"
+            ? `${item.accuracy ?? 0}% de acerto em ${item.answered} ${
+                item.answered === 1 ? "resposta" : "respostas"
+              }. ${item.reason}`
+            : `${item.recurrence}% de recorrência histórica. ${item.reason}`}
+        </p>
+      </div>
+      <Link
+        href={`/dashboard/praticar?topic=${item.id}`}
+        className={buttonClasses({ variant: "outline", size: "sm" })}
+      >
+        <PlayCircle className="h-4 w-4" aria-hidden="true" />
+        Treinar
+      </Link>
+    </li>
   );
 }
 

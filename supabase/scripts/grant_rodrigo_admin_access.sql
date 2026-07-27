@@ -6,7 +6,7 @@ begin;
 
 do $$
 declare
-  target_email constant text := 'rodrigo@nexoenem.com';
+  target_email constant text := 'rodrigo@pontuaenem.com.br';
   target_user_id uuid;
   matching_users integer;
   updated_profiles integer;
@@ -49,4 +49,4 @@ select
   public.is_admin(u.id) as is_admin
 from auth.users u
 join public.profiles p on p.id = u.id
-where lower(u.email) = lower('rodrigo@nexoenem.com');
+where lower(u.email) = lower('rodrigo@pontuaenem.com.br');

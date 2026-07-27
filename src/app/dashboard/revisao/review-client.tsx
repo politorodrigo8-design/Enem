@@ -25,7 +25,6 @@ import type { QuestionRecord } from "@/lib/db/types";
 import {
   isLocalQuestionId,
   recordLocalQuestionAnswer,
-  removeLocalQuestionAnswer,
 } from "@/lib/local-question-progress";
 import { cn } from "@/lib/utils";
 
@@ -38,16 +37,18 @@ type RetryResult = {
   correctOption: string;
 };
 
+const retryResetDelayMs = 4500;
+
 const tabs: Array<{ id: ReviewTab; label: string; description: string }> = [
   {
     id: "errors",
-    label: "Revisão de erros",
-    description: "Refaça, confira o resultado e só então marque como dominada.",
+    label: "Para refazer",
+    description: "Errou ou marcou, tenta de novo por aqui.",
   },
   {
     id: "answered",
-    label: "Já respondidas",
-    description: "Histórico das questões que você já resolveu no treino.",
+    label: "Histórico",
+    description: "Todas as questões já respondidas no treino.",
   },
 ];
 
@@ -64,23 +65,40 @@ export function ReviewClient({
   const [filter, setFilter] = useState<ReviewFilter>("Todas");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [results, setResults] = useState<Record<string, RetryResult>>({});
-  const [masteredQuestionIds, setMasteredQuestionIds] = useState<Set<string>>(
+  const [attemptOutcomes, setAttemptOutcomes] = useState<Record<string, RetryResult>>({});
+  const [completedQuestionIds, setCompletedQuestionIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [attemptedQuestionIds, setAttemptedQuestionIds] = useState<Set<string>>(
     () => new Set(),
   );
   const [pending, startTransition] = useTransition();
 
   const activeReviewQuestions = useMemo(
-    () => reviewQuestions.filter((question) => !masteredQuestionIds.has(question.id)),
-    [masteredQuestionIds, reviewQuestions],
+    () => reviewQuestions.filter((question) => !completedQuestionIds.has(question.id)),
+    [completedQuestionIds, reviewQuestions],
   );
-  const answered = useMemo(() => uniqueQuestions(answeredQuestions), [answeredQuestions]);
+  const answered = useMemo(
+    () =>
+      uniqueQuestions([
+        ...answeredQuestions,
+        ...reviewQuestions.filter(
+          (question) =>
+            attemptedQuestionIds.has(question.id) || attemptOutcomes[question.id],
+        ),
+      ]),
+    [answeredQuestions, attemptOutcomes, attemptedQuestionIds, reviewQuestions],
+  );
   const sourceQuestions = tab === "errors" ? activeReviewQuestions : answered;
   const filtered = useMemo(
-    () => sourceQuestions.filter((question) => matchesFilter(question, filter, results)),
-    [filter, results, sourceQuestions],
+    () => sourceQuestions.filter((question) => matchesFilter(question, filter, attemptOutcomes)),
+    [attemptOutcomes, filter, sourceQuestions],
   );
 
-  const wrongCount = activeReviewQuestions.filter(hasWrongHistory).length;
+  const wrongCount = activeReviewQuestions.filter(
+    (question) =>
+      hasWrongHistory(question) || attemptOutcomes[question.id]?.isCorrect === false,
+  ).length;
   const answeredCorrectCount = answered.filter((question) => latestAnswer(question)?.is_correct)
     .length;
 
@@ -107,7 +125,7 @@ export function ReviewClient({
     errors: activeReviewQuestions.length,
     answered: answered.length,
   };
-  const filterCounts = buildFilterCounts(sourceQuestions, results);
+  const filterCounts = buildFilterCounts(sourceQuestions, attemptOutcomes);
 
   function retry(question: QuestionRecord) {
     const selected = selectedAnswers[question.id];
@@ -130,6 +148,8 @@ export function ReviewClient({
         correctOption: result.correctOption ?? "",
       };
       setResults((current) => ({ ...current, [question.id]: retryResult }));
+      setAttemptOutcomes((current) => ({ ...current, [question.id]: retryResult }));
+      setAttemptedQuestionIds((current) => new Set(current).add(question.id));
 
       if (isLocalQuestionId(question.id)) {
         recordLocalQuestionAnswer({
@@ -140,28 +160,34 @@ export function ReviewClient({
           answeredAt: new Date().toISOString(),
         });
       }
-    });
-  }
 
-  function markMastered(question: QuestionRecord) {
-    if (!canMarkMastered(question, results[question.id])) {
-      toast.error("Refaça e acerte a questão antes de tirar da revisão.");
-      return;
-    }
+      if (retryResult.isCorrect) {
+        if (isLocalQuestionId(question.id)) {
+          setCompletedQuestionIds((current) => new Set(current).add(question.id));
+          return;
+        }
 
-    if (isLocalQuestionId(question.id)) {
-      removeLocalQuestionAnswer(question.id);
-      setMasteredQuestionIds((current) => new Set(current).add(question.id));
-      toast.success("Questão removida da revisão local.");
-      return;
-    }
-
-    startTransition(async () => {
-      const result = await markReviewMasteredAction(question.id);
-      toast[result.ok ? "success" : "error"](result.message);
-      if (result.ok) {
-        setMasteredQuestionIds((current) => new Set(current).add(question.id));
+        const mastered = await markReviewMasteredAction(question.id);
+        if (mastered.ok) {
+          setCompletedQuestionIds((current) => new Set(current).add(question.id));
+        } else {
+          toast.error(mastered.message);
+        }
+        return;
       }
+
+      window.setTimeout(() => {
+        setResults((current) => {
+          const next = { ...current };
+          delete next[question.id];
+          return next;
+        });
+        setSelectedAnswers((current) => {
+          const next = { ...current };
+          delete next[question.id];
+          return next;
+        });
+      }, retryResetDelayMs);
     });
   }
 
@@ -287,7 +313,6 @@ export function ReviewClient({
                 }))
               }
               onRetry={() => retry(question)}
-              onMarkMastered={() => markMastered(question)}
             />
           ))}
         </div>
@@ -304,7 +329,6 @@ function QuestionReviewCard({
   result,
   onSelect,
   onRetry,
-  onMarkMastered,
 }: {
   question: QuestionRecord;
   mode: ReviewTab;
@@ -313,12 +337,10 @@ function QuestionReviewCard({
   result?: RetryResult;
   onSelect: (option: string) => void;
   onRetry: () => void;
-  onMarkMastered: () => void;
 }) {
   const latest = latestAnswer(question);
   const displayedSelected = selectedOption || result?.selectedOption || latest?.selected_option || "";
   const knownCorrectOption = Boolean(result?.correctOption);
-  const canMaster = canMarkMastered(question, result);
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question.question_media ?? [];
   const answerCount = question.user_question_answers?.length ?? 0;
@@ -447,20 +469,18 @@ function QuestionReviewCard({
               </div>
               <div className="flex flex-col gap-3 sm:flex-row">
                 <Button
-                  variant="outline"
+                  variant={mode === "errors" ? "primary" : "outline"}
                   size="sm"
                   onClick={onRetry}
                   disabled={!selectedOption || pending || Boolean(result)}
                 >
-                  <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  Corrigir tentativa
-                </Button>
-                {mode === "errors" ? (
-                  <Button size="sm" onClick={onMarkMastered} disabled={pending || !canMaster}>
+                  {mode === "errors" ? (
                     <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                    {canMaster ? "Dominei o conteúdo" : "Acerte para dominar"}
-                  </Button>
-                ) : null}
+                  ) : (
+                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  {mode === "errors" ? "Acerte para dominar" : "Corrigir tentativa"}
+                </Button>
               </div>
             </div>
 
@@ -490,6 +510,13 @@ function QuestionReviewCard({
                   {result.explanation ||
                     "A explicação completa pode ser gerada pela IA depois da tentativa."}
                 </p>
+                {mode === "errors" ? (
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {result.isCorrect
+                      ? "Essa questão saiu da lista para refazer e ficou no histórico de acertadas."
+                      : "A questão continua aqui e a tentativa libera de novo em alguns segundos."}
+                  </p>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -542,13 +569,9 @@ function matchesFilter(
   if (filter === "Marcadas") return hasActiveReview(question);
   const result = results[question.id];
   const latest = latestAnswer(question);
-  const isCorrect = result?.isCorrect ?? latest?.is_correct ?? false;
-  if (filter === "Acertadas") return isCorrect;
-  return !isCorrect;
-}
-
-function canMarkMastered(question: QuestionRecord, result?: RetryResult) {
-  return Boolean(result?.isCorrect || latestAnswer(question)?.is_correct);
+  if (filter === "Acertadas") return result?.isCorrect ?? latest?.is_correct ?? false;
+  if (result) return !result.isCorrect;
+  return latest ? !latest.is_correct : false;
 }
 
 function hasWrongHistory(question: QuestionRecord) {

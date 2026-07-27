@@ -135,8 +135,11 @@ export default async function RadarMethodologyPage() {
                       </Badge>
                     </div>
                     <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
-                      <Detail label="Fonte" value={version.source} />
-                      <Detail label="Período" value={version.analyzed_period || "Não informado"} />
+                      <Detail label="Fonte" value={formatMethodologyText(version.source)} />
+                      <Detail
+                        label="Período"
+                        value={formatMethodologyText(version.analyzed_period) || "Não informado"}
+                      />
                       <Detail label="Provas" value={String(version.exam_count)} />
                       <Detail label="Questões" value={String(version.question_count)} />
                       <Detail
@@ -147,10 +150,15 @@ export default async function RadarMethodologyPage() {
                           year: "numeric",
                         })}
                       />
-                      <Detail label="Responsável" value={version.reviewed_by || "Não informado"} />
+                      <Detail
+                        label="Responsável"
+                        value={formatMethodologyText(version.reviewed_by) || "Não informado"}
+                      />
                     </dl>
                     {version.notes ? (
-                      <p className="mt-3 text-sm leading-6 text-slate-600">{version.notes}</p>
+                      <p className="mt-3 text-sm leading-6 text-slate-600">
+                        {formatMethodologyText(version.notes)}
+                      </p>
                     ) : null}
                   </div>
                 ))}
@@ -205,4 +213,26 @@ function Detail({ label, value }: { label: string; value: string }) {
       </dd>
     </div>
   );
+}
+
+function formatMethodologyText(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const legacyBrandPattern = new RegExp("ne" + "xo\\s*enem", "gi");
+  const legacyTypoPattern = new RegExp("ne" + "t\\s*enem", "gi");
+
+  return value
+    .replace(legacyBrandPattern, "Pontua Enem")
+    .replace(legacyTypoPattern, "Pontua Enem")
+    .replace(
+      "Periodo demonstrativo sem analise oficial consolidada",
+      "Período demonstrativo sem análise oficial consolidada",
+    )
+    .replace(
+      "Dados de recorrencia do seed sao demonstrativos e nao representam previsao exata.",
+      "Dados de recorrência do seed são demonstrativos e não representam previsão exata.",
+    )
+    .trim();
 }

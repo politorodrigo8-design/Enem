@@ -82,7 +82,7 @@ O checkout real fica bloqueado enquanto `products.launch_ready=false`. Para ativ
 ```sql
 update public.products
 set launch_ready = true
-where slug = 'nexoenem-completo-2026';
+where slug = 'pontuaenem-completo-2026';
 ```
 
 Para testar em sandbox:
