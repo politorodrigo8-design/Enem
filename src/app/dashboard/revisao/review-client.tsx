@@ -175,21 +175,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
 
   return (
     <div>
-      <div className="border-b border-slate-200">
-        <div className="-mb-px inline-flex max-w-full flex-col items-start border-b-2 border-blue-700 px-3 py-3 text-left">
-          <p className="inline-flex items-center gap-2 text-sm font-bold text-blue-950">
-            Já respondidas
-            <span className="tnum rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-semibold text-blue-800">
-              {history.length}
-            </span>
-          </p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
-            Tudo que você já respondeu ou salvou nas favoritas, uma questão por vez.
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-2" role="group" aria-label="Filtrar questões">
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Filtrar questões">
         {filters.map((option) => {
           const active = filter === option;
           return (

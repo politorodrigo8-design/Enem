@@ -257,8 +257,17 @@ function PriorityTopicRow({
   item: PriorityTopicItem;
   mode: "personal" | "recurrence";
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const detailsId = `priority-details-${item.id}-${mode}`;
+  const essential =
+    mode === "personal"
+      ? `${item.accuracy ?? 0}% de acerto em ${item.answered} ${
+          item.answered === 1 ? "resposta" : "respostas"
+        }`
+      : `${item.recurrence}% de recorrência histórica`;
+
   return (
-    <li className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
+    <li className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-sm font-bold text-slate-950">
@@ -273,13 +282,42 @@ function PriorityTopicRow({
             {item.label}
           </span>
         </div>
-        <p className="mt-1 text-sm leading-6 text-slate-600">
-          {mode === "personal"
-            ? `${item.accuracy ?? 0}% de acerto em ${item.answered} ${
-                item.answered === 1 ? "resposta" : "respostas"
-              }. ${item.reason}`
-            : `${item.recurrence}% de recorrência histórica. ${item.reason}`}
+        <p className="mt-1 text-sm font-medium leading-6 text-slate-700">
+          {essential}
         </p>
+        <button
+          type="button"
+          className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0"
+          aria-expanded={expanded}
+          aria-controls={detailsId}
+          onClick={() => setExpanded((current) => !current)}
+        >
+          <ChevronDown
+            className={cn("h-4 w-4 transition-transform duration-150", expanded && "rotate-180")}
+            aria-hidden="true"
+          />
+          {expanded ? "Ocultar detalhes" : "Entenda esta prioridade"}
+        </button>
+        <div
+          id={detailsId}
+          className={cn(
+            "grid transition-[grid-template-rows] duration-150 ease-out",
+            expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+          )}
+        >
+          <div className="overflow-hidden">
+            <div className="mt-2 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2.5 text-sm leading-6 text-slate-600">
+              <p>{item.reason}</p>
+              <p className="tnum mt-1 text-xs font-semibold text-slate-500">
+                Radar: prioridade {Math.round(item.priorityScore)} · recorrência{" "}
+                {item.recurrence}% ·{" "}
+                {item.answered
+                  ? `${item.answered} ${item.answered === 1 ? "resposta" : "respostas"}`
+                  : "sem respostas registradas"}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
       <Link
         href={`/dashboard/praticar?topic=${item.id}`}

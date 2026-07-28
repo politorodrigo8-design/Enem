@@ -210,6 +210,23 @@ export function SimulationsClient({
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [active, fallbackAttempt, finished]);
 
+  useEffect(() => {
+    function revalidateFromServer() {
+      if (!active) router.refresh();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") revalidateFromServer();
+    }
+
+    window.addEventListener("focus", revalidateFromServer);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", revalidateFromServer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [active, router]);
+
   function generateAndStart(input: {
     title: string;
     areas: string[];
@@ -260,6 +277,7 @@ export function SimulationsClient({
   function selectAnswer(question: QuestionRecord, option: string) {
     const questionSeconds = Math.max(0, seconds - lastAnswerSeconds.current);
     lastAnswerSeconds.current = seconds;
+    const previousOption = answers[question.id];
     setAnswers((currentAnswers) => ({ ...currentAnswers, [question.id]: option }));
     if (!userSimulationId || fallbackAttempt) return;
 
@@ -270,7 +288,17 @@ export function SimulationsClient({
         selectedOption: option,
         responseTimeSeconds: questionSeconds,
       });
-      if (!result.ok) toast.error(result.message);
+      if (!result.ok) {
+        setAnswers((currentAnswers) => {
+          const next = { ...currentAnswers };
+          if (previousOption) next[question.id] = previousOption;
+          else delete next[question.id];
+          return next;
+        });
+        toast.error(result.message);
+        return;
+      }
+      router.refresh();
     });
   }
 
@@ -345,6 +373,7 @@ export function SimulationsClient({
           correctness,
         });
         setFinished(true);
+        router.refresh();
       }
       } finally {
         finishingSimulationRef.current = false;
@@ -636,11 +665,7 @@ export function SimulationsClient({
       simulation,
       attempt: latestInProgressAttempt(simulation),
     }))
-    .filter(
-      ({ simulation, attempt }) =>
-        attempt ||
-        (simulation.is_generated && !simulation.user_simulations?.length),
-    )
+    .filter(({ attempt }) => Boolean(attempt))
     .sort((a, b) => {
       if (Boolean(a.attempt) !== Boolean(b.attempt)) return a.attempt ? -1 : 1;
       const keyA = a.attempt?.started_at ?? a.simulation.created_at ?? "";
@@ -749,14 +774,6 @@ export function SimulationsClient({
             })}
           </div>
         </section>
-      ) : null}
-
-      {fallbackCatalog ? (
-        <Notice tone="info">
-          O servidor não trouxe simulados salvos agora. Os botões de geração ainda
-          tentam montar uma prova nova pelo acervo disponível; os simulados locais
-          continuam listados abaixo como caminho rápido para começar.
-        </Notice>
       ) : null}
 
       <section>
@@ -890,7 +907,7 @@ export function SimulationsClient({
       {fallbackCatalog ? (
         <section>
           <h2 className="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">
-            Simulados do acervo local
+            Simulados prontos
           </h2>
           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
             {simulations.map((simulation, index) => (

@@ -8,7 +8,6 @@ import {
   Timer,
 } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
-import { ReferralHomeCard } from "@/components/dashboard/referrals/referral-program-section";
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -19,11 +18,9 @@ import {
   getCurrentStudyPlan,
   getDashboardEssayCreditData,
   getProfile,
-  getReferralAccountSummary,
   getTodayStudy,
   getTopicsWithPerformance,
 } from "@/lib/db/queries";
-import { getSiteUrl } from "@/lib/supabase/config";
 import {
   perceivedDifficultiesFromProfile,
   prioritizeTopics,
@@ -33,12 +30,11 @@ import { formatAppDateTime } from "@/lib/dates";
 import { StudyPlanSection } from "./study-plan-section";
 
 export default async function DashboardPage() {
-  const [profile, plan, topics, essayCreditData, referral] = await Promise.all([
+  const [profile, plan, topics, essayCreditData] = await Promise.all([
     getProfile(),
     getCurrentStudyPlan(),
     getTopicsWithPerformance(),
     getDashboardEssayCreditData(),
-    getReferralAccountSummary(),
   ]);
   const today = await getTodayStudy(plan, profile);
   const access = getAccessContext(profile);
@@ -166,15 +162,6 @@ export default async function DashboardPage() {
               </div>
             </CardContent>
           </Card>
-        </Reveal>
-      </section>
-
-      <section className="mt-6">
-        <Reveal delay={260}>
-          <ReferralHomeCard
-            referralCode={referral.referralCode}
-            siteUrl={getSiteUrl()}
-          />
         </Reveal>
       </section>
     </div>

@@ -44,8 +44,10 @@ export function QuestionExplanationContent({
           Alternativa {result.correctAnswer.option}
           {result.correctAnswer.value ? ` — ${result.correctAnswer.value}` : ""}
         </p>
-        <p className="mt-2 text-sm leading-6 text-emerald-900">{result.correctAnswer.explanation}</p>
       </div>
+      <AiSection title="Por que esta é a correta?">
+        <p>{result.correctAnswer.explanation}</p>
+      </AiSection>
       {result.studentAnswer.available ? (
         <AiSection title="Sua resposta">
           <p className="font-semibold text-slate-950">
@@ -56,21 +58,23 @@ export function QuestionExplanationContent({
         </AiSection>
       ) : null}
       {result.alternativesAnalysis.length ? (
-        <details className="rounded-lg border border-slate-200 p-4">
-          <summary className="-my-1.5 cursor-pointer py-3 text-sm font-bold text-slate-950">
-            Por que as outras alternativas não servem?
-          </summary>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+        <AiSection title="Por que as outras estão erradas?">
+          <ul className="space-y-3">
             {result.alternativesAnalysis.map((item) => (
-              <li key={item.option}>
-                <span className="font-semibold">Alternativa {item.option}</span>
-                {item.value ? ` — ${item.value}` : ""}: {item.explanation}
+              <li key={item.option} className="rounded-lg border border-slate-200 p-4">
+                <p className="font-semibold text-slate-950">
+                  Alternativa {item.option}
+                  {item.value ? ` — ${item.value}` : ""}
+                </p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">
+                  {item.explanation}
+                </p>
               </li>
             ))}
           </ul>
-        </details>
+        </AiSection>
       ) : null}
-      <AiSection title="Dica para questões parecidas">
+      <AiSection title="Como resolver questões semelhantes">
         <p>{result.tip}</p>
       </AiSection>
       <AiBalanceAfterUse label="Saldo após esta explicação" value={balanceAfter} />

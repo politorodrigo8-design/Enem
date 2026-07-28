@@ -277,32 +277,14 @@ export async function submitQuestionAnswerAction(input: {
   const answerRow = {
     ...row,
     practice_session_id: practiceSessionResult.id,
+    answered_at: new Date().toISOString(),
   };
   let error: unknown = null;
   if (practiceSessionResult.id) {
-    const { data: existing, error: existingError } = await supabase
+    const { error: upsertError } = await supabase
       .from("user_question_answers")
-      .select("id")
-      .eq("user_id", user.id)
-      .eq("practice_session_id", practiceSessionResult.id)
-      .eq("question_id", question.id)
-      .maybeSingle();
-
-    if (existingError) {
-      error = existingError;
-    } else if (existing) {
-      const { error: updateError } = await supabase
-        .from("user_question_answers")
-        .update(answerRow)
-        .eq("id", existing.id)
-        .eq("user_id", user.id);
-      error = updateError;
-    } else {
-      const { error: insertError } = await supabase
-        .from("user_question_answers")
-        .insert(answerRow);
-      error = insertError;
-    }
+      .upsert(answerRow, { onConflict: "practice_session_id,question_id" });
+    error = upsertError;
   } else {
     const { error: insertError } = await supabase.from("user_question_answers").insert(row);
     error = insertError;
@@ -388,7 +370,7 @@ async function ensurePracticeSession({
   if (snapshot.id) {
     const { data: existing, error } = await supabase
       .from("practice_sessions")
-      .select("id, status")
+      .select("id, status, question_ids, current_index")
       .eq("id", snapshot.id)
       .eq("user_id", userId)
       .maybeSingle();
@@ -400,7 +382,7 @@ async function ensurePracticeSession({
 
     const { error: updateError } = await supabase
       .from("practice_sessions")
-      .update(buildPracticeSessionUpdate(snapshot, questionIds))
+      .update(buildPracticeSessionUpdate(snapshot, questionIds, existing))
       .eq("id", existing.id)
       .eq("user_id", userId)
       .eq("status", "Em andamento");
@@ -412,7 +394,7 @@ async function ensurePracticeSession({
 
   const { data: active, error: activeError } = await supabase
     .from("practice_sessions")
-    .select("id")
+    .select("id, status, question_ids, current_index")
     .eq("user_id", userId)
     .eq("source", source)
     .eq("status", "Em andamento")
@@ -426,7 +408,7 @@ async function ensurePracticeSession({
   if (active) {
     const { error } = await supabase
       .from("practice_sessions")
-      .update(buildPracticeSessionUpdate(snapshot, questionIds))
+      .update(buildPracticeSessionUpdate(snapshot, questionIds, active))
       .eq("id", active.id)
       .eq("user_id", userId)
       .eq("status", "Em andamento");
@@ -468,14 +450,23 @@ async function ensurePracticeSession({
 function buildPracticeSessionUpdate(
   snapshot: PracticeSessionInput,
   questionIds: string[],
+  existing?: { question_ids?: string[] | null; current_index?: number | null },
 ) {
   const startedAt = new Date(snapshot.startedAt);
+  const mergedQuestionIds = normalizePracticeQuestionIds([
+    ...(existing?.question_ids ?? []),
+    ...questionIds,
+  ]);
   return {
     focus_mode: snapshot.focusMode,
     session_size: snapshot.sessionSize,
     filters: snapshot.filters,
-    question_ids: questionIds,
-    current_index: Math.max(0, Math.floor(snapshot.currentIndex) || 0),
+    question_ids: mergedQuestionIds,
+    current_index: Math.max(
+      0,
+      Math.floor(Number(existing?.current_index) || 0),
+      Math.floor(snapshot.currentIndex) || 0,
+    ),
     started_at: Number.isNaN(startedAt.getTime())
       ? new Date().toISOString()
       : startedAt.toISOString(),
@@ -1007,7 +998,25 @@ export async function startSimulationAction(simulationId: string): Promise<{
     .select("id")
     .single();
 
-  if (error) return learningError("learning.submitSimulationAnswer.answer", error);
+  if (error) {
+    const { data: concurrentAttempt } = await supabase
+      .from("user_simulations")
+      .select("id")
+      .eq("user_id", user.id)
+      .eq("simulation_id", simulationId)
+      .eq("status", "Em andamento")
+      .order("started_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (concurrentAttempt) {
+      return {
+        ok: true,
+        message: "Simulado em andamento restaurado.",
+        userSimulationId: concurrentAttempt.id,
+      };
+    }
+    return learningError("learning.submitSimulationAnswer.answer", error);
+  }
   await recordProductEvent({
     supabase,
     userId: user.id,
@@ -1061,6 +1070,7 @@ export async function saveSimulationAnswerAction(input: {
   });
   if (!writeResult.ok) return writeResult;
 
+  revalidatePath("/dashboard/simulados");
   return { ok: true, message: "Resposta salva." };
 }
 
@@ -1347,26 +1357,10 @@ async function writeSimulationAnswer({
     response_time_seconds: responseTimeSeconds ?? 0,
   };
 
-  const { data: existing, error: existingError } = await supabase
+  const { error } = await supabase
     .from("user_simulation_answers")
-    .select("id")
-    .eq("user_simulation_id", userSimulationId)
-    .eq("question_id", questionId)
-    .maybeSingle();
-
-  if (existingError) return learningError("learning.writeSimulationAnswer.select", existingError);
-
-  if (existing) {
-    const { error } = await supabase
-      .from("user_simulation_answers")
-      .update(row)
-      .eq("id", existing.id);
-    if (error) return learningError("learning.writeSimulationAnswer.update", error);
-    return { ok: true, message: "Resposta salva." };
-  }
-
-  const { error } = await supabase.from("user_simulation_answers").insert(row);
-  if (error) return learningError("learning.writeSimulationAnswer.insert", error);
+    .upsert(row, { onConflict: "user_simulation_id,question_id" });
+  if (error) return learningError("learning.writeSimulationAnswer.upsert", error);
   return { ok: true, message: "Resposta salva." };
 }
 

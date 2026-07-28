@@ -183,14 +183,14 @@ test("UI de indicacao tem link, compartilhamento, indicadores, historico e layou
   assert.match(referralUi, /Histórico de indicações/);
 });
 
-test("todo aluno encontra o programa sem procurar: menu, home e pagina dedicada", () => {
+test("todo aluno encontra o programa no menu e na pagina dedicada, sem poluir a home", () => {
   assert.match(dashboardShell, /Indique e ganhe/);
   // Rota própria, não âncora dentro de Créditos: com hash o item do menu nunca
   // ficava destacado (a marcação compara pathname, que não carrega hash).
   assert.match(dashboardShell, /href: "\/dashboard\/indicacoes"/);
   assert.doesNotMatch(dashboardShell, /#indicacoes/);
-  assert.match(dashboardHome, /ReferralHomeCard/);
-  assert.match(dashboardHome, /getReferralAccountSummary\(\)/);
+  assert.doesNotMatch(dashboardHome, /ReferralHomeCard/);
+  assert.doesNotMatch(dashboardHome, /getReferralAccountSummary\(\)/);
   assert.match(referralsPage, /ReferralProgramSection/);
   assert.doesNotMatch(settingsClient, /ReferralShareLink/);
 });

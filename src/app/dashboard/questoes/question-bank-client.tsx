@@ -6,6 +6,7 @@ import {
   BookmarkCheck,
   BookmarkPlus,
   CheckCircle2,
+  ChevronDown,
   ImageIcon,
   PlayCircle,
   Search,
@@ -246,6 +247,7 @@ export function QuestionBankClient({
   const [practiceFocusActive, setPracticeFocusActive] = useState(
     () => Boolean(restoredPracticeSession || initialQuestionId || initialTopicName),
   );
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [localSessionHydrated, setLocalSessionHydrated] = useState(false);
   const localQuestionProgress = useLocalQuestionProgress();
   const localSessionKey = useMemo(
@@ -396,6 +398,7 @@ export function QuestionBankClient({
   const sessionSubmittedWrong = sessionStats.wrong;
   const hasUnfinishedSubmissions = sessionSubmittedCount > 0 && !sessionFinished;
   const sessionUsesLocalQuestions = hasLocalPracticeQuestions(session.questionIds);
+  const detailsPanelId = question ? `question-details-${question.id}` : "question-details";
 
   const filterOptions = useMemo(
     () => buildFilterOptions(orderedQuestions, filters),
@@ -427,6 +430,14 @@ export function QuestionBankClient({
       ? new Date(restoredPracticeSession.updated_at).getTime()
       : 0;
     if (serverTime > storedTime) {
+      setLocalSessionHydrated(true);
+      return;
+    }
+
+    if (
+      stored.session.questionIds.some((questionId) => !isLocalQuestionId(questionId)) ||
+      Object.keys(stored.answers).some((questionId) => !isLocalQuestionId(questionId))
+    ) {
       setLocalSessionHydrated(true);
       return;
     }
@@ -477,6 +488,29 @@ export function QuestionBankClient({
     restoredPracticeSession,
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
+
+  /* eslint-disable react-hooks/set-state-in-effect -- Keeps per-question disclosure collapsed when navigating. */
+  useEffect(() => {
+    setDetailsOpen(false);
+  }, [question?.id]);
+  /* eslint-enable react-hooks/set-state-in-effect */
+
+  useEffect(() => {
+    function revalidateFromServer() {
+      router.refresh();
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") revalidateFromServer();
+    }
+
+    window.addEventListener("focus", revalidateFromServer);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("focus", revalidateFromServer);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [router]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- Syncs local fallback answers into filter state after hydration. */
   useEffect(() => {
@@ -649,6 +683,7 @@ export function QuestionBankClient({
           explanation: response.explanation ?? "",
           correctOption: response.correctOption ?? "",
         });
+        router.refresh();
       }
     });
   }
@@ -1207,64 +1242,86 @@ export function QuestionBankClient({
 
           <aside>
             <Card>
-              <CardHeader>
-                <CardTitle>Detalhes</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <dl className="divide-y divide-slate-100">
-                  <Detail label="Disciplina" value={question.subjects.name} />
-                  <Detail label="Assunto" value={question.topics.name} />
-                  <Detail label="Dificuldade" value={question.difficulty} />
-                  <Detail label="Origem" value={questionOrigin(question)} />
-                  <Detail label="Prova" value={formatExamDetail(question)} />
-                  <Detail label="Fonte" value={question.source} />
-                  <Detail
-                    label="Histórico"
-                    value={`${Math.max(
-                      question.user_question_answers?.length ?? 0,
-                      answerState[question.id] ? 1 : 0,
-                    )} resposta(s)`}
-                  />
-                </dl>
-                <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                    Por que esta questão
-                  </summary>
-                  <WhyThisQuestion
-                    question={question}
-                    topicReason={topicPriority?.[question.topics.name]?.reason}
-                  />
-                </details>
-                <QuestionExplanationCreditAction
-                  key={question.id}
-                  questionId={question.id}
-                  selectedOption={displayedSelected || undefined}
-                  disabled={accessBlocked || !currentResult}
-                />
-                <Button
-                  variant="outline"
-                  full
-                  className="mt-4"
-                  onClick={toggleFavorite}
-                  disabled={pending || accessBlocked}
+              <CardHeader className="p-0">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between gap-3 rounded-t-lg px-5 py-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                  aria-expanded={detailsOpen}
+                  aria-controls={detailsPanelId}
+                  onClick={() => setDetailsOpen((current) => !current)}
                 >
-                  {favoriteState[question.id] ? (
-                    <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  {favoriteState[question.id]
-                    ? "Remover das favoritas"
-                    : "Salvar nas favoritas"}
-                </Button>
-                {accessBlocked ? (
-                  <PremiumGate
-                    compact
-                    className="mt-4"
-                    feature="A revisão de erros completa"
+                  <CardTitle>Detalhes</CardTitle>
+                  <ChevronDown
+                    className={cn("h-4 w-4 text-slate-500 transition-transform duration-150", detailsOpen && "rotate-180")}
+                    aria-hidden="true"
                   />
-                ) : null}
-              </CardContent>
+                </button>
+              </CardHeader>
+              <div
+                id={detailsPanelId}
+                className={cn(
+                  "grid transition-[grid-template-rows] duration-150 ease-out",
+                  detailsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                )}
+              >
+                <div className="overflow-hidden">
+                  <CardContent className="border-t border-slate-100">
+                    <dl className="divide-y divide-slate-100">
+                      <Detail label="Disciplina" value={question.subjects.name} />
+                      <Detail label="Assunto" value={question.topics.name} />
+                      <Detail label="Dificuldade" value={question.difficulty} />
+                      <Detail label="Origem" value={questionOrigin(question)} />
+                      <Detail label="Prova" value={formatExamDetail(question)} />
+                      <Detail label="Fonte" value={question.source} />
+                      <Detail
+                        label="Histórico"
+                        value={`${Math.max(
+                          question.user_question_answers?.length ?? 0,
+                          answerState[question.id] ? 1 : 0,
+                        )} resposta(s)`}
+                      />
+                    </dl>
+                    <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                        Por que esta questão
+                      </summary>
+                      <WhyThisQuestion
+                        question={question}
+                        topicReason={topicPriority?.[question.topics.name]?.reason}
+                      />
+                    </details>
+                    <QuestionExplanationCreditAction
+                      key={question.id}
+                      questionId={question.id}
+                      selectedOption={displayedSelected || undefined}
+                      disabled={accessBlocked || !currentResult}
+                    />
+                    <Button
+                      variant="outline"
+                      full
+                      className="mt-4"
+                      onClick={toggleFavorite}
+                      disabled={pending || accessBlocked}
+                    >
+                      {favoriteState[question.id] ? (
+                        <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
+                      )}
+                      {favoriteState[question.id]
+                        ? "Remover das favoritas"
+                        : "Salvar nas favoritas"}
+                    </Button>
+                    {accessBlocked ? (
+                      <PremiumGate
+                        compact
+                        className="mt-4"
+                        feature="A revisão de erros completa"
+                      />
+                    ) : null}
+                  </CardContent>
+                </div>
+              </div>
             </Card>
           </aside>
         </div>

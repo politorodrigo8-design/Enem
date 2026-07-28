@@ -236,6 +236,7 @@ export type Database = {
           selected_option: string;
           is_correct: boolean;
           response_time_seconds?: number;
+          answered_at?: string;
         };
         Update: Partial<Database["public"]["Tables"]["user_question_answers"]["Insert"]>;
       };

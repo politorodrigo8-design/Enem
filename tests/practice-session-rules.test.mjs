@@ -153,6 +153,16 @@ test("simulado ativo preserva foco, nao exibe explicacao e bloqueia finalizacao 
   assert.match(simulationsClientSource, /if \(finishingSimulationRef\.current \|\| finished\) return/);
   assert.match(simulationsClientSource, /Sair.*sem finalizar/s);
   assert.match(simulationsClientSource, /Finalizar e ver nota/);
+  assert.match(simulationsClientSource, /previousOption/);
+  assert.match(simulationsClientSource, /router\.refresh\(\)/);
   assert.doesNotMatch(simulationsClientSource, /QuestionExplanationCreditAction/);
   assert.doesNotMatch(simulationsClientSource, /correct_option/);
+});
+
+test("estado local nao sobrescreve sessao persistida e avisos tecnicos nao aparecem", () => {
+  assert.match(questionBankClientSource, /some\(\(questionId\) => !isLocalQuestionId\(questionId\)\)/);
+  assert.match(questionBankClientSource, /window\.addEventListener\("focus", revalidateFromServer\)/);
+  assert.match(questionBankClientSource, /aria-controls=\{detailsPanelId\}/);
+  assert.doesNotMatch(simulationsClientSource, /O servidor não trouxe simulados salvos agora/);
+  assert.match(simulationsClientSource, /\.filter\(\(\{ attempt \}\) => Boolean\(attempt\)\)/);
 });

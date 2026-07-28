@@ -51,7 +51,10 @@ test("explicacao de questao recebe contexto completo e nao finge ver imagem", ()
   assert.match(aiActionSource, /Nao afirme ter visto imagem/);
   assert.match(aiActionSource, /Gabarito real, que não pode ser alterado/);
   assert.match(aiActionSource, /Alternativa marcada pelo aluno/);
-  assert.match(aiActionSource, /Por que sua alternativa nao funciona/);
+  assert.match(aiActionSource, /alternativesAnalysis deve conter SOMENTE as alternativas incorretas existentes/);
+  assert.match(aiActionSource, /missing_alternative_analysis/);
+  assert.match(aiActionSource, /generic_alternative_explanation/);
+  assert.match(aiUiSource, /Por que as outras estão erradas/);
 });
 
 test("aplicar plano inteligente preserva historico e nao aciona cobranca", () => {
