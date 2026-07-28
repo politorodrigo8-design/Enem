@@ -188,9 +188,9 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
         <Image
           src="/streak-mascot.png"
           alt=""
-          width={24}
-          height={24}
-          className="h-6 w-6 object-contain"
+          width={32}
+          height={32}
+          className="h-8 w-8 object-contain"
           aria-hidden="true"
         />
         Comece sua sequência hoje
@@ -202,7 +202,7 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
     <span
       className={`tnum inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset ${
         activeToday
-          ? "bg-amber-50 text-amber-900 ring-amber-200"
+          ? "bg-white text-slate-800 ring-slate-200"
           : "bg-white text-slate-700 ring-slate-200"
       }`}
       title={
@@ -214,14 +214,14 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
       <Image
         src="/streak-mascot.png"
         alt=""
-        width={24}
-        height={24}
-        className={`h-6 w-6 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
+        width={32}
+        height={32}
+        className={`h-8 w-8 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
         aria-hidden="true"
       />
       <span className="flex items-baseline gap-1.5">
         <strong className="text-base leading-none">{streak}</strong>
-        <span className={activeToday ? "text-amber-800" : "text-slate-600"}>
+        <span className={activeToday ? "text-slate-700" : "text-slate-600"}>
           {streak === 1 ? "dia seguido" : "dias seguidos"}
         </span>
       </span>
