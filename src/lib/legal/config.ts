@@ -81,19 +81,22 @@ export const LEGAL_ENTITY_PENDING_LABEL = "A PREENCHER ANTES DO LANÇAMENTO";
 export type LegalEntityLine = { label: string; value: string };
 
 export function getSupplierIdentificationLines(): LegalEntityLine[] {
+  // Dados legais não definidos ficam centralizados em legalEntityConfig, mas não
+  // aparecem como placeholder nas páginas públicas.
   return [
     { label: "Razão social", value: legalEntityConfig.supplierName },
     { label: "CNPJ", value: legalEntityConfig.taxId },
     { label: "Endereço", value: legalEntityConfig.address },
     { label: "Atendimento", value: legalContacts.supportEmail },
-  ].map(({ label, value }) => ({
-    label,
-    value: value ?? LEGAL_ENTITY_PENDING_LABEL,
-  }));
+  ].flatMap(({ label, value }) => (value ? [{ label, value }] : []));
 }
 
 export function getPrivacyOfficerLabel() {
-  return legalEntityConfig.privacyOfficer ?? LEGAL_ENTITY_PENDING_LABEL;
+  return (
+    legalEntityConfig.privacyOfficer ??
+    legalContacts.privacyEmail ??
+    legalContacts.supportEmail
+  );
 }
 
 export function getLegalContactEmail() {
