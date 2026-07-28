@@ -11,6 +11,7 @@ import {
   Gift,
   LayoutDashboard,
   Menu,
+  MessageSquare,
   PenLine,
   Target,
   UserRound,
@@ -41,6 +42,7 @@ const navigation = [
     group: "Conta",
     items: [
       { label: "Correções", href: "/dashboard/redacoes", icon: FileCheck2, adminOnly: true },
+      { label: "Feedbacks", href: "/dashboard/feedbacks", icon: MessageSquare, adminOnly: true },
       { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
       { label: "Indique e ganhe", href: "/dashboard/indicacoes", icon: Gift },
     ],
@@ -53,12 +55,14 @@ export function DashboardShell({
   email,
   accessLevel,
   profilePhotoUrl,
+  unreadFeedbackCount = 0,
 }: {
   children: React.ReactNode;
   fullName: string;
   email: string;
   accessLevel: AccessLevel;
   profilePhotoUrl: string;
+  unreadFeedbackCount?: number;
 }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -160,7 +164,12 @@ export function DashboardShell({
                           className={cn("h-4.5 w-4.5", active ? "text-blue-700" : "text-slate-400")}
                           aria-hidden="true"
                         />
-                        {item.label}
+                        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                        {item.href === "/dashboard/feedbacks" && unreadFeedbackCount > 0 ? (
+                          <span className="tnum rounded-md bg-blue-100 px-1.5 py-0.5 text-xs font-bold text-blue-800">
+                            {unreadFeedbackCount}
+                          </span>
+                        ) : null}
                       </Link>
                     );
                   })}

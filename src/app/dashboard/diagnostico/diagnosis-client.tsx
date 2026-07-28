@@ -28,6 +28,10 @@ import type { Profile } from "@/lib/db/types";
 import { priorityTone } from "@/lib/utils";
 import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
 import { findWizardIssue } from "@/lib/wizard-validation";
+import {
+  SELF_ASSESSMENT_LEGEND,
+  sortSelfAssessmentEntries,
+} from "@/lib/study/self-assessment-priority.mjs";
 
 export type PrioritySummary = {
   id: string;
@@ -109,6 +113,12 @@ function DiagnosisResult({
       profile?.previous_score ? String(profile.previous_score) : "Primeiro ENEM",
     ],
   ];
+  const sortedDifficulties = sortSelfAssessmentEntries(
+    areas.map((area) => ({
+      label: area,
+      value: Number(storedDifficulties[area] ?? 3),
+    })),
+  );
 
   return (
     <div className="animate-rise space-y-6">
@@ -181,11 +191,14 @@ function DiagnosisResult({
             </CardTitle>
           </CardHeader>
           <CardContent className="divide-y divide-slate-100">
-            {areas.map((area) => (
+            <p className="pb-3 text-xs font-medium text-slate-500">
+              {SELF_ASSESSMENT_LEGEND}
+            </p>
+            {sortedDifficulties.map((item) => (
               <DifficultyMeter
-                key={area}
-                label={area}
-                value={Number(storedDifficulties[area] ?? 3)}
+                key={item.label}
+                label={item.label}
+                value={item.value}
               />
             ))}
           </CardContent>
@@ -194,13 +207,13 @@ function DiagnosisResult({
 
       <Card>
         <CardHeader className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-          <CardTitle>Suas prioridades agora</CardTitle>
+          <CardTitle>Prioridade inicial</CardTitle>
           <Link
             href="/dashboard/desempenho"
             className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-medium text-blue-700 transition-colors hover:text-blue-800 sm:min-h-0"
           >
             <Radar className="h-4 w-4" aria-hidden="true" />
-            Ver no Desempenho
+            Ver detalhes no Desempenho
           </Link>
         </CardHeader>
         <CardContent>

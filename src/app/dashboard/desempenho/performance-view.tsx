@@ -13,6 +13,7 @@ import {
 import { AreaBars } from "@/components/charts/area-bars";
 import { PerformanceAnalysisCreditAction } from "@/components/dashboard/ai-credit-actions";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { ThemeBadge } from "@/components/dashboard/subject-theme-badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -268,9 +269,13 @@ function PerformanceTable({
           {sorted.map((item) => (
             <tr key={item.name}>
               <td className="py-2.5 pr-2 align-top sm:pr-4">
-                <span className="break-words font-semibold text-slate-900">
-                  {item.name}
-                </span>
+                {firstColumn === "Disciplina" ? (
+                  <ThemeBadge name={item.name} />
+                ) : (
+                  <span className="break-words font-semibold text-slate-900">
+                    {item.name}
+                  </span>
+                )}
               </td>
               <td className="tnum px-2 py-2.5 text-right align-top text-slate-600 sm:px-4">
                 {item.answered}

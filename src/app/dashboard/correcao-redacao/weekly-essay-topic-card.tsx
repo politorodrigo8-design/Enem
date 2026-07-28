@@ -17,6 +17,7 @@ import { AiSection } from "@/components/dashboard/ai/ai-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  ESSAY_TOPIC_ROTATION_DAYS,
   WEEKLY_ESSAY_TOPIC_UNLOCK_COST,
   type WeeklyEssayTopic,
 } from "@/data/weekly-essay-topics";
@@ -83,7 +84,7 @@ export function WeeklyEssayTopicCard({
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                  {isCurrentWeek ? "Tema sugerido da semana" : "Proposta de treino"}
+                  {isCurrentWeek ? "Tema de hoje" : "Proposta de treino"}
                 </p>
                 <h2 className="mt-1 text-base font-bold leading-6 text-slate-950 sm:text-lg">
                   {topic.title}
@@ -92,6 +93,12 @@ export function WeeklyEssayTopicCard({
             </div>
             <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
               {topic.shortDescription}
+            </p>
+            <p className="mt-2 text-xs leading-5 text-slate-500">
+              Novo tema a cada {ESSAY_TOPIC_ROTATION_DAYS}{" "}
+              {ESSAY_TOPIC_ROTATION_DAYS === 1 ? "dia" : "dias"} · disponível até{" "}
+              {formatTopicDate(topic.endsAt)}. Tema sugerido para prática; não
+              representa previsão do ENEM.
             </p>
           </div>
 
@@ -175,6 +182,15 @@ export function WeeklyEssayTopicCard({
       </AiResponsivePanel>
     </section>
   );
+}
+
+function formatTopicDate(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date(Date.UTC(year, month - 1, day)));
 }
 
 function WeeklyEssayTopicPanelContent({

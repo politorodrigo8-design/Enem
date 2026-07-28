@@ -29,7 +29,7 @@ export default async function DiagnosisPage() {
         title="Meu diagnóstico"
         description={
           hasDiagnosis
-            ? "Seu retrato atual: objetivo, rotina, autopercepção e as prioridades calculadas a partir deles."
+            ? "Objetivo, rotina, autopercepção e prioridades atuais."
             : "Informe objetivo, rotina e dificuldades percebidas para gerar suas prioridades de estudo."
         }
       />

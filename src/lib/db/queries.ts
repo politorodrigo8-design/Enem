@@ -23,6 +23,9 @@ import type {
   EssayCorrectionData,
   EssaySubmissionDetail,
   EssaySubmissionWithProfile,
+  FeedbackInboxItem,
+  FeedbackStatus,
+  FeedbackType,
   Profile,
   QuestionRecord,
   Referral,
@@ -167,6 +170,8 @@ export async function getDashboardIdentity() {
     accessLevel: access.level,
     betaTester: access.betaTester,
     profilePhotoUrl: getProfilePhotoUrl(profile),
+    unreadFeedbackCount:
+      access.level === "admin" ? await getUnreadFeedbackCountForAdmin() : 0,
   };
 }
 
@@ -1226,6 +1231,95 @@ export async function getAdminEssayDetail(id: string): Promise<EssaySubmissionDe
   );
 
   return detail;
+}
+
+export type AdminFeedbackFilters = {
+  status?: string;
+  type?: string;
+  rating?: string;
+  from?: string;
+  to?: string;
+  search?: string;
+};
+
+export async function getAdminFeedbackInbox(
+  filters: AdminFeedbackFilters = {},
+): Promise<FeedbackInboxItem[]> {
+  const { supabase } = await requireEssayAdminAccess();
+
+  let query = supabase
+    .from("feedbacks" as never)
+    .select("*" as never)
+    .order("created_at" as never, { ascending: false } as never)
+    .limit(300 as never);
+
+  if (filters.status && filters.status !== "all") {
+    query = query.eq("status" as never, filters.status as FeedbackStatus as never);
+  }
+  if (filters.type && filters.type !== "all") {
+    query = query.eq("feedback_type" as never, filters.type as FeedbackType as never);
+  }
+  if (filters.rating && filters.rating !== "all") {
+    query = query.eq("rating" as never, Number(filters.rating) as never);
+  }
+  if (filters.from) {
+    query = query.gte("created_at" as never, `${filters.from}T00:00:00.000Z` as never);
+  }
+  if (filters.to) {
+    query = query.lte("created_at" as never, `${filters.to}T23:59:59.999Z` as never);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    logQueryError("feedbacks.admin_inbox", error);
+    return [];
+  }
+
+  const rawRows = ((data ?? []) as unknown as FeedbackInboxItem[]).filter((item) =>
+    feedbackMatchesSearch(item, filters.search),
+  );
+  const userIds = Array.from(new Set(rawRows.map((item) => item.user_id)));
+  const { data: profiles } = userIds.length
+    ? await supabase.from("profiles").select("id,full_name,email").in("id", userIds)
+    : { data: [] };
+  const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+
+  return rawRows.map((item) => ({
+    ...item,
+    profiles: profilesById.get(item.user_id) ?? null,
+  }));
+}
+
+async function getUnreadFeedbackCountForAdmin() {
+  const { supabase } = await requireUser();
+  const { count, error } = await supabase
+    .from("feedbacks" as never)
+    .select("id" as never, { count: "exact", head: true } as never)
+    .eq("status" as never, "novo" as never);
+
+  if (error) {
+    logQueryError("feedbacks.unread_count", error);
+    return 0;
+  }
+
+  return count ?? 0;
+}
+
+function feedbackMatchesSearch(item: FeedbackInboxItem, search?: string) {
+  const term = search?.trim().toLowerCase();
+  if (!term) return true;
+
+  return [
+    item.id,
+    item.email,
+    item.profiles?.full_name,
+    item.profiles?.email,
+    item.message,
+    item.route,
+    item.related_id,
+  ]
+    .filter(Boolean)
+    .some((value) => String(value).toLowerCase().includes(term));
 }
 
 export async function getStudentEssayDetail(id: string): Promise<EssaySubmissionDetail | null> {

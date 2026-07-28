@@ -1,17 +1,15 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import {
+  SELF_ASSESSMENT_LABELS,
+  SELF_ASSESSMENT_LEGEND,
+} from "@/lib/study/self-assessment-priority.mjs";
 
 const levels = [1, 2, 3, 4, 5] as const;
-const levelLabels: Record<number, string> = {
-  1: "Tranquilo",
-  2: "Fácil",
-  3: "Médio",
-  4: "Difícil",
-  5: "Muito difícil",
-};
+const levelLabels = SELF_ASSESSMENT_LABELS as Record<number, string>;
 
-/** Seletor de dificuldade percebida: 5 níveis segmentados (substitui sliders). */
+/** Seletor de autopercepcao: 1 = mais dificuldade, 5 = mais facilidade. */
 export function DifficultyScale({
   value,
   onChange,
@@ -29,10 +27,13 @@ export function DifficultyScale({
           {levelLabels[value] ?? ""}
         </span>
       </div>
+      <p className="mb-2 text-xs font-medium text-slate-500">
+        {SELF_ASSESSMENT_LEGEND}
+      </p>
       <div
         className="grid grid-cols-5 gap-1 sm:gap-1.5"
         role="radiogroup"
-        aria-label={`Dificuldade em ${label}`}
+        aria-label={`Autopercepcao em ${label}: ${SELF_ASSESSMENT_LEGEND}`}
       >
         {levels.map((level) => (
           <button
@@ -40,10 +41,9 @@ export function DifficultyScale({
             type="button"
             role="radio"
             aria-checked={value === level}
-            aria-label={`${level} — ${levelLabels[level]}`}
+            aria-label={`${level} de 5 - ${levelLabels[level]}`}
             onClick={() => onChange(level)}
             className={cn(
-              // Só volta a 36px em lg: a faixa de tablet também é toque.
               "tnum h-11 rounded-lg border text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 lg:h-9",
               value === level
                 ? "border-blue-700 bg-blue-700 text-white"
@@ -58,7 +58,7 @@ export function DifficultyScale({
   );
 }
 
-/** Versão de leitura da escala: barras preenchidas até o nível. */
+/** Versao de leitura da escala: barras preenchidas ate o nivel informado. */
 export function DifficultyMeter({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-2.5">
@@ -76,7 +76,7 @@ export function DifficultyMeter({ value, label }: { value: number; label: string
           ))}
         </div>
         <span className="sr-only">
-          {value} de 5 — {levelLabels[value] ?? ""}
+          {value} de 5 - {levelLabels[value] ?? ""}
         </span>
         <span className="tnum w-7 text-right text-sm font-semibold text-slate-950">
           {value}/5

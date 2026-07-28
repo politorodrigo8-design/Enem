@@ -2,7 +2,7 @@
 
 import { MessageSquare, Send, X } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { submitFeedbackAction } from "@/lib/actions/beta";
 import { Button } from "@/components/ui/button";
@@ -12,24 +12,32 @@ import { cn } from "@/lib/utils";
 type FeedbackType = "erro" | "sugestao" | "duvida" | "elogio";
 
 const feedbackTypes = [
-  ["erro", "Erro"],
+  ["elogio", "Elogio"],
   ["sugestao", "Sugestão"],
   ["duvida", "Dúvida"],
-  ["elogio", "Elogio"],
+  ["erro", "Problema"],
 ] as const;
 
 const initialForm = {
   feedback_type: "sugestao" as FeedbackType,
   message: "",
-  rating: 5,
-  easy_to_understand: true,
+  rating: "" as "" | number,
 };
+
+const maxMessageLength = 1200;
 
 export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const [form, setForm] = useState(initialForm);
+  const messageLength = form.message.trim().length;
+  const messageError = useMemo(() => {
+    if (!messageLength) return "A mensagem é obrigatória.";
+    if (messageLength < 8) return "Escreva um pouco mais para entendermos o contexto.";
+    if (messageLength > maxMessageLength) return "A mensagem passou do limite.";
+    return "";
+  }, [messageLength]);
   useLockPageScroll(open);
 
   useEffect(() => {
@@ -42,11 +50,17 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
   }, [open]);
 
   function submit() {
+    if (messageError || pending) return;
+
     startTransition(async () => {
       const result = await submitFeedbackAction({
         ...form,
+        rating: form.rating === "" ? undefined : form.rating,
         route: pathname,
         client_created_at: new Date().toISOString(),
+        user_agent_summary:
+          typeof navigator === "undefined" ? "" : navigator.userAgent.slice(0, 240),
+        source: minimal ? "dashboard_menu" : "dashboard",
       });
       toast[result.ok ? "success" : "error"](result.message);
       if (result.ok) {
@@ -91,8 +105,7 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
                   Enviar feedback
                 </h2>
                 <p className="mt-1 text-sm leading-6 text-slate-600">
-                  Sua resposta ajuda a melhorar a plataforma para quem estuda
-                  com ela.
+                  Conte o que ajudou, travou ou poderia ficar mais claro.
                 </p>
               </div>
               <button
@@ -108,7 +121,7 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
             <div className="mt-6 grid gap-5">
               <fieldset>
                 <legend className="mb-2 text-sm font-medium text-slate-700">
-                  Sobre o que é?
+                  Tipo do feedback
                 </legend>
                 <div className="flex flex-wrap gap-2">
                   {feedbackTypes.map(([value, label]) => (
@@ -134,30 +147,53 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
 
               <label className="block">
                 <span className="mb-1.5 block text-sm font-medium text-slate-700">
-                  Mensagem
+                  Mensagem <span className="text-rose-600">*</span>
                 </span>
                 <textarea
                   value={form.message}
+                  required
+                  maxLength={maxMessageLength}
                   onChange={(event) =>
                     setForm((current) => ({ ...current, message: event.target.value }))
                   }
                   rows={4}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3.5 py-2.5 text-sm leading-6 text-slate-950 placeholder:text-slate-400 transition-colors focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
-                  placeholder="Conte o que aconteceu ou o que poderia melhorar."
+                  placeholder="Descreva em poucas linhas."
+                  aria-describedby="feedback-message-help"
                 />
+                <span
+                  id="feedback-message-help"
+                  className={cn(
+                    "mt-1.5 flex justify-between gap-3 text-xs",
+                    messageError && messageLength ? "text-rose-600" : "text-slate-500",
+                  )}
+                >
+                  <span>{messageError && messageLength ? messageError : "Obrigatória."}</span>
+                  <span className="tnum shrink-0">
+                    {form.message.length}/{maxMessageLength}
+                  </span>
+                </span>
               </label>
 
               <fieldset>
                 <legend className="mb-2 text-sm font-medium text-slate-700">
-                  Que nota você dá para esta tela?
+                  Nota da experiência <span className="font-normal text-slate-500">(opcional)</span>
                 </legend>
+                <p className="mb-2 text-xs leading-5 text-slate-500">
+                  Esta nota avalia a tela, não a escala de dificuldade do diagnóstico.
+                </p>
                 <div className="grid grid-cols-5 gap-1.5 sm:flex sm:gap-2">
                   {[1, 2, 3, 4, 5].map((value) => (
                     <button
                       key={value}
                       type="button"
                       aria-pressed={form.rating === value}
-                      onClick={() => setForm((current) => ({ ...current, rating: value }))}
+                      onClick={() =>
+                        setForm((current) => ({
+                          ...current,
+                          rating: current.rating === value ? "" : value,
+                        }))
+                      }
                       className={cn(
                         "tnum h-11 w-full rounded-lg border text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:w-11",
                         form.rating === value
@@ -171,22 +207,12 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
                 </div>
               </fieldset>
 
-              <label className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  checked={form.easy_to_understand}
-                  onChange={(event) =>
-                    setForm((current) => ({
-                      ...current,
-                      easy_to_understand: event.target.checked,
-                    }))
-                  }
-                  className="h-4 w-4 accent-blue-700"
-                />
-                <span className="text-sm font-medium text-slate-700">
-                  Esta tela foi fácil de entender
-                </span>
-              </label>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3.5 py-3">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Contexto salvo
+                </p>
+                <p className="mt-1 break-words text-sm text-slate-700">{pathname}</p>
+              </div>
             </div>
 
             <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
@@ -195,11 +221,11 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
               </Button>
               <Button
                 type="button"
-                disabled={pending || form.message.trim().length < 8}
+                disabled={pending || Boolean(messageError)}
                 onClick={submit}
               >
                 <Send className="h-4 w-4" aria-hidden="true" />
-                Enviar
+                {pending ? "Enviando..." : "Enviar"}
               </Button>
             </div>
           </div>

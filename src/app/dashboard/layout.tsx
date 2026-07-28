@@ -14,6 +14,7 @@ export default async function DashboardLayout({
       email={identity.email}
       accessLevel={identity.accessLevel}
       profilePhotoUrl={identity.profilePhotoUrl}
+      unreadFeedbackCount={identity.unreadFeedbackCount}
     >
       {children}
     </DashboardShell>

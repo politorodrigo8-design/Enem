@@ -75,7 +75,7 @@ export function QuestionExplanationCreditAction({
         <AiFeatureHeader
           icon={Sparkles}
           title="Explicar questão"
-          description="Entenda o enunciado, as alternativas e a resolução passo a passo."
+          description="Veja o raciocínio da questão respondida."
           titleClassName="gap-1.5"
           descriptionClassName="mt-1 text-xs leading-5 text-slate-700"
         />
@@ -116,7 +116,7 @@ export function QuestionExplanationCreditAction({
       >
         {!result && !pending && !error ? (
           <AiConfirmationDialog
-            description="A explicação será criada com base no enunciado, nas alternativas, no gabarito e na sua resposta marcada."
+            description="Usa enunciado, alternativas, gabarito e sua resposta."
             cost={AI_QUESTION_EXPLANATION_CREDIT_COST}
             balance={creditBalance}
             buttonLabel="Confirmar explicação"

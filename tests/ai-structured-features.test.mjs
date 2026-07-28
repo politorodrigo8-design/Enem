@@ -46,6 +46,14 @@ test("validacoes impedem IA de alterar gabarito, metricas objetivas e datas do p
   assert.match(aiActionSource, /totalMinutes > availableMinutes/);
 });
 
+test("explicacao de questao recebe contexto completo e nao finge ver imagem", () => {
+  assert.match(aiActionSource, /Descricao de midia disponivel/);
+  assert.match(aiActionSource, /Nao afirme ter visto imagem/);
+  assert.match(aiActionSource, /Gabarito real, que n(?:ao|ão|Ã£o|ÃƒÂ£o) pode ser alterado/);
+  assert.match(aiActionSource, /Alternativa marcada pelo aluno/);
+  assert.match(aiActionSource, /Por que sua alternativa nao funciona/);
+});
+
 test("aplicar plano inteligente preserva historico e nao aciona cobranca", () => {
   const applyAction =
     aiActionSource.match(/export async function applySmartStudyPlanAction[\s\S]+?\n}/)?.[0] ?? "";

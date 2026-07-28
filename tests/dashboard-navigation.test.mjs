@@ -33,5 +33,5 @@ test("rota antiga de questoes leva para a aba do banco", () => {
     /redirect\("\/dashboard\/praticar\?tab=banco"\)/,
   );
   assert.match(practicePageSource, /title="Questões"/);
-  assert.match(practicePageSource, /Banco de questões verificado/);
+  assert.match(practicePageSource, /Resolva recomendadas, filtre o banco ou revise quest/);
 });

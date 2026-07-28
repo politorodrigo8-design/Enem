@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { calculatePriorityScore } from "@/lib/db/scoring";
+import { perceivedDifficultyPriorityBoost } from "@/lib/study/self-assessment-priority.mjs";
 
 /**
  * Recalcula o priority_score de todos os tópicos a partir da autopercepção
@@ -19,7 +20,7 @@ export async function recalculateDiagnosisPriorities(
       );
       const score =
         calculatePriorityScore(topic, undefined) +
-        Number((areaDifficulty * 1.2).toFixed(2));
+        perceivedDifficultyPriorityBoost(areaDifficulty);
 
       return {
         user_id: userId,

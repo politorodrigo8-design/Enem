@@ -19,7 +19,7 @@ export default async function SimulationsPage({
     <div>
       <DashboardPageHeader
         title="Simulados"
-        description="Simule a prova no ritmo real: 90 questões por dia, com questões novas a cada tentativa."
+        description="Treine no ritmo do ENEM, com questões novas por tentativa."
       />
       <SimulationsClient
         simulations={simulations}

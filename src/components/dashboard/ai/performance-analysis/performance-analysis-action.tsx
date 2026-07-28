@@ -54,13 +54,10 @@ export function PerformanceAnalysisCreditAction({
           <AiFeatureHeader
             icon={BarChart3}
             title="Análise de desempenho"
-            description="Entenda seus erros recentes, identifique padrões e veja quais conteúdos devem ser priorizados nos próximos estudos."
+            description="Veja padrões recentes e próximos focos."
             titleClassName="gap-2"
             descriptionClassName="mt-1 max-w-3xl text-sm leading-6 text-slate-700"
           />
-          <p className="mt-2 max-w-3xl text-xs leading-5 text-slate-600">
-            Esta análise considera suas respostas recentes, taxa de acertos, assuntos com maior dificuldade e desempenho por área.
-          </p>
           <AiCreditCost cost={AI_PERFORMANCE_ANALYSIS_CREDIT_COST} />
           <AiCreditShortage
             cost={AI_PERFORMANCE_ANALYSIS_CREDIT_COST}
@@ -92,7 +89,7 @@ export function PerformanceAnalysisCreditAction({
       >
         {!result && !pending && !error ? (
           <AiConfirmationDialog
-            description="A análise será baseada nos seus resultados recentes e nas métricas calculadas pela plataforma."
+            description="Usa suas respostas recentes e métricas calculadas pela plataforma."
             cost={AI_PERFORMANCE_ANALYSIS_CREDIT_COST}
             balance={creditBalance}
             buttonLabel="Confirmar análise"

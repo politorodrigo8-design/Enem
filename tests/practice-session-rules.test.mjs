@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   answerIdsForSession,
   answersFromAttemptRows,
@@ -12,6 +13,15 @@ import {
   latestAnswerByQuestion,
   normalizePracticeQuestionIds,
 } from "../src/lib/practice-session/rules.mjs";
+
+const questionBankClientSource = readFileSync(
+  new URL("../src/app/dashboard/questoes/question-bank-client.tsx", import.meta.url),
+  "utf8",
+);
+const simulationsClientSource = readFileSync(
+  new URL("../src/app/dashboard/simulados/simulations-client.tsx", import.meta.url),
+  "utf8",
+);
 
 test("sessao sem respostas nao gera ids para finalizacao", () => {
   assert.deepEqual(
@@ -116,4 +126,33 @@ test("simulado concluido nao volta como ativo e nao deve finalizar de novo", () 
   assert.equal(latestActiveAttempt([{ id: "done", status: "Finalizado", started_at: "2026-07-13T10:00:00Z" }]), undefined);
   assert.equal(canFinalizeAttempt("Finalizado"), false);
   assert.equal(canFinalizeAttempt("Em andamento"), true);
+});
+
+test("praticar diferencia questoes disponiveis da quantidade da sessao", () => {
+  assert.match(questionBankClientSource, /configuredSessionCount/);
+  assert.match(questionBankClientSource, /disponíveis/);
+  assert.match(questionBankClientSource, /nesta sessão/);
+  assert.doesNotMatch(questionBankClientSource, /<p className="tnum text-sm font-semibold text-slate-700">\s*\{filtered\.length\}/);
+});
+
+test("pratica usa modo foco com saida confirmada e explicacao isolada por questao", () => {
+  assert.match(questionBankClientSource, /practiceFocusActive/);
+  assert.match(questionBankClientSource, /<PracticeFocusBar/);
+  assert.match(questionBankClientSource, /Ajustar sessão/);
+  assert.match(questionBankClientSource, /window\.confirm\(/);
+  assert.match(questionBankClientSource, /beforeunload/);
+  assert.match(questionBankClientSource, /Seu progresso fica salvo/);
+  assert.match(questionBankClientSource, /key=\{question\.id\}/);
+  assert.match(questionBankClientSource, /QuestionExplanationCreditAction/);
+  assert.match(questionBankClientSource, /toggleQuestionFavoriteAction/);
+});
+
+test("simulado ativo preserva foco, nao exibe explicacao e bloqueia finalizacao repetida", () => {
+  assert.match(simulationsClientSource, /beforeunload/);
+  assert.match(simulationsClientSource, /finishingSimulationRef/);
+  assert.match(simulationsClientSource, /if \(finishingSimulationRef\.current \|\| finished\) return/);
+  assert.match(simulationsClientSource, /Sair.*sem finalizar/s);
+  assert.match(simulationsClientSource, /Finalizar e ver nota/);
+  assert.doesNotMatch(simulationsClientSource, /QuestionExplanationCreditAction/);
+  assert.doesNotMatch(simulationsClientSource, /correct_option/);
 });

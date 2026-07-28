@@ -1,5 +1,9 @@
 import { calculatePriorityScore, priorityLabel } from "@/lib/db/scoring";
 import type { TopicPerformance, TopicWithSubject } from "@/lib/db/types";
+import {
+  normalizeSelfAssessmentRating,
+  perceivedDifficultyPriorityBoost,
+} from "@/lib/study/self-assessment-priority.mjs";
 
 /**
  * Motor único de priorização de assuntos.
@@ -19,7 +23,7 @@ export type PrioritizedTopic = {
   reason: string;
 };
 
-/** Autopercepção de dificuldade por área, na escala de 1 a 5 do diagnóstico. */
+/** Autopercepção por área: 1 = mais dificuldade, 5 = mais facilidade. */
 export type PerceivedDifficulties = Record<string, number | string>;
 
 export function prioritizeTopics(
@@ -53,7 +57,7 @@ export function prioritizeTopics(
         b.score - a.score ||
         Number(b.topic.historical_recurrence ?? 0) -
           Number(a.topic.historical_recurrence ?? 0) ||
-        a.topic.name.localeCompare(b.topic.name),
+        a.topic.name.localeCompare(b.topic.name, "pt-BR"),
     );
 }
 
@@ -68,11 +72,11 @@ function buildPriorityReason(
   const area = topic.subjects?.area;
 
   if (!answered) {
-    if (area && areaDifficulty != null && areaDifficulty >= 4) {
-      return `Você marcou ${area} como uma área difícil e este assunto ${recurrence}.`;
-    }
     if (area && areaDifficulty != null && areaDifficulty <= 2) {
-      return `Você marcou ${area} como uma área tranquila, mas este assunto ${recurrence} — confirme resolvendo questões.`;
+      return `Você marcou ${area} como uma área de maior dificuldade; este assunto ${recurrence}.`;
+    }
+    if (area && areaDifficulty != null && areaDifficulty >= 4) {
+      return `Você marcou ${area} com mais facilidade, mas este assunto ${recurrence} - confirme resolvendo questões.`;
     }
     if (fromDiagnosis) {
       return `${sentence(recurrence)} e entrou na sua lista pelas respostas do seu diagnóstico. Resolva algumas questões para ajustarmos com seus acertos.`;
@@ -98,7 +102,13 @@ function areaDifficultyFor(
   const area = topic.subjects?.area;
   if (!area || !perceivedDifficulties) return null;
   const value = Number(perceivedDifficulties[area]);
-  return Number.isFinite(value) && value >= 1 && value <= 5 ? value : null;
+  return Number.isFinite(value) && value >= 1 && value <= 5
+    ? normalizeSelfAssessmentRating(value)
+    : null;
+}
+
+export function priorityBoostFromSelfAssessment(value: number | string) {
+  return perceivedDifficultyPriorityBoost(value);
 }
 
 function recurrenceClause(topic: TopicWithSubject) {

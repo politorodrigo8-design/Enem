@@ -18,7 +18,7 @@ export default async function EssayCorrectionPage() {
     <div>
       <DashboardPageHeader
         title="Redação"
-        description="Escreva ou fotografe sua redação e receba a correção pelas cinco competências do ENEM."
+        description="Envie sua redação e acompanhe a correção por competência."
         action={
           <Link
             href="/dashboard/creditos"
@@ -33,9 +33,8 @@ export default async function EssayCorrectionPage() {
       />
 
       <Notice tone="info" icon={Info} className="mb-6">
-        Cada envio consome {ESSAY_CREDIT_COST_LABEL} e a correção é feita por
-        pessoas: a devolutiva completa fica pronta em {ESSAY_TURNAROUND_LABEL} e
-        aparece no histórico desta página.
+        Cada envio consome {ESSAY_CREDIT_COST_LABEL}. A devolutiva fica pronta
+        em {ESSAY_TURNAROUND_LABEL} e aparece no histórico.
       </Notice>
 
       <EssayCorrectionClient

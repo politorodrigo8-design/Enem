@@ -59,7 +59,7 @@ export function StudyPlanSection({
         <EmptyState
           icon={CalendarDays}
           title="Sua semana ainda não tem plano"
-          description="O plano distribui seus assuntos prioritários pelos dias que você marcou como disponíveis, com uma meta de questões por dia."
+          description="Distribua prioridades pelos dias disponíveis."
           action={
             <Button onClick={generate} disabled={pending || !access.hasPlatformAccess}>
               <RefreshCw className="h-4 w-4" aria-hidden="true" />

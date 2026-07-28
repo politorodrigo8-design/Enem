@@ -33,9 +33,11 @@ test("tema sugerido semanal mantem conteudo editorial estruturado", () => {
   assert.match(contentSource, /active: true/);
 });
 
-test("tema semanal ativo troca por janela de datas", () => {
+test("tema sugerido troca por rotacao deterministica de periodo", () => {
   assert.match(contentSource, /getActiveWeeklyEssayTopic\(currentDate = todayInSaoPaulo\(\)\)/);
-  assert.match(contentSource, /currentDate >= topic\.startsAt && currentDate < topic\.endsAt/);
+  assert.match(contentSource, /ESSAY_TOPIC_ROTATION_DAYS/);
+  assert.match(contentSource, /Math\.floor\(daysBetween\(firstStart, currentDate\) \/ ESSAY_TOPIC_ROTATION_DAYS\)/);
+  assert.match(contentSource, /periodIndex % activeTopics\.length/);
 });
 
 test("sem janela aberta a tela cai para a proposta mais recente, nunca fica vazia", () => {
@@ -49,8 +51,9 @@ test("sem janela aberta a tela cai para a proposta mais recente, nunca fica vazi
 });
 
 test("card semanal oferece a proposta completa sem expor historico vazio", () => {
-  assert.match(cardSource, /Tema sugerido da semana/);
+  assert.match(cardSource, /Tema de hoje/);
   assert.match(cardSource, /Proposta de treino/);
+  assert.match(cardSource, /não\s+representa previsão do ENEM/);
   assert.match(cardSource, /Usar este tema/);
   assert.match(cardSource, /Ver proposta completa/);
   assert.match(cardSource, /Liberar proposta completa/);

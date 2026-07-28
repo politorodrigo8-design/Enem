@@ -9,6 +9,7 @@ import {
   ImageIcon,
   PlayCircle,
   Search,
+  SlidersHorizontal,
   X,
   XCircle,
 } from "lucide-react";
@@ -22,6 +23,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PremiumGate } from "@/components/dashboard/premium-gate";
 import { QuestionExplanationCreditAction } from "@/components/dashboard/ai-credit-actions";
+import { ThemeBadge } from "@/components/dashboard/subject-theme-badge";
 import {
   submitQuestionAnswerAction,
   finishPracticeSessionAction,
@@ -239,7 +241,11 @@ export function QuestionBankClient({
     () => restoredAnswerState,
   );
   const [pending, startTransition] = useTransition();
+  const finishingPracticeRef = useRef(false);
   const [sessionFinished, setSessionFinished] = useState(false);
+  const [practiceFocusActive, setPracticeFocusActive] = useState(
+    () => Boolean(restoredPracticeSession || initialQuestionId || initialTopicName),
+  );
   const [localSessionHydrated, setLocalSessionHydrated] = useState(false);
   const localQuestionProgress = useLocalQuestionProgress();
   const localSessionKey = useMemo(
@@ -319,6 +325,7 @@ export function QuestionBankClient({
     setPracticeSessionId("");
     setSessionAnswerState({});
     setSessionFinished(false);
+    setPracticeFocusActive(true);
     move(0, false);
 
     if (!closesCurrentSession) return;
@@ -333,6 +340,27 @@ export function QuestionBankClient({
     setFocusMode(session.focusMode);
     setSessionSize(session.sessionSize);
     setFilters(session.filters);
+  }
+
+  function enterFocusSession() {
+    if (!sessionQuestions.length) {
+      toast.error("Nenhuma questão encontrada para esta sessão.");
+      return;
+    }
+    setPracticeFocusActive(true);
+    window.requestAnimationFrame(() => {
+      questionCardRef.current?.scrollIntoView({ block: "start" });
+    });
+  }
+
+  function requestSessionAdjustment() {
+    if (hasUnfinishedSubmissions) {
+      const confirmed = window.confirm(
+        "Seu progresso fica salvo e esta sessão pode ser retomada. Ajustar filtros agora não finaliza o bloco; para encerrar definitivamente, use “Finalizar e salvar sessão”. Ajustar sessão?",
+      );
+      if (!confirmed) return;
+    }
+    setPracticeFocusActive(false);
   }
   const currentIndex = Math.min(index, Math.max(sessionQuestions.length - 1, 0));
   const question = sessionQuestions[currentIndex];
@@ -358,6 +386,7 @@ export function QuestionBankClient({
     questionIds: session.questionIds,
     answerState: sessionAnswerState,
   });
+  const configuredSessionCount = sliceForSize(filtered, sessionSize).length;
   const answeredInSession = sessionStats.answered;
   const sessionSubmittedQuestions = sessionStats.answeredQuestionIds
     .map((questionId) => questionById.get(questionId))
@@ -490,6 +519,19 @@ export function QuestionBankClient({
     sessionAnswerState,
     sessionFinished,
   ]);
+
+  useEffect(() => {
+    if (!hasUnfinishedSubmissions || sessionFinished) return;
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue =
+        "Seu progresso fica salvo e a sessão pode ser retomada depois.";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [hasUnfinishedSubmissions, sessionFinished]);
 
   function move(nextIndex: number, persistProgress = true) {
     const safeIndex = Math.max(0, nextIndex);
@@ -629,18 +671,25 @@ export function QuestionBankClient({
   }
 
   function finishSession() {
+    if (finishingPracticeRef.current) return;
     if (!sessionSubmittedCount) {
       toast.error("Responda pelo menos uma questão desta sessão antes de finalizar.");
       return;
     }
 
+    finishingPracticeRef.current = true;
     startTransition(async () => {
-      const response = await closeSessionOnServer();
-      toast[response.ok ? "success" : "error"](response.message);
-      if (response.ok) {
-        setSessionFinished(true);
-        setPracticeSessionId("");
-        router.refresh();
+      try {
+        const response = await closeSessionOnServer();
+        toast[response.ok ? "success" : "error"](response.message);
+        if (response.ok) {
+          setSessionFinished(true);
+          setPracticeFocusActive(false);
+          setPracticeSessionId("");
+          router.refresh();
+        }
+      } finally {
+        finishingPracticeRef.current = false;
       }
     });
   }
@@ -662,7 +711,7 @@ export function QuestionBankClient({
 
   return (
     <>
-      {initialTopicName ? (
+      {initialTopicName && !practiceFocusActive ? (
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-blue-100 bg-blue-50/70 px-4 py-3">
           <p className="text-sm font-semibold text-blue-950">
             Estudando: {initialTopicName}
@@ -679,6 +728,7 @@ export function QuestionBankClient({
         </div>
       ) : null}
 
+      {!practiceFocusActive ? (
       <section className="mb-6 rounded-lg border border-slate-200 bg-white p-4 shadow-sm shadow-slate-900/5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div
@@ -723,9 +773,10 @@ export function QuestionBankClient({
                 </button>
               ))}
             </div>
-            <p className="tnum text-sm font-semibold text-slate-700">
-              {filtered.length}{" "}
-              {filtered.length === 1 ? "questão" : "questões"}
+            <p className="text-sm font-semibold text-slate-700">
+              <span className="tnum">{filtered.length}</span> disponíveis
+              <span className="text-slate-400"> · </span>
+              <span className="tnum">{configuredSessionCount}</span> nesta sessão
             </p>
           </div>
         </div>
@@ -780,15 +831,16 @@ export function QuestionBankClient({
           </div>
         ) : null}
       </section>
+      ) : null}
 
-      {selectionChanged ? (
+      {selectionChanged && !practiceFocusActive ? (
         <div className="animate-rise mb-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <p className="text-sm font-semibold text-blue-950">
             Seleção alterada —{" "}
             <span className="tnum">
-              {sliceForSize(filtered, sessionSize).length}
+              {configuredSessionCount}
             </span>{" "}
-            {sliceForSize(filtered, sessionSize).length === 1
+            {configuredSessionCount === 1
               ? "questão pronta"
               : "questões prontas"}{" "}
             para a nova sessão.
@@ -809,6 +861,7 @@ export function QuestionBankClient({
         </div>
       ) : null}
 
+      {!practiceFocusActive || sessionFinished ? (
       <section
         className={cn(
           "mb-6 rounded-lg border p-4 shadow-sm shadow-slate-900/5",
@@ -830,7 +883,9 @@ export function QuestionBankClient({
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
               Cada resposta é salva na hora e já conta no seu desempenho.
-              Finalizar fecha o bloco e registra o resumo da sessão.
+              Esta sessão tem {sessionQuestions.length}{" "}
+              {sessionQuestions.length === 1 ? "questão" : "questões"}; finalizar
+              fecha o bloco e registra o resumo.
             </p>
           </div>
           <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center">
@@ -854,6 +909,16 @@ export function QuestionBankClient({
                 <PlayCircle className="h-4 w-4" aria-hidden="true" />
                 Iniciar nova sessão
               </Button>
+            ) : !practiceFocusActive ? (
+              <Button
+                className="whitespace-nowrap"
+                onClick={enterFocusSession}
+                disabled={!sessionQuestions.length}
+              >
+                <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                Resolver {sessionQuestions.length}{" "}
+                {sessionQuestions.length === 1 ? "questão" : "questões"}
+              </Button>
             ) : (
               <Button
                 className="whitespace-nowrap"
@@ -867,8 +932,20 @@ export function QuestionBankClient({
           </div>
         </div>
       </section>
+      ) : (
+        <PracticeFocusBar
+          currentIndex={currentIndex}
+          total={sessionQuestions.length}
+          answered={answeredInSession}
+          correct={sessionSubmittedCorrect}
+          wrong={sessionSubmittedWrong}
+          canFinish={Boolean(sessionSubmittedCount) && !pending}
+          onAdjust={requestSessionAdjustment}
+          onFinish={finishSession}
+        />
+      )}
 
-      {!question ? (
+      {!practiceFocusActive ? null : !question ? (
         <EmptyState
           icon={Search}
           title="Nenhuma questão encontrada"
@@ -902,7 +979,7 @@ export function QuestionBankClient({
         <div
           ref={questionCardRef}
           className={cn(
-            "grid gap-6 xl:grid-cols-[1fr_360px]",
+            "grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]",
             selectionChanged &&
               "pointer-events-none select-none opacity-40 transition-opacity",
           )}
@@ -926,7 +1003,8 @@ export function QuestionBankClient({
                   <Badge tone="slate">
                     {questionBoard(question)} {question.year}
                   </Badge>
-                  <Badge tone="blue">{question.subjects.area}</Badge>
+                  <ThemeBadge kind="area" name={question.subjects.area} />
+                  <ThemeBadge name={question.subjects.name} />
                   <Badge tone="slate">{question.difficulty}</Badge>
                 </div>
               </div>
@@ -1147,11 +1225,17 @@ export function QuestionBankClient({
                     )} resposta(s)`}
                   />
                 </dl>
-                <WhyThisQuestion
-                  question={question}
-                  topicReason={topicPriority?.[question.topics.name]?.reason}
-                />
+                <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                  <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                    Por que esta questão
+                  </summary>
+                  <WhyThisQuestion
+                    question={question}
+                    topicReason={topicPriority?.[question.topics.name]?.reason}
+                  />
+                </details>
                 <QuestionExplanationCreditAction
+                  key={question.id}
                   questionId={question.id}
                   selectedOption={displayedSelected || undefined}
                   disabled={accessBlocked || !currentResult}
@@ -1185,6 +1269,56 @@ export function QuestionBankClient({
         </div>
       )}
     </>
+  );
+}
+
+function PracticeFocusBar({
+  currentIndex,
+  total,
+  answered,
+  correct,
+  wrong,
+  canFinish,
+  onAdjust,
+  onFinish,
+}: {
+  currentIndex: number;
+  total: number;
+  answered: number;
+  correct: number;
+  wrong: number;
+  canFinish: boolean;
+  onAdjust: () => void;
+  onFinish: () => void;
+}) {
+  return (
+    <div className="sticky top-16 z-20 -mx-4 mb-6 flex flex-col gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 xl:-mx-8 xl:px-8">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="tnum rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-950">
+            Questão {currentIndex + 1} de {total}
+          </span>
+          <span className="text-sm font-semibold text-slate-600">
+            {answered}/{total} respondidas
+          </span>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" size="sm" onClick={onAdjust}>
+            <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+            Ajustar sessão
+          </Button>
+          <Button size="sm" onClick={onFinish} disabled={!canFinish}>
+            <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+            Finalizar e salvar
+          </Button>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-center sm:max-w-sm">
+        <SessionMetric label="Progresso" value={`${answered}/${total}`} />
+        <SessionMetric label="Acertos" value={String(correct)} />
+        <SessionMetric label="Erros" value={String(wrong)} />
+      </div>
+    </div>
   );
 }
 
@@ -1265,10 +1399,7 @@ function WhyThisQuestion({
   if (!reason && !recurrenceLabel) return null;
 
   return (
-    <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-      <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-        Por que treinar esta questão
-      </p>
+    <div className="mt-2">
       <p className="mt-1.5 text-xs leading-5 text-slate-600">
         {reason ||
           "O assunto desta questão aparece com frequência nas últimas provas do ENEM."}

@@ -319,12 +319,37 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
   if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
 
   const { supabase, user } = context;
+  const feedbackType =
+    parsed.data.feedback_type === "erro" ? "problema" : parsed.data.feedback_type;
+
+  const { error: inboxError } = await supabase.from("feedbacks" as never).insert({
+    user_id: user.id,
+    email: user.email ?? null,
+    feedback_type: feedbackType,
+    route: parsed.data.route,
+    message: parsed.data.message,
+    rating: parsed.data.rating ?? null,
+    user_agent_summary: parsed.data.user_agent_summary || null,
+    source: parsed.data.source ?? "dashboard",
+    related_id: parsed.data.related_id || null,
+    status: "novo",
+    context: {
+      client_created_at: parsed.data.client_created_at ?? null,
+      legacy_feedback_type: parsed.data.feedback_type,
+    },
+  } as never);
+
+  if (inboxError && inboxError.code !== "42P01") {
+    logServerError("beta.submitFeedback.inbox", inboxError, { userId: user.id });
+    return { ok: false, message: publicDbErrorMessage(inboxError.message) };
+  }
+
   const { error } = await supabase.from("beta_feedback").insert({
     user_id: user.id,
     feedback_type: parsed.data.feedback_type,
     route: parsed.data.route,
     message: parsed.data.message,
-    rating: parsed.data.rating,
+    rating: parsed.data.rating ?? 5,
     easy_to_understand: parsed.data.easy_to_understand ?? null,
     client_created_at: parsed.data.client_created_at ?? new Date().toISOString(),
   });
@@ -341,7 +366,7 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
     route: parsed.data.route,
     metadata: {
       feedback_type: parsed.data.feedback_type,
-      rating: parsed.data.rating,
+      rating: parsed.data.rating ?? null,
       easy_to_understand: parsed.data.easy_to_understand ?? null,
     },
   });

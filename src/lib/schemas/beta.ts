@@ -40,9 +40,15 @@ export const feedbackSchema = z.object({
   feedback_type: z.enum(["erro", "sugestao", "duvida", "elogio"]),
   route: z.string().min(1).max(200),
   message: z.string().trim().min(8, "Descreva o feedback com um pouco mais de detalhe.").max(1200),
-  rating: z.coerce.number().int().min(1).max(5),
+  rating: z.preprocess(
+    (value) => (value === "" || value === null ? undefined : value),
+    z.coerce.number().int().min(1).max(5).optional(),
+  ),
   easy_to_understand: z.coerce.boolean().optional(),
   client_created_at: z.string().datetime().optional(),
+  user_agent_summary: z.string().trim().max(240).optional().or(z.literal("")),
+  source: z.string().trim().max(80).optional(),
+  related_id: z.string().trim().max(120).optional().or(z.literal("")),
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

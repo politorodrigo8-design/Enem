@@ -188,13 +188,26 @@ export const weeklyEssayTopics: WeeklyEssayTopic[] = [
   },
 ];
 
+export const ESSAY_TOPIC_ROTATION_DAYS = weeklyEssayTopics.length >= 7 ? 1 : 2;
+
 export function getActiveWeeklyEssayTopic(currentDate = todayInSaoPaulo()) {
-  return (
-    weeklyEssayTopics.find(
-      (topic) =>
-        topic.active && currentDate >= topic.startsAt && currentDate < topic.endsAt,
-    ) ?? null
-  );
+  const activeTopics = weeklyEssayTopics
+    .filter((topic) => topic.active)
+    .sort((first, second) => first.startsAt.localeCompare(second.startsAt));
+  if (!activeTopics.length) return null;
+
+  const firstStart = activeTopics[0].startsAt;
+  if (currentDate < firstStart) return null;
+
+  const periodIndex = Math.floor(daysBetween(firstStart, currentDate) / ESSAY_TOPIC_ROTATION_DAYS);
+  const topic = activeTopics[periodIndex % activeTopics.length];
+  const startsAt = addDaysISO(firstStart, periodIndex * ESSAY_TOPIC_ROTATION_DAYS);
+
+  return {
+    ...topic,
+    startsAt,
+    endsAt: addDaysISO(startsAt, ESSAY_TOPIC_ROTATION_DAYS),
+  };
 }
 
 export type WeeklyEssayTopicSuggestion = {
@@ -218,6 +231,19 @@ export function getWeeklyEssayTopicSuggestion(
     .sort((first, second) => second.startsAt.localeCompare(first.startsAt));
 
   return published[0] ? { topic: published[0], isCurrentWeek: false } : null;
+}
+
+function daysBetween(start: string, end: string) {
+  const [startYear, startMonth, startDay] = start.split("-").map(Number);
+  const [endYear, endMonth, endDay] = end.split("-").map(Number);
+  const startUtc = Date.UTC(startYear, startMonth - 1, startDay);
+  const endUtc = Date.UTC(endYear, endMonth - 1, endDay);
+  return Math.max(0, Math.floor((endUtc - startUtc) / 86_400_000));
+}
+
+function addDaysISO(value: string, days: number) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
 }
 
 function todayInSaoPaulo() {

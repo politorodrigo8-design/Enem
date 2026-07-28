@@ -22,6 +22,7 @@ import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AreaBars } from "@/components/charts/area-bars";
 import { StatCard } from "@/components/dashboard/stat-card";
+import { ThemeBadge } from "@/components/dashboard/subject-theme-badge";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,6 +119,7 @@ export function SimulationsClient({
   const [foreignLanguage, setForeignLanguage] = useState<"en" | "es">("en");
   const [pending, startTransition] = useTransition();
   const autoStarted = useRef(false);
+  const finishingSimulationRef = useRef(false);
   // Cronômetro do simulado é acumulado; para gravar o tempo DE CADA questão
   // guardamos o instante da última resposta e enviamos só a diferença.
   const lastAnswerSeconds = useRef(0);
@@ -193,6 +195,20 @@ export function SimulationsClient({
     return () => window.clearTimeout(timeout);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStartId, simulations]);
+
+  useEffect(() => {
+    if (!active || finished) return;
+
+    function handleBeforeUnload(event: BeforeUnloadEvent) {
+      event.preventDefault();
+      event.returnValue = fallbackAttempt
+        ? "Esta tentativa não pode ser retomada se você sair agora."
+        : "Suas respostas ficam salvas e você pode retomar o simulado depois.";
+    }
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [active, fallbackAttempt, finished]);
 
   function generateAndStart(input: {
     title: string;
@@ -276,6 +292,7 @@ export function SimulationsClient({
   }
 
   function finish() {
+    if (finishingSimulationRef.current || finished) return;
     const blankCount = examQuestions.filter((question) => !answers[question.id]).length;
     if (blankCount > 0) {
       const blankLabel =
@@ -286,7 +303,9 @@ export function SimulationsClient({
       if (!confirmed) return;
     }
 
+    finishingSimulationRef.current = true;
     startTransition(async () => {
+      try {
       const result =
         fallbackAttempt && active
           ? await finishFallbackSimulationAction({
@@ -326,6 +345,9 @@ export function SimulationsClient({
           correctness,
         });
         setFinished(true);
+      }
+      } finally {
+        finishingSimulationRef.current = false;
       }
     });
   }
@@ -529,7 +551,8 @@ export function SimulationsClient({
             <Progress value={progress} label="Progresso" className="mb-6" />
             <div key={current.id} className="animate-rise">
               <div className="flex flex-wrap gap-2">
-                <Badge tone="blue">{current.subjects.area}</Badge>
+                <ThemeBadge kind="area" name={current.subjects.area} />
+                <ThemeBadge name={current.subjects.name} />
                 <Badge tone="slate">{current.difficulty}</Badge>
                 <Badge tone="blue">{current.topics.name}</Badge>
               </div>

@@ -90,7 +90,7 @@ export function SmartStudyPlanCreditAction({
           <AiFeatureHeader
             icon={CalendarDays}
             title="Plano inteligente"
-            description="Ajuste sua semana com base no desempenho, nos erros recentes e na sua rotina de estudos."
+            description="Reorganize a semana com seus dados reais."
             titleClassName="gap-2"
             descriptionClassName="mt-1 max-w-2xl text-sm leading-6 text-slate-700"
           />
@@ -122,7 +122,7 @@ export function SmartStudyPlanCreditAction({
       >
         {!result && !pending && !error ? (
           <AiConfirmationDialog
-            description="O plano será reorganizado respeitando sua rotina cadastrada, seu desempenho e as prioridades importadas."
+            description="Respeita sua rotina, desempenho e prioridades importadas."
             cost={AI_STUDY_PLAN_CREDIT_COST}
             balance={creditBalance}
             buttonLabel="Confirmar otimização"
