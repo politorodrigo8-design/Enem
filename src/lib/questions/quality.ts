@@ -49,12 +49,20 @@ const brokenTextFragments = [
 ];
 
 export function isStudentReadyQuestion(question: MinimalQuestionForQuality) {
+  // Questão demonstrativa é dado de semente para desenvolvimento e não pode
+  // chegar a quem pagou (DESIGN.md proíbe expor conteúdo demonstrativo).
+  // Antes ela era ISENTA das checagens de revisão, então um banco sem acervo
+  // importado servia as 11 questões do seed.sql como se fossem o produto — e,
+  // por haver 11 > 0, o acervo local de reserva nem entrava em cena.
+  if (question.is_demo) {
+    return false;
+  }
+
   if (
-    !question.is_demo &&
-    (!question.reviewed ||
-      question.review_status !== "approved" ||
-      !question.source_verified ||
-      !question.answer_verified)
+    !question.reviewed ||
+    question.review_status !== "approved" ||
+    !question.source_verified ||
+    !question.answer_verified
   ) {
     return false;
   }

@@ -286,6 +286,7 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
     .filter(isStudentReadyQuestion)
     .map(stripAnswerKey);
 
+
   // O acervo local só entra quando o banco não tem nada a servir (o retorno de
   // erro acima cobre o banco indisponível). Mesclar os dois quando o banco
   // respondeu injetava questões com id sintético `fallback-question-*`, e

@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   buildQuestionAnswerRecord,
   cleanQuestionStatement,
@@ -11,6 +12,36 @@ import {
   recommendedTopicCount,
   selectRecommendedQuestions,
 } from "../src/lib/questions/rules.mjs";
+
+const qualitySource = readFileSync(
+  new URL("../src/lib/questions/quality.ts", import.meta.url),
+  "utf8",
+);
+const queriesSource = readFileSync(
+  new URL("../src/lib/db/queries.ts", import.meta.url),
+  "utf8",
+);
+
+// quality.ts é TypeScript e não pode ser importado por estes testes; a regra é
+// travada pela fonte. Foi a ausência dessa guarda que deixou passar um banco sem
+// acervo servindo as 11 questões demonstrativas do seed.sql como se fossem o
+// produto — e, por serem 11 > 0, o acervo local de reserva nem era consultado.
+test("questao demonstrativa nunca chega ao aluno e a revisao e obrigatoria", () => {
+  assert.match(qualitySource, /if \(question\.is_demo\) \{\s*return false;/);
+  // O portão de revisão não pode voltar a ter exceção para is_demo.
+  assert.doesNotMatch(qualitySource, /!question\.is_demo &&/);
+  assert.match(
+    qualitySource,
+    /!question\.reviewed \|\|\s*question\.review_status !== "approved"/,
+  );
+});
+
+test("acervo local entra quando o banco nao tem questao liberada", () => {
+  assert.match(queriesSource, /if \(readyRecords\.length > 0\) \{\s*return readyRecords;/);
+  assert.match(queriesSource, /return getFallbackQuestionRecords\(\);/);
+  // Paginação: sem ela a API corta em max_rows e o acervo para de crescer.
+  assert.match(queriesSource, /\.range\(from, from \+ questionPageSize - 1\)/);
+});
 
 test("monta payload real de persistencia de resposta e resultado correto", () => {
   const answer = buildQuestionAnswerRecord({

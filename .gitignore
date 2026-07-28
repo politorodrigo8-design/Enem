@@ -55,3 +55,6 @@ next-env.d.ts
 
 # Provas oficiais do INEP (baixar via download.inep.gov.br, nao versionar 65MB de PDF)
 provas-oficiais/
+
+# listas de reversão de operações em banco (contêm ids, não segredos)
+.rollback-*.json
