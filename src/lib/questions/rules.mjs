@@ -111,6 +111,31 @@ export function nextReviewToggle(existingReview, userId, questionId) {
   };
 }
 
+export function nextFavoriteToggle(existingFavorite, userId, questionId) {
+  if (!userId) throw new Error("Usuario obrigatorio para favoritar questao.");
+  if (!questionId) throw new Error("Questao obrigatoria para favoritar.");
+
+  if (existingFavorite?.id) {
+    return {
+      operation: "delete",
+      favorited: false,
+      id: existingFavorite.id,
+      userId,
+      message: "Questao removida das favoritas.",
+    };
+  }
+
+  return {
+    operation: "insert",
+    favorited: true,
+    row: {
+      user_id: userId,
+      question_id: questionId,
+    },
+    message: "Questao salva nas favoritas.",
+  };
+}
+
 /**
  * Tamanho da recomendação: poucos assuntos prioritários, um punhado de questões
  * em cada. Sem esse corte "Recomendadas" era o acervo inteiro só reordenado —

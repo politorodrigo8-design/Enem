@@ -19,7 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { markReviewMasteredAction, submitQuestionAnswerAction } from "@/lib/actions/learning";
+import { submitQuestionAnswerAction } from "@/lib/actions/learning";
 import type { QuestionRecord } from "@/lib/db/types";
 import {
   isLocalQuestionId,
@@ -27,7 +27,7 @@ import {
 } from "@/lib/local-question-progress";
 import { cn } from "@/lib/utils";
 
-type ReviewFilter = "Para refazer" | "Acertadas" | "Marcadas";
+type ReviewFilter = "Para refazer" | "Acertadas" | "Favoritas";
 type RetryResult = {
   selectedOption: string;
   isCorrect: boolean;
@@ -37,11 +37,11 @@ type RetryResult = {
 
 const retryResetDelayMs = 4500;
 
-const filters: ReviewFilter[] = ["Para refazer", "Acertadas", "Marcadas"];
+const filters: ReviewFilter[] = ["Para refazer", "Acertadas", "Favoritas"];
 
-/** Entra no histórico o que já foi respondido ou marcado para voltar depois. */
+/** Entra no histórico o que já foi respondido ou salvo como favorito. */
 export function hasReviewHistory(question: QuestionRecord) {
-  return Boolean(question.user_question_answers?.length) || isMarked(question);
+  return Boolean(question.user_question_answers?.length) || isFavorite(question);
 }
 
 export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
@@ -60,7 +60,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
       "Para refazer": history.filter((question) => matchesFilter(question, "Para refazer"))
         .length,
       Acertadas: history.filter((question) => matchesFilter(question, "Acertadas")).length,
-      Marcadas: history.filter((question) => matchesFilter(question, "Marcadas")).length,
+      Favoritas: history.filter((question) => matchesFilter(question, "Favoritas")).length,
     }),
     [history],
   );
@@ -137,12 +137,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
         });
       }
 
-      if (retryResult.isCorrect) {
-        if (isLocalQuestionId(target.id) || !isMarked(target)) return;
-        const mastered = await markReviewMasteredAction(target.id);
-        if (!mastered.ok) toast.error(mastered.message);
-        return;
-      }
+      if (retryResult.isCorrect) return;
 
       window.setTimeout(() => {
         setResults((current) => {
@@ -164,7 +159,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
       <EmptyState
         icon={Search}
         title="Nada por aqui ainda"
-        description="Suas questões respondidas, os erros e as marcadas aparecem aqui depois dos treinos."
+        description="Suas questões respondidas, os erros e as favoritas aparecem aqui depois dos treinos."
         action={
           <Link
             href="/dashboard/praticar?tab=banco"
@@ -189,7 +184,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
             </span>
           </p>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Tudo que você já respondeu ou marcou no treino, uma questão por vez.
+            Tudo que você já respondeu ou salvou nas favoritas, uma questão por vez.
           </p>
         </div>
       </div>
@@ -221,9 +216,8 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
 
       {filter === "Para refazer" ? (
         <p className="mt-3 text-xs leading-5 text-slate-500">
-          Responda até acertar: esta fila reúne o que você errou e o que marcou
-          para voltar depois. Quando acertar, a questão sai daqui e fica entre
-          as acertadas.
+          Responda até acertar: esta fila reúne as questões em que sua última
+          resposta foi incorreta. Quando acertar, ela passa para as acertadas.
         </p>
       ) : null}
 
@@ -234,10 +228,10 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
             title="Nada neste filtro"
             description={
               filter === "Para refazer"
-                ? "Você não tem questões erradas nem marcadas esperando por você."
+                ? "Você não tem questões erradas esperando por você."
                 : filter === "Acertadas"
                   ? "Você ainda não acertou nenhuma questão no treino."
-                  : "Você ainda não marcou questões para voltar depois."
+                  : "Você ainda não salvou questões como favoritas."
             }
             action={
               <Button
@@ -330,7 +324,7 @@ function QuestionReviewCard({
               </Badge>
               <Badge tone="blue">{question.subjects.area}</Badge>
               <Badge tone="slate">{question.difficulty}</Badge>
-              {isMarked(question) ? <Badge tone="amber">Marcada</Badge> : null}
+              {isFavorite(question) ? <Badge tone="amber">Favorita</Badge> : null}
             </div>
           </div>
         </CardHeader>
@@ -432,7 +426,7 @@ function QuestionReviewCard({
                   {latest.selected_option ? `, alternativa ${latest.selected_option}` : ""}.
                 </span>
               ) : (
-                <span>Você marcou esta questão e ainda não respondeu.</span>
+                <span>Você salvou esta questão nas favoritas e ainda não respondeu.</span>
               )}
             </p>
 
@@ -527,15 +521,14 @@ function QuestionReviewCard({
 }
 
 function matchesFilter(question: QuestionRecord, filter: ReviewFilter) {
-  if (filter === "Marcadas") return isMarked(question);
+  if (filter === "Favoritas") return isFavorite(question);
   const latest = latestAnswer(question);
   if (filter === "Acertadas") return Boolean(latest?.is_correct);
-  // "Para refazer" junta o que foi errado com o que o aluno marcou.
-  return isMarked(question) || (Boolean(latest) && !latest?.is_correct);
+  return Boolean(latest) && !latest?.is_correct;
 }
 
-function isMarked(question: QuestionRecord) {
-  return Boolean(question.user_question_reviews?.some((review) => !review.mastered));
+function isFavorite(question: QuestionRecord) {
+  return Boolean(question.user_question_favorites?.length);
 }
 
 function latestAnswer(question: QuestionRecord) {

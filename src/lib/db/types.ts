@@ -42,6 +42,7 @@ export type QuestionRecord = Question & {
     answered_at: string;
   }>;
   user_question_reviews?: Array<{ id: string; mastered: boolean }>;
+  user_question_favorites?: Array<{ id: string }>;
 };
 
 export type CreditsData = {

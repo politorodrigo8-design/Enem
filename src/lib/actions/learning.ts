@@ -25,6 +25,7 @@ import { appDateISO, formatAppDateTime } from "@/lib/dates";
 import { parseSelectedWeekdays, weekdayOffsetFromMonday } from "@/lib/weekdays";
 import {
   buildQuestionAnswerRecord,
+  nextFavoriteToggle,
   nextReviewToggle,
 } from "@/lib/questions/rules.mjs";
 import {
@@ -308,20 +309,6 @@ export async function submitQuestionAnswerAction(input: {
   }
 
   if (error) return learningError("learning.saveDiagnosis", error);
-
-  if (!result.isCorrect) {
-    const { error: reviewError } = await supabase.from("user_question_reviews").upsert(
-      {
-        user_id: user.id,
-        question_id: question.id,
-        mastered: false,
-      },
-      { onConflict: "user_id,question_id" },
-    );
-    if (reviewError) {
-      logServerError("learning.submitQuestionAnswer.reviewQueue", reviewError);
-    }
-  }
 
   if (practiceSessionResult.id) {
     await refreshPracticeSessionStats(supabase, user.id, practiceSessionResult.id);
@@ -880,6 +867,47 @@ export async function toggleQuestionReviewAction(
   return { ok: true, reviewed: toggle.reviewed, message: toggle.message };
 }
 
+export async function toggleQuestionFavoriteAction(
+  questionId: string,
+): Promise<ActionResult & { favorited?: boolean }> {
+  const context = await getUserContext();
+  if ("error" in context) return { ok: false, message: context.error };
+  const { supabase, user } = context;
+
+  const { data: existing, error: selectError } = await supabase
+    .from("user_question_favorites")
+    .select("id")
+    .eq("user_id", user.id)
+    .eq("question_id", questionId)
+    .maybeSingle();
+
+  if (selectError) return learningError("learning.toggleQuestionFavorite.select", selectError);
+
+  const toggle = nextFavoriteToggle(existing, user.id, questionId);
+
+  if (toggle.operation === "delete") {
+    const { error } = await supabase
+      .from("user_question_favorites")
+      .delete()
+      .eq("id", toggle.id)
+      .eq("user_id", user.id);
+
+    if (error) return learningError("learning.toggleQuestionFavorite.delete", error);
+    revalidatePath("/dashboard/praticar");
+    return { ok: true, favorited: toggle.favorited, message: toggle.message };
+  }
+
+  if (!toggle.row) {
+    return { ok: false, message: "Nao foi possivel salvar a questao nas favoritas." };
+  }
+
+  const { error } = await supabase.from("user_question_favorites").insert(toggle.row);
+
+  if (error) return learningError("learning.toggleQuestionFavorite.insert", error);
+  revalidatePath("/dashboard/praticar");
+  return { ok: true, favorited: toggle.favorited, message: toggle.message };
+}
+
 export async function markReviewMasteredAction(questionId: string): Promise<ActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
@@ -1208,6 +1236,7 @@ export async function finishSimulationAction(
     metadata: { total_questions: totalQuestions, correct_answers: correct },
   });
   revalidatePath("/dashboard/simulados");
+  revalidatePath("/dashboard/praticar");
   revalidatePath("/dashboard", "layout");
   return {
     ok: true,

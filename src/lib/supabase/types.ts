@@ -288,6 +288,16 @@ export type Database = {
         Insert: { id?: string; user_id: string; question_id: string; mastered?: boolean };
         Update: Partial<Database["public"]["Tables"]["user_question_reviews"]["Insert"]>;
       };
+      user_question_favorites: {
+        Row: {
+          id: string;
+          user_id: string;
+          question_id: string;
+          created_at: string;
+        };
+        Insert: { id?: string; user_id: string; question_id: string };
+        Update: Partial<Database["public"]["Tables"]["user_question_favorites"]["Insert"]>;
+      };
       simulations: {
         Row: {
           id: string;

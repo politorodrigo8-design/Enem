@@ -8,6 +8,7 @@ import { formatDateTime, getWeekStart } from "@/lib/db/scoring";
 import { prioritizeTopics } from "@/lib/study/priorities";
 import { calculateStudyStreak } from "@/lib/study/streak.mjs";
 import { appDateISO } from "@/lib/dates";
+import { latestQuestionAnswer } from "@/lib/questions/rules.mjs";
 import {
   getFallbackQuestionRecords,
   getFallbackSimulations,
@@ -263,11 +264,13 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
       topics (*),
       question_options (*),
       user_question_answers (id, question_id, practice_session_id, selected_option, is_correct, response_time_seconds, answered_at),
-      user_question_reviews (id, mastered)
+      user_question_reviews (id, mastered),
+      user_question_favorites (id)
     `,
       )
       .eq("user_question_answers.user_id", user.id)
       .eq("user_question_reviews.user_id", user.id)
+      .eq("user_question_favorites.user_id", user.id)
       .order("created_at", { ascending: true })
       .range(from, from + questionPageSize - 1);
 
@@ -652,16 +655,8 @@ export function getDailyQuestionGoal(
 export async function getReviewQuestions() {
   const questions = await getQuestionRecords();
   return questions.filter((question) => {
-    const hasWrongAnswer = question.user_question_answers?.some(
-      (answer) => !answer.is_correct,
-    );
-    const hasActiveReview = question.user_question_reviews?.some(
-      (review) => !review.mastered,
-    );
-    const wasMarkedMastered = question.user_question_reviews?.some(
-      (review) => review.mastered,
-    );
-    return hasActiveReview || (hasWrongAnswer && !wasMarkedMastered);
+    const latest = latestQuestionAnswer(question.user_question_answers ?? []);
+    return Boolean(latest && !latest.is_correct);
   });
 }
 

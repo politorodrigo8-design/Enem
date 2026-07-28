@@ -25,7 +25,7 @@ import { QuestionExplanationCreditAction } from "@/components/dashboard/ai-credi
 import {
   submitQuestionAnswerAction,
   finishPracticeSessionAction,
-  toggleQuestionReviewAction,
+  toggleQuestionFavoriteAction,
   updatePracticeSessionProgressAction,
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
@@ -220,11 +220,11 @@ export function QuestionBankClient({
       }),
     ),
   );
-  const [reviewState, setReviewState] = useState(() =>
+  const [favoriteState, setFavoriteState] = useState(() =>
     Object.fromEntries(
       questions.map((question) => [
         question.id,
-        Boolean(question.user_question_reviews?.length),
+        Boolean(question.user_question_favorites?.length),
       ]),
     ),
   );
@@ -265,11 +265,11 @@ export function QuestionBankClient({
         questions: orderedQuestions,
         focusMode,
         answerState,
-        reviewState,
+        favoriteState,
         filters,
         topicPriority,
       }),
-    [answerState, filters, focusMode, orderedQuestions, reviewState, topicPriority],
+    [answerState, favoriteState, filters, focusMode, orderedQuestions, topicPriority],
   );
 
   // A sessão ativa é um retrato congelado: responder questões não a embaralha,
@@ -282,7 +282,7 @@ export function QuestionBankClient({
       sessionSize,
       filters,
       answerState,
-      reviewState,
+      favoriteState,
       topicPriority,
     }),
   );
@@ -537,7 +537,7 @@ export function QuestionBankClient({
           questions: orderedQuestions,
           focusMode: "recommended",
           answerState,
-          reviewState,
+          favoriteState,
           filters: defaultFilters,
           topicPriority,
         }),
@@ -645,15 +645,15 @@ export function QuestionBankClient({
     });
   }
 
-  function addReview() {
+  function toggleFavorite() {
     if (!question) return;
     startTransition(async () => {
-      const response = await toggleQuestionReviewAction(question.id);
+      const response = await toggleQuestionFavoriteAction(question.id);
       toast[response.ok ? "success" : "error"](response.message);
-      if (response.ok && typeof response.reviewed === "boolean") {
-        setReviewState((current) => ({
+      if (response.ok && typeof response.favorited === "boolean") {
+        setFavoriteState((current) => ({
           ...current,
-          [question.id]: Boolean(response.reviewed),
+          [question.id]: Boolean(response.favorited),
         }));
         router.refresh();
       }
@@ -1160,15 +1160,15 @@ export function QuestionBankClient({
                   variant="outline"
                   full
                   className="mt-4"
-                  onClick={addReview}
+                  onClick={toggleFavorite}
                   disabled={pending || accessBlocked}
                 >
-                  {reviewState[question.id] ? (
+                  {favoriteState[question.id] ? (
                     <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
                   ) : (
                     <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
                   )}
-                  {reviewState[question.id]
+                  {favoriteState[question.id]
                     ? "Remover das favoritas"
                     : "Salvar nas favoritas"}
                 </Button>
@@ -1331,25 +1331,25 @@ function filterQuestions({
   questions,
   focusMode,
   answerState,
-  reviewState,
+  favoriteState,
   filters,
   topicPriority,
 }: {
   questions: QuestionRecord[];
   focusMode: FocusMode;
   answerState: Record<string, unknown>;
-  reviewState: Record<string, unknown>;
+  favoriteState: Record<string, unknown>;
   filters: typeof defaultFilters;
   topicPriority?: TopicPriority;
 }) {
   const selected = questions.filter((question) => {
     const answered = Boolean(answerState[question.id]);
-    const reviewed = Boolean(reviewState[question.id]);
+    const favorited = Boolean(favoriteState[question.id]);
 
     const matchesFocus =
       focusMode === "all" ||
       (focusMode === "unanswered" && !answered) ||
-      (focusMode === "review" && reviewed) ||
+      (focusMode === "review" && favorited) ||
       (focusMode === "recommended" && !answered);
 
     const matchesFilters =
@@ -1516,7 +1516,7 @@ function buildInitialSessionSnapshot({
   sessionSize,
   filters,
   answerState,
-  reviewState,
+  favoriteState,
   topicPriority,
 }: {
   restoredPracticeSession?: ActivePracticeSession | null;
@@ -1525,7 +1525,7 @@ function buildInitialSessionSnapshot({
   sessionSize: SessionSize;
   filters: Filters;
   answerState: AnswerState;
-  reviewState: Record<string, boolean>;
+  favoriteState: Record<string, boolean>;
   topicPriority?: TopicPriority;
 }): SessionSnapshot {
   const availableQuestionIds = new Set(orderedQuestions.map((question) => question.id));
@@ -1552,7 +1552,7 @@ function buildInitialSessionSnapshot({
         questions: orderedQuestions,
         focusMode,
         answerState,
-        reviewState,
+        favoriteState,
         filters,
         topicPriority,
       }),
