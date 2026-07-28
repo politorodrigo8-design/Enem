@@ -1,8 +1,8 @@
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
   CheckCircle2,
-  Flame,
   PenLine,
   PlayCircle,
   Timer,
@@ -185,9 +185,14 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
         className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-sm"
         title="Responda questões hoje para iniciar sua sequência."
       >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200">
-          <Flame className="h-4 w-4" aria-hidden="true" />
-        </span>
+        <Image
+          src="/streak-mascot.png"
+          alt=""
+          width={28}
+          height={28}
+          className="h-7 w-7 object-contain"
+          aria-hidden="true"
+        />
         Comece sua sequência hoje
       </span>
     );
@@ -195,10 +200,10 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
 
   return (
     <span
-      className={`tnum relative isolate inline-flex min-h-11 items-center gap-2 overflow-hidden rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset before:absolute before:inset-y-1.5 before:left-1 before:w-1 before:rounded-full ${
+      className={`tnum inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset ${
         activeToday
-          ? "bg-slate-950 text-white ring-slate-900 before:bg-amber-500"
-          : "bg-white text-slate-700 ring-slate-200 before:bg-slate-300"
+          ? "bg-amber-50 text-amber-900 ring-amber-200"
+          : "bg-white text-slate-700 ring-slate-200"
       }`}
       title={
         activeToday
@@ -206,18 +211,17 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
           : "Estude hoje para manter a sequência."
       }
     >
-      <span
-        className={`relative grid h-7 w-7 place-items-center rounded-md ${
-          activeToday
-            ? "bg-amber-400 text-slate-950 ring-1 ring-inset ring-amber-300"
-            : "bg-slate-100 text-slate-500"
-        }`}
-      >
-        <Flame className="h-4 w-4" aria-hidden="true" />
-      </span>
-      <span className="relative flex items-baseline gap-1.5 pr-1">
+      <Image
+        src="/streak-mascot.png"
+        alt=""
+        width={28}
+        height={28}
+        className={`h-7 w-7 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
+        aria-hidden="true"
+      />
+      <span className="flex items-baseline gap-1.5">
         <strong className="text-base leading-none">{streak}</strong>
-        <span className={activeToday ? "text-white/85" : "text-slate-600"}>
+        <span className={activeToday ? "text-amber-800" : "text-slate-600"}>
           {streak === 1 ? "dia seguido" : "dias seguidos"}
         </span>
       </span>
