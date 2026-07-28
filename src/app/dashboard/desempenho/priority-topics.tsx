@@ -131,7 +131,7 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
 
   return (
     <Card>
-      <CardHeader className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <CardHeader className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div>
           <CardTitle>Todos os assuntos</CardTitle>
           <p className="mt-1 text-sm leading-6 text-slate-600">
@@ -139,7 +139,7 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
             recorrência histórica, desempenho e ação direta.
           </p>
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row lg:shrink-0">
+        <div className="flex flex-col gap-2 sm:flex-row xl:shrink-0">
           <label className="relative block">
             <Search
               className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
@@ -150,14 +150,14 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder="Buscar assunto ou disciplina"
-              className="h-10 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:w-64"
+              className="h-11 w-full rounded-lg border border-slate-200 bg-white pl-9 pr-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:h-10 sm:w-64"
             />
           </label>
           <select
             value={area}
             onChange={(event) => setArea(event.target.value)}
             aria-label="Filtrar por área"
-            className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+            className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:h-10"
           >
             {areas.map((option) => (
               <option key={option}>{option}</option>
@@ -171,15 +171,15 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
             {visible.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0"
+                className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">
+                  <p className="break-words text-sm font-medium text-slate-800 sm:truncate">
                     {item.discipline}: {item.name}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3">
+                <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:justify-end">
                   <span className="tnum hidden w-16 text-right text-xs font-semibold text-slate-600 sm:inline-block">
                     {item.recurrence}%
                   </span>
@@ -196,7 +196,7 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
                   </span>
                   <Link
                     href={`/dashboard/praticar?topic=${item.id}`}
-                    className="text-sm font-semibold text-blue-700 hover:text-blue-800"
+                    className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:mx-0 sm:min-h-0 sm:px-0 sm:hover:bg-transparent"
                   >
                     Treinar
                   </Link>

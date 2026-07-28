@@ -65,12 +65,36 @@ export const legalContacts = {
   privacyEmail: null as string | null,
 };
 
+// Fonte única da identificação do fornecedor exigida pelo Decreto 7.962/2013
+// (nome empresarial, CNPJ e endereço em local de destaque) e do encarregado
+// previsto na LGPD. Preencher aqui — o rodapé, os Termos e a Política leem
+// somente deste objeto, sem repetir valor em outro arquivo.
 export const legalEntityConfig = {
   supplierName: null as string | null,
   taxId: null as string | null,
   address: null as string | null,
   privacyOfficer: null as string | null,
 };
+
+export const LEGAL_ENTITY_PENDING_LABEL = "A PREENCHER ANTES DO LANÇAMENTO";
+
+export type LegalEntityLine = { label: string; value: string };
+
+export function getSupplierIdentificationLines(): LegalEntityLine[] {
+  return [
+    { label: "Razão social", value: legalEntityConfig.supplierName },
+    { label: "CNPJ", value: legalEntityConfig.taxId },
+    { label: "Endereço", value: legalEntityConfig.address },
+    { label: "Atendimento", value: legalContacts.supportEmail },
+  ].map(({ label, value }) => ({
+    label,
+    value: value ?? LEGAL_ENTITY_PENDING_LABEL,
+  }));
+}
+
+export function getPrivacyOfficerLabel() {
+  return legalEntityConfig.privacyOfficer ?? LEGAL_ENTITY_PENDING_LABEL;
+}
 
 export function getLegalContactEmail() {
   return legalContacts.privacyEmail ?? legalContacts.supportEmail;

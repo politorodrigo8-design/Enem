@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, ChevronRight, Download, ExternalLink, Loader2, X } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { createEssayFileSignedUrlAction } from "@/lib/actions/credits";
 import type { EssaySubmissionFile } from "@/lib/db/types";
@@ -17,7 +17,42 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
-  useLockPageScroll(activeIndex !== null && signedUrl !== null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const open = activeIndex !== null && signedUrl !== null;
+  useLockPageScroll(open);
+
+  // Esc fecha e Tab circula dentro do painel — o lightbox é modal.
+  useEffect(() => {
+    if (!open) return;
+    const timer = window.setTimeout(() => panelRef.current?.focus(), 0);
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setActiveIndex(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const focusable = panelRef.current?.querySelectorAll<HTMLElement>(
+        "a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex='-1'])",
+      );
+      if (!focusable?.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [open]);
 
   function openFile(index: number, mode: "modal" | "tab" | "download" = "modal") {
     const file = orderedFiles[index];
@@ -96,14 +131,24 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
       </ul>
 
       {activeFile && signedUrl ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto overscroll-contain bg-slate-100/90 p-4 backdrop-blur-[1px]"
-          role="dialog"
-          aria-modal="true"
-          aria-label={`Arquivo da redação, página ${activeFile.page_order}`}
-        >
-          <div className="flex max-h-[calc(100dvh-2rem)] w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl">
-            <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
+        <div className="fixed inset-0 z-50 flex items-center justify-center overscroll-contain p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <button
+            type="button"
+            aria-label="Fechar visualização"
+            className="absolute inset-0 cursor-default bg-slate-100/90 backdrop-blur-[1px]"
+            onClick={() => setActiveIndex(null)}
+          />
+          {/* max-h-full em vez de vh: a altura útil já desconta o padding do
+              contêiner e a área segura inferior. */}
+          <div
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label={`Arquivo da redação, página ${activeFile.page_order}`}
+            tabIndex={-1}
+            className="relative flex max-h-full w-full max-w-5xl flex-col overflow-hidden rounded-lg bg-white shadow-2xl outline-none"
+          >
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
               <div className="min-w-0">
                 <p className="truncate text-sm font-bold text-slate-950">
                   Página {activeFile.page_order}
@@ -112,15 +157,25 @@ export function EssayFilesViewer({ files }: { files: EssaySubmissionFile[] }) {
                   {activeFile.original_name || activeFile.storage_path}
                 </p>
               </div>
-              <Button type="button" variant="ghost" size="sm" onClick={() => setActiveIndex(null)}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                aria-label="Fechar"
+                onClick={() => setActiveIndex(null)}
+              >
                 <X className="h-4 w-4" aria-hidden="true" />
               </Button>
             </div>
             <div className="flex min-h-0 flex-1 items-center justify-center bg-slate-100 p-3">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={signedUrl} alt={`Pagina ${activeFile.page_order}`} className="max-h-[74vh] max-w-full object-contain" />
+              <img
+                src={signedUrl}
+                alt={`Página ${activeFile.page_order}`}
+                className="h-full max-h-full w-full object-contain"
+              />
             </div>
-            <div className="flex items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-t border-slate-200 px-4 py-3">
               <Button
                 type="button"
                 variant="outline"

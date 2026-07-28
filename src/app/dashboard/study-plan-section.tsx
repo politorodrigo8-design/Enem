@@ -21,9 +21,11 @@ import { cn } from "@/lib/utils";
 export function StudyPlanSection({
   plan,
   access,
+  creditBalance,
 }: {
   plan: StudyPlanWithItems | null;
   access: AccessContext;
+  creditBalance: number;
 }) {
   const [pending, startTransition] = useTransition();
   const today = appDateISO();
@@ -65,7 +67,10 @@ export function StudyPlanSection({
             </Button>
           }
         />
-        <SmartStudyPlanCreditAction disabled={!access.hasPlatformAccess} />
+        <SmartStudyPlanCreditAction
+          disabled={!access.hasPlatformAccess}
+          creditBalance={creditBalance}
+        />
       </div>
     );
   }
@@ -83,6 +88,7 @@ export function StudyPlanSection({
           </p>
         </div>
         <Button
+          className="shrink-0"
           variant="outline"
           size="sm"
           onClick={generate}
@@ -131,16 +137,18 @@ export function StudyPlanSection({
                       </span>
                     ) : null}
                   </div>
-                  <p className="mt-0.5 truncate text-sm text-slate-600">
+                  <p className="mt-0.5 break-words text-sm text-slate-600 md:truncate">
                     {task.topics.subjects.name}: {task.topics.name}
                   </p>
                 </div>
-                <div className="flex shrink-0 items-center gap-3 md:justify-end">
+                {/* Ações não encolhem: em 320px o rótulo quebraria dentro da altura fixa do botão. */}
+                <div className="flex shrink-0 items-center justify-between gap-3 md:justify-end">
                   <p className="tnum text-xs text-slate-500">
                     ~{task.duration_minutes} min • {task.question_goal} questões
                   </p>
                   {task.completed ? (
                     <Button
+                      className="shrink-0"
                       variant="outline"
                       size="sm"
                       disabled={pending || !access.hasPlatformAccess}
@@ -151,13 +159,18 @@ export function StudyPlanSection({
                   ) : isToday ? (
                     <Link
                       href={`/dashboard/praticar?topic=${task.topic_id}`}
-                      className={buttonClasses({ variant: "primary", size: "sm" })}
+                      className={buttonClasses({
+                        variant: "primary",
+                        size: "sm",
+                        className: "shrink-0",
+                      })}
                     >
                       <PlayCircle className="h-4 w-4" aria-hidden="true" />
                       Estudar agora
                     </Link>
                   ) : (
                     <Button
+                      className="shrink-0"
                       variant="outline"
                       size="sm"
                       disabled={pending || !access.hasPlatformAccess}
@@ -172,7 +185,10 @@ export function StudyPlanSection({
           })}
         </ul>
         <div className="mt-4 border-t border-slate-100 pt-4">
-          <SmartStudyPlanCreditAction disabled={!access.hasPlatformAccess} />
+          <SmartStudyPlanCreditAction
+            disabled={!access.hasPlatformAccess}
+            creditBalance={creditBalance}
+          />
         </div>
       </CardContent>
     </Card>

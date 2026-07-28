@@ -1,4 +1,10 @@
 import type { QuestionMedia, QuestionOption, QuestionRecord } from "@/lib/db/types";
+import {
+  cleanQuestionStatement,
+  hasOcrResidue,
+  normalizeQuestionTextKey,
+  optionRefersToImage,
+} from "@/lib/questions/rules.mjs";
 
 type MinimalQuestionForQuality = Pick<
   QuestionRecord,
@@ -19,12 +25,18 @@ type MinimalQuestionForQuality = Pick<
 // Chave de comparação de nomes da taxonomia (área/disciplina/assunto): ignora
 // acentos e caixa para que variantes históricas não fragmentem o mesmo assunto.
 export function normalizeTaxonomyKey(value: string) {
-  return value
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
+  return normalizeQuestionTextKey(value);
+}
+
+/**
+ * Aplica a limpeza do enunciado no que vai para a tela. Não altera o dado
+ * gravado: a marca d'água da digitalização continua no banco, só não é exibida.
+ */
+export function withCleanStatements<T extends { statement: string }>(questions: T[]): T[] {
+  return questions.map((question) => {
+    const statement = cleanQuestionStatement(question.statement);
+    return statement === question.statement ? question : { ...question, statement };
+  });
 }
 
 const requiredOptionKeys = ["A", "B", "C", "D", "E"];
@@ -47,22 +59,23 @@ export function isStudentReadyQuestion(question: MinimalQuestionForQuality) {
     return false;
   }
 
-  if (!hasUsableText(question.statement, 40)) {
+  // O enunciado é avaliado limpo: o cabeçalho da digitalização é ruído
+  // removível, mas lixo que sobra depois da limpeza é conteúdo corrompido.
+  const statement = cleanQuestionStatement(question.statement);
+  if (!hasUsableText(statement, 40) || hasOcrResidue(statement)) {
     return false;
   }
 
-  if (!hasCompleteOptions(question.question_options ?? [], question.correct_option)) {
+  const hasMedia =
+    Boolean(question.media_url) ||
+    Boolean(question.question_media?.some((media) => Boolean(media.url)));
+
+  if (!hasCompleteOptions(question.question_options ?? [], question.correct_option, hasMedia)) {
     return false;
   }
 
-  if (question.media_required) {
-    const hasLegacyMedia = Boolean(question.media_url);
-    const hasAssociatedMedia = Boolean(
-      question.question_media?.some((media) => Boolean(media.url)),
-    );
-    if (!hasLegacyMedia && !hasAssociatedMedia) {
-      return false;
-    }
+  if (question.media_required && !hasMedia) {
+    return false;
   }
 
   return true;
@@ -70,7 +83,8 @@ export function isStudentReadyQuestion(question: MinimalQuestionForQuality) {
 
 function hasCompleteOptions(
   options: Array<Pick<QuestionOption, "option_key" | "option_text">>,
-  correctOption?: string,
+  correctOption: string | undefined,
+  hasMedia: boolean,
 ) {
   const normalizedOptions = options.map((option) => ({
     key: option.option_key.trim().toUpperCase(),
@@ -91,6 +105,12 @@ function hasCompleteOptions(
 
   const allTextsUsable = requiredOptions.every((option) => hasUsableText(option.text, 2));
   if (!allTextsUsable) return false;
+
+  // Alternativa que só remete a uma imagem inexistente deixa a questão sem
+  // resposta possível — ainda que as cinco letras estejam preenchidas.
+  if (!hasMedia && requiredOptions.some((option) => optionRefersToImage(option.text))) {
+    return false;
+  }
 
   const normalizedCorrectOption = correctOption?.trim().toUpperCase();
   return !normalizedCorrectOption || optionKeys.has(normalizedCorrectOption);

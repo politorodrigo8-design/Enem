@@ -19,9 +19,9 @@ export function LegalPage({
   sections: Array<{ id: string; heading: string; body: React.ReactNode }>;
 }) {
   return (
-    <main className="bg-slate-50 py-16">
+    <main className="bg-slate-50 py-10 sm:py-16">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <h1 className="animate-rise text-4xl font-display font-semibold tracking-tight text-slate-950">{title}</h1>
+        <h1 className="animate-rise text-3xl font-display font-semibold tracking-tight text-slate-950 sm:text-4xl">{title}</h1>
         <p
           className="animate-rise mt-4 text-base leading-7 text-slate-600"
           style={{ "--rise-delay": "70ms" } as React.CSSProperties}
@@ -32,7 +32,7 @@ export function LegalPage({
         </p>
         <Reveal delay={140}>
           <Card className="mt-8">
-            <CardContent className="p-6 sm:p-8">
+            <CardContent className="p-5 sm:p-8">
               <nav aria-label="Sumário" className="rounded-lg bg-slate-50 p-4">
                 <p className="text-sm font-bold text-slate-950">Sumário</p>
                 <ol className="mt-3 grid gap-2 text-sm leading-6 text-slate-600 sm:grid-cols-2">
@@ -55,7 +55,8 @@ export function LegalPage({
                     <h2 className="text-lg font-bold text-slate-950">
                       {index + 1}. {section.heading}
                     </h2>
-                    <div className="mt-3 space-y-3 text-sm leading-7 text-slate-600">
+                    {/* break-words evita que e-mails de contato estourem a coluna em 320px */}
+                    <div className="mt-3 space-y-3 break-words text-sm leading-7 text-slate-600">
                       {section.body}
                     </div>
                   </section>

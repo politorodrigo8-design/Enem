@@ -9,6 +9,9 @@ import {
   ESSAY_CREDIT_COST,
   ESSAY_SIGNED_URL_EXPIRES_IN_SECONDS,
   ESSAY_STORAGE_BUCKET,
+  ESSAY_TURNAROUND_LABEL,
+  MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES,
+  MAX_ESSAY_UPLOAD_FILES,
   acceptedEssayUploadTypes,
   essayCancelSchema,
   essayCompletionSchema,
@@ -17,6 +20,7 @@ import {
   essaySubmissionSchema,
   essayTransferSchema,
   essayUploadFilesSchema,
+  formatMegabytes,
   onlineEssaySubmissionSchema,
   type EssayCancelInput,
   type EssayCompletionInput,
@@ -66,24 +70,26 @@ async function getAuthenticatedContext() {
 
 function mapEssaySubmitError(message: string) {
   if (message.includes("insufficient credits")) {
-    return "Saldo insuficiente para enviar a redação.";
+    return `Saldo insuficiente: o envio consome ${ESSAY_CREDIT_COST} créditos. Complete o saldo em Créditos e envie de novo.`;
   }
   if (message.includes("missing uploaded files")) {
-    return "Não foi possível confirmar todos os arquivos enviados.";
+    return "Não foi possível confirmar todos os arquivos. Selecione as páginas de novo e reenvie.";
   }
   if (message.includes("pdf must be a single file")) {
-    return "PDF deve ser enviado como arquivo único.";
+    return "PDF deve ser enviado como arquivo único. Remova as fotos e mantenha só o PDF.";
   }
   if (message.includes("total upload size exceeded")) {
-    return "A submissão deve ter no máximo 20 MB no total.";
+    return `O envio passou de ${formatMegabytes(
+      MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES,
+    )}. Fotografe em resolução menor ou envie como PDF.`;
   }
   if (message.includes("platform access required")) {
     return accessRequiredMessage();
   }
   if (message.includes("invalid file count")) {
-    return "Envie de 1 a 2 arquivos por redação.";
+    return `Envie de 1 a ${MAX_ESSAY_UPLOAD_FILES} arquivos por redação.`;
   }
-  return "Não foi possível enviar a redação agora.";
+  return "Não foi possível enviar a redação agora. Verifique a conexão e tente de novo em alguns minutos.";
 }
 
 function mapAdminEssayError(message: string) {
@@ -243,7 +249,7 @@ export async function submitEssayCorrectionAction(
     "initiate_essay_submission",
     {
       input_idempotency_key: parsed.data.idempotencyKey,
-      input_theme: parsed.data.theme || null,
+      input_theme: parsed.data.theme || "Redação sem tema",
       input_student_note: parsed.data.studentNote || null,
       input_expected_file_count: files.length,
     },
@@ -423,7 +429,7 @@ export async function submitOnlineEssayCorrectionAction(
 
   return {
     ok: true,
-    message: `Redação enviada para a fila. Foram debitados ${ESSAY_CREDIT_COST} créditos.`,
+    message: `Redação enviada. Foram debitados ${ESSAY_CREDIT_COST} créditos e a correção fica pronta em ${ESSAY_TURNAROUND_LABEL}.`,
     submissionId: data,
   };
 }
@@ -455,7 +461,7 @@ async function confirmEssayAttempt(
 
   return {
     ok: true,
-    message: `Redação enviada para a fila. Foram debitados ${ESSAY_CREDIT_COST} créditos.`,
+    message: `Redação enviada. Foram debitados ${ESSAY_CREDIT_COST} créditos e a correção fica pronta em ${ESSAY_TURNAROUND_LABEL}.`,
     submissionId: data,
   };
 }

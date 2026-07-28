@@ -34,10 +34,18 @@ export async function createMercadoPagoPreference({
 
   const siteUrl = getSiteUrl();
   const useSandbox = process.env.MERCADO_PAGO_SANDBOX === "true";
+  // Sem notification_url a entrega do acesso depende do comprador voltar ao
+  // site: quem paga por Pix ou boleto no app do banco e fecha o navegador
+  // ficaria pagando sem receber. O Mercado Pago só aceita HTTPS aqui, então em
+  // desenvolvimento (http://localhost) o campo é omitido e a liberação continua
+  // acontecendo pela reconciliação da página de retorno.
+  const notificationUrl = siteUrl.startsWith("https://")
+    ? `${siteUrl}/api/payments/webhook`
+    : null;
   logMercadoPagoCredentialAudit("preference.create", {
     ...credentials.audit,
     sandboxEnabled: useSandbox,
-    hasNotificationUrl: false,
+    hasNotificationUrl: Boolean(notificationUrl),
   });
   const orderMetadata = isPlainObject(order.metadata) ? order.metadata : {};
   const response = await fetch(`${API_BASE}/checkout/preferences`, {
@@ -74,6 +82,7 @@ export async function createMercadoPagoPreference({
         failure: `${siteUrl}/pagamento/falha?order=${order.id}`,
       },
       auto_return: "approved",
+      ...(notificationUrl ? { notification_url: notificationUrl } : {}),
     }),
     cache: "no-store",
   });

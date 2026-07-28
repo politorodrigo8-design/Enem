@@ -28,4 +28,4 @@ export function estimateEnemScore(
 }
 
 export const ENEM_SCORE_ESTIMATE_NOTE =
-  "Estimativa na escala de 300 a 1000, ponderada pela dificuldade das questões. Não é o cálculo TRI oficial do Inep.";
+  "Esta nota é uma estimativa de estudo na escala de 300 a 1000, ponderada pela dificuldade das questões: serve para você comparar sua evolução entre simulados. Não é o cálculo oficial do Inep nem previsão da sua nota no ENEM.";

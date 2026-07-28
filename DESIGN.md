@@ -5,6 +5,7 @@ Estética nomeada: **"caderno de prova"** — editorial, papel claro, tinta escu
 ## Tipografia
 
 - **UI e corpo:** Geist Sans (`--font-geist-sans`). Body ≥ 16px no marketing, 14px no dashboard.
+- **Piso de 16px em campos abaixo de `sm`:** `input`, `select` e `textarea` recebem 16px por regra global em `globals.css`. Menos que isso e o iOS Safari aplica zoom ao focar e não desfaz no blur — a interface inteira fica escalada. A densidade de 14px do dashboard continua valendo a partir de `sm`. Não repetir `text-base sm:text-sm` campo por campo: a regra é global.
 - **Display (marketing apenas):** Fraunces (`--font-display`), pesos 500–600, para `h1`/`h2` da landing e páginas públicas. Dá identidade editorial sem cair no "Inter em tudo". O dashboard NÃO usa a display — lá é trabalho, não vitrine.
 - Números de estatística sempre com `tabular-nums`.
 - Hierarquia por peso e tamanho, nunca por adicionar famílias novas.
@@ -35,6 +36,18 @@ Estética nomeada: **"caderno de prova"** — editorial, papel claro, tinta escu
 - Grid de 8pt (4px como meio-passo). Container do marketing `max-w-6xl`; dashboard `max-w-7xl`.
 - Seções da landing variam de ritmo (não repetir o mesmo `py` + título centrado em todas); alternância de fundo branco/`slate-50` é permitida, mas o layout interno deve variar (texto à esquerda, split, lista editorial).
 - Dashboard: densidade de trabalho — linhas compactas, tipografia menor, cor só onde há informação.
+
+## Responsividade
+
+Breakpoints do Tailwind v4: `sm` 640 · `md` 768 · `lg` 1024 · `xl` 1280. Referências de teste: 320, 375, 768, 1024, 1440 e paisagem curta (667×375).
+
+- **Container do dashboard mora no shell**, não nas páginas: `dashboard-shell.tsx` aplica `mx-auto w-full max-w-7xl`. Página nenhuma repete `max-w-7xl`.
+- **Sidebar escalonada:** `w-72` no drawer mobile, `lg:w-60`, `xl:w-72`. Entrar em `lg` com 288px fixos deixava o conteúdo em 1024px mais estreito (672px) que em 768px (720px) — exatamente onde as grades de 3 colunas ligam.
+- **Alvo de toque mínimo de 44px abaixo de `sm`.** O primitivo `Button` já garante (`h-11 … sm:h-9/h-10`); controle que não usa o primitivo (chip, tab, botão de ícone) precisa garantir por conta. Exceção: link inline dentro de frase corrida (WCAG 2.5.8) — cresça a área com `-my-*` + `min-h-11` quando o controle for autônomo.
+- **Padding de card em dois passos:** `p-4` abaixo de `sm`, `p-5` a partir dele (no primitivo `Card`, não nas páginas). Em 320px, `p-5` consumia 40px dos 288px úteis.
+- **Faixa de tablet (768–1023px) é decisão explícita, não sobra.** Não saltar de 1 para 3 colunas: passar por 2.
+- **`truncate` dentro de item de grid/flex exige `min-w-0` em todos os elos** até o item. `truncate` implica `white-space: nowrap`, o min-content sobe pela árvore e o item — que tem `min-width: auto` — deixa de encolher, estourando o card. `html, body { overflow-x: clip }` esconde o sintoma: o conteúdo é cortado em vez de gerar scroll. Ausência de scroll horizontal não é prova de que não estoura; medir com `getBoundingClientRect`.
+- **Overlay** usa `100dvh` (nunca `100vh`), tem scroll interno próprio, trava o scroll da página e fecha por backdrop e `Esc`. Elemento fixo no rodapé respeita `env(safe-area-inset-bottom)`.
 
 ## Motion
 

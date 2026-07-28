@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { BookOpenCheck, Target, TrendingUp } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { evolutionData } from "@/data/student";
+import { BookOpenCheck, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const startScore = evolutionData[0].score;
-const finalScore = evolutionData[evolutionData.length - 1].score;
+// Série ilustrativa: mostra o formato do painel, não resultado medido de aluno.
+// A progressão é modesta de propósito — o produto não promete ganho de pontos.
+const illustrativeWeeks = [
+  { label: "Sem 1", score: 596 },
+  { label: "Sem 2", score: 608 },
+  { label: "Sem 3", score: 619 },
+  { label: "Sem 4", score: 627 },
+  { label: "Sem 5", score: 638 },
+  { label: "Sem 6", score: 648 },
+];
+
+const startScore = illustrativeWeeks[0].score;
+const finalScore = illustrativeWeeks[illustrativeWeeks.length - 1].score;
 const scoreGain = finalScore - startScore;
 
 const priorities = [
@@ -79,8 +88,8 @@ export function HeroPanel() {
     >
       <div className="p-5">
         <div {...step(0)}>
-          <div className="flex items-center justify-between">
-            <div>
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-500">
                 Painel estratégico
               </p>
@@ -88,14 +97,13 @@ export function HeroPanel() {
                 Faixa atual <span className="tnum">{score - 18}-{score + 18}</span>
               </p>
             </div>
-            <Badge tone="green">
-              <TrendingUp className="mr-1 h-3.5 w-3.5" aria-hidden="true" />+
-              {scoreGain} pts de evolução estimada
-            </Badge>
+            <p className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Ilustração da interface
+            </p>
           </div>
           <p className="mt-2 text-xs leading-5 text-slate-500">
-            Indicador educacional baseado no desempenho registrado, sem previsão
-            garantida de nota.
+            Indicador educacional calculado a partir do desempenho registrado na
+            conta, sem previsão garantida de nota.
           </p>
           <div className="mt-3 flex flex-wrap gap-2 border-b border-slate-100 pb-4">
             <span className="inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
@@ -110,7 +118,7 @@ export function HeroPanel() {
         </div>
 
         <div {...step(180)}>
-          <div className="mt-4 flex items-baseline justify-between">
+          <div className="mt-4 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <p className="text-sm font-semibold text-slate-950">
               Evolução estimada
             </p>
@@ -119,8 +127,8 @@ export function HeroPanel() {
             </p>
           </div>
           <div className="mt-3 grid grid-cols-6 gap-2">
-            {evolutionData.map((item, index) => {
-              const isLast = index === evolutionData.length - 1;
+            {illustrativeWeeks.map((item, index) => {
+              const isLast = index === illustrativeWeeks.length - 1;
               return (
                 <div key={item.label}>
                   <div className="flex h-24 items-end rounded-md bg-slate-100 p-1">
@@ -152,7 +160,7 @@ export function HeroPanel() {
         </div>
 
         <div {...step(700)}>
-          <div className="mt-5 flex items-baseline justify-between">
+          <div className="mt-5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
             <p className="text-sm font-semibold text-slate-950">
               Onde você mais perde pontos
             </p>
@@ -161,16 +169,16 @@ export function HeroPanel() {
           <div className="mt-3 space-y-3.5">
             {priorities.map((priority, index) => (
               <div key={priority.topic}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 font-medium text-slate-700">
+                <div className="mb-1.5 flex items-center justify-between gap-2 text-sm">
+                  <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-medium text-slate-700">
                     {priority.topic}
                     {priority.critical ? (
-                      <span className="rounded bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700">
+                      <span className="rounded bg-rose-50 px-1.5 py-0.5 text-xs font-semibold text-rose-700">
                         começar por aqui
                       </span>
                     ) : null}
                   </span>
-                  <span className="tnum font-semibold text-slate-950">
+                  <span className="tnum shrink-0 font-semibold text-slate-950">
                     {priority.accuracy}%
                   </span>
                 </div>

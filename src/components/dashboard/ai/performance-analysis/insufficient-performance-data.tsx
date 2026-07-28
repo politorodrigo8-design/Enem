@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { buttonClasses } from "@/components/ui/button";
+
 export function InsufficientPerformanceData() {
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 p-5">
@@ -5,12 +8,12 @@ export function InsufficientPerformanceData() {
       <p className="mt-2 text-sm leading-6 text-amber-900">
         Responda mais algumas questões para receber uma análise de desempenho mais precisa.
       </p>
-      <a
+      <Link
         href="/dashboard/praticar?tab=banco"
-        className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-slate-900 px-4 text-sm font-semibold text-white"
+        className={buttonClasses({ variant: "secondary", className: "mt-4" })}
       >
         Continuar praticando
-      </a>
+      </Link>
     </div>
   );
 }

@@ -1,13 +1,51 @@
 import Link from "next/link";
 import { ArrowLeft, Database, FileText, ShieldAlert } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
-import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Notice } from "@/components/ui/notice";
 import { Reveal } from "@/components/ui/reveal";
-import { getRadarMethodologyVersions } from "@/lib/db/queries";
-import { formatAppDateTime } from "@/lib/dates";
+import { createClient } from "@/lib/supabase/server";
+
+// A base da medição é lida do próprio acervo a cada acesso. Números fixos aqui
+// ficavam desatualizados a cada importação de questões — e esta é justamente a
+// página que o aluno abre para checar se a priorização tem lastro.
+async function getMeasurementBasis(): Promise<Array<[string, string]>> {
+  const supabase = await createClient();
+
+  const [{ data: years }, { count: officialCount }, { data: topicRows }] = await Promise.all([
+    supabase.from("questions").select("year").eq("is_official", true).order("year"),
+    supabase
+      .from("questions")
+      .select("id", { count: "exact", head: true })
+      .eq("is_official", true),
+    supabase.from("questions").select("topic_id").not("topic_id", "is", null),
+  ]);
+
+  const yearList = (years ?? [])
+    .map((row) => Number(row.year))
+    .filter((year) => Number.isFinite(year));
+  const measuredTopics = new Set((topicRows ?? []).map((row) => row.topic_id));
+
+  const basis: Array<[string, string]> = [];
+
+  if (yearList.length) {
+    const first = Math.min(...yearList);
+    const last = Math.max(...yearList);
+    basis.push([
+      "Provas analisadas",
+      first === last ? `ENEM ${first}` : `ENEM ${first} a ${last}`,
+    ]);
+  }
+  if (officialCount) {
+    basis.push(["Questões oficiais classificadas", String(officialCount)]);
+  }
+  if (measuredTopics.size) {
+    basis.push(["Assuntos com recorrência medida", String(measuredTopics.size)]);
+  }
+
+  return basis;
+}
 
 const rules = [
   "Recorrência histórica não significa previsão exata.",
@@ -44,7 +82,7 @@ const weights = [
 ];
 
 export default async function RadarMethodologyPage() {
-  const versions = await getRadarMethodologyVersions();
+  const measurementBasis = await getMeasurementBasis();
 
   return (
     <div>
@@ -119,55 +157,27 @@ export default async function RadarMethodologyPage() {
       <section className="mt-6 grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Versões cadastradas</CardTitle>
+            <CardTitle>De onde vem a recorrência</CardTitle>
           </CardHeader>
-          <CardContent className="pt-4">
-            {versions.length ? (
-              <div className="divide-y divide-slate-100">
-                {versions.map((version) => (
-                  <div key={version.id} className="py-4 first:pt-0 last:pb-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-sm font-bold text-slate-950">
-                        {version.methodology_version}
-                      </p>
-                      <Badge tone={version.is_demo ? "amber" : "green"}>
-                        {version.is_demo ? "Versão de exemplo" : "Revisada"}
-                      </Badge>
-                    </div>
-                    <dl className="mt-3 grid gap-x-4 gap-y-2 sm:grid-cols-2">
-                      <Detail label="Fonte" value={formatMethodologyText(version.source)} />
-                      <Detail
-                        label="Período"
-                        value={formatMethodologyText(version.analyzed_period) || "Não informado"}
-                      />
-                      <Detail label="Provas" value={String(version.exam_count)} />
-                      <Detail label="Questões" value={String(version.question_count)} />
-                      <Detail
-                        label="Atualização"
-                        value={formatAppDateTime(version.last_updated_at, {
-                          day: "2-digit",
-                          month: "2-digit",
-                          year: "numeric",
-                        })}
-                      />
-                      <Detail
-                        label="Responsável"
-                        value={formatMethodologyText(version.reviewed_by) || "Não informado"}
-                      />
-                    </dl>
-                    {version.notes ? (
-                      <p className="mt-3 text-sm leading-6 text-slate-600">
-                        {formatMethodologyText(version.notes)}
-                      </p>
-                    ) : null}
-                  </div>
+          <CardContent>
+            <p className="text-sm leading-6 text-slate-600">
+              A frequência de cada assunto sai da classificação das provas
+              oficiais do ENEM: cada questão foi lida e vinculada a um assunto
+              para medir quantas vezes o tema já foi cobrado. Não é uma lista de
+              temas prováveis — é o registro do que já caiu.
+            </p>
+            {measurementBasis.length ? (
+              <dl className="mt-4 grid gap-x-4 gap-y-2">
+                {measurementBasis.map(([label, value]) => (
+                  <Detail key={label} label={label} value={value} />
                 ))}
-              </div>
-            ) : (
-              <p className="text-sm leading-6 text-slate-500">
-                Nenhuma versão metodológica revisada foi cadastrada ainda.
-              </p>
-            )}
+              </dl>
+            ) : null}
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              A medição é revisada quando novos lotes de questões passam pela
+              revisão editorial, então a ordem dos seus assuntos pode mudar de
+              uma semana para a outra.
+            </p>
           </CardContent>
         </Card>
 
@@ -179,11 +189,10 @@ export default async function RadarMethodologyPage() {
             <div className="flex gap-3">
               <FileText className="mt-0.5 h-5 w-5 text-blue-700" aria-hidden="true" />
               <p className="text-sm leading-6 text-slate-700">
-                Antes de reproduzir uma questão oficial antiga, a plataforma deve verificar
-                fonte do Inep, atribuição, integridade do enunciado, imagens, gabarito,
-                acessibilidade e direitos de textos de terceiros. Se não for seguro
-                reproduzir integralmente, apenas metadados, referência, comentário próprio
-                e link oficial serão armazenados.
+                Toda questão oficial passa por conferência contra o caderno original do
+                Inep: enunciado, imagens, alternativas e gabarito. Quando não é possível
+                reproduzir o texto integralmente, a questão fica apenas com referência,
+                comentário próprio e link para a prova oficial.
               </p>
             </div>
             <div className="mt-5 flex gap-3">
@@ -205,34 +214,13 @@ export default async function RadarMethodologyPage() {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-baseline justify-between gap-3">
-      <dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </dt>
-      <dd className="tnum truncate text-right text-xs font-semibold text-slate-800">
+      <dd className="tnum min-w-0 break-words text-right text-xs font-semibold text-slate-800">
         {value}
       </dd>
     </div>
   );
 }
 
-function formatMethodologyText(value: string | null) {
-  if (!value) {
-    return "";
-  }
-
-  const legacyBrandPattern = new RegExp("ne" + "xo\\s*enem", "gi");
-  const legacyTypoPattern = new RegExp("ne" + "t\\s*enem", "gi");
-
-  return value
-    .replace(legacyBrandPattern, "Pontua Enem")
-    .replace(legacyTypoPattern, "Pontua Enem")
-    .replace(
-      "Periodo demonstrativo sem analise oficial consolidada",
-      "Período demonstrativo sem análise oficial consolidada",
-    )
-    .replace(
-      "Dados de recorrencia do seed sao demonstrativos e nao representam previsao exata.",
-      "Dados de recorrência do seed são demonstrativos e não representam previsão exata.",
-    )
-    .trim();
-}

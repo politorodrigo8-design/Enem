@@ -30,7 +30,7 @@ export function Notice({
     <div className={cn("rounded-lg border p-4", tones[tone], className)}>
       <div className="flex gap-3">
         <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
-        <div>
+        <div className="min-w-0 break-words">
           {title ? <p className="font-semibold">{title}</p> : null}
           <div className="text-sm leading-6">{children}</div>
         </div>

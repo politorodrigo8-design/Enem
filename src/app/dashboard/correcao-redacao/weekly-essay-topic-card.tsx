@@ -8,7 +8,6 @@ import {
   Loader2,
   PenLine,
 } from "lucide-react";
-import Link from "next/link";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { AiBalanceAfterUse } from "@/components/dashboard/ai/ai-balance-after-use";
@@ -16,7 +15,7 @@ import { AiConfirmationDialog } from "@/components/dashboard/ai/ai-confirmation-
 import { AiResponsivePanel } from "@/components/dashboard/ai/ai-responsive-panel";
 import { AiSection } from "@/components/dashboard/ai/ai-section";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonClasses } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import {
   WEEKLY_ESSAY_TOPIC_UNLOCK_COST,
   type WeeklyEssayTopic,
@@ -25,18 +24,16 @@ import { unlockWeeklyEssayTopicAction } from "@/lib/actions/credits";
 
 export function WeeklyEssayTopicCard({
   topic,
-  topicCount,
+  isCurrentWeek,
   creditBalance,
   initiallyUnlocked,
-  otherTopicsHref,
   onUseTopic,
   onBalanceChange,
 }: {
   topic: WeeklyEssayTopic;
-  topicCount: number;
+  isCurrentWeek: boolean;
   creditBalance: number;
   initiallyUnlocked: boolean;
-  otherTopicsHref?: string;
   onUseTopic: () => void;
   onBalanceChange: (balance: number) => void;
 }) {
@@ -46,7 +43,6 @@ export function WeeklyEssayTopicCard({
   const [unlockError, setUnlockError] = useState("");
   const [unlockPending, startUnlockTransition] = useTransition();
   const openerRef = useRef<HTMLButtonElement>(null);
-  const showOtherTopics = Boolean(otherTopicsHref) && topicCount > 1;
 
   function unlockProposal() {
     setUnlockError("");
@@ -87,7 +83,7 @@ export function WeeklyEssayTopicCard({
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                  Tema sugerido da semana
+                  {isCurrentWeek ? "Tema sugerido da semana" : "Proposta de treino"}
                 </p>
                 <h2 className="mt-1 text-base font-bold leading-6 text-slate-950 sm:text-lg">
                   {topic.title}
@@ -123,18 +119,12 @@ export function WeeklyEssayTopicCard({
           </div>
         </div>
 
-        {showOtherTopics ? (
-          <Link
-            href={otherTopicsHref as string}
-            className={buttonClasses({
-              variant: "ghost",
-              size: "sm",
-              className: "mt-3 px-0 text-blue-700 hover:bg-transparent hover:text-blue-800",
-            })}
-          >
-            Ver outros temas
-          </Link>
-        ) : null}
+        {isCurrentWeek ? null : (
+          <p className="mt-3 text-xs leading-5 text-slate-500">
+            A proposta desta semana ainda não foi publicada. Esta continua valendo
+            para treino — ou escreva sobre o tema que você quiser e envie abaixo.
+          </p>
+        )}
       </div>
 
       <AiResponsivePanel

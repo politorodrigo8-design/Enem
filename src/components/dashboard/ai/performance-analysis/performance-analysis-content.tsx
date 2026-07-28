@@ -59,7 +59,7 @@ export function PerformanceAnalysisContent({
         </div>
       </AiSection>
       <AiSection title="Próximos passos">
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {result.nextSteps.map((step) => (
             <div key={step.label} className="rounded-lg border border-slate-200 p-4">
               <p className="font-semibold text-slate-950">{step.label}</p>
@@ -74,8 +74,8 @@ export function PerformanceAnalysisContent({
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-200 pt-4">
         <AiBalanceAfterUse label="Saldo após esta análise" value={balanceAfter} />
         <Button variant="outline" size="sm" onClick={() => importPriorities(result.priorities)}>
-          <Clipboard className="h-4 w-4" aria-hidden="true" />
-          Usar prioridades no Plano inteligente
+          <Clipboard className="h-4 w-4 shrink-0" aria-hidden="true" />
+          Usar no Plano inteligente
         </Button>
       </div>
     </div>

@@ -27,56 +27,77 @@ import {
   PRODUCT_NAME,
 } from "@/lib/product-config";
 
+// Escala de display compartilhada pelos h2 de seção: 30px no mobile para a
+// headline não virar um bloco de 6 linhas em telas de 320-375px.
+const sectionHeadingClass =
+  "font-display text-3xl font-semibold leading-tight tracking-tight sm:text-4xl";
+
 const LANDING_ACCESS_UNTIL_LABEL = "01 de dezembro de 2026";
 const LANDING_ACCESS_COPY =
   "Pagamento único para acesso até 01 de dezembro de 2026.";
 
+// Os números aqui são PISOS, não contagens exatas: o acervo é protegido por RLS
+// e não pode ser contado por visitante anônimo, então a página não tem como se
+// atualizar sozinha. Piso não vira mentira quando o banco cresce — só precisa
+// ser revisto se questões forem REMOVIDAS. Medição de referência no banco em
+// 27/07/2026: 1309 questões (1297 liberadas para treino), 1177 oficiais de 2020
+// a 2025, 89 assuntos com questão vinculada.
 const landingStats = [
   {
     value: "1.200+",
-    label: "questões no banco",
+    label: "questões prontas para treino",
     detail: "organizadas por área, assunto e dificuldade",
   },
   {
-    value: "180",
-    label: "assuntos mapeados",
-    detail: "com prioridade e recorrência no ENEM",
+    value: "1.100+",
+    label: "questões oficiais classificadas",
+    detail:
+      "das provas do ENEM de 2020 a 2025, uma a uma, para medir a recorrência de cada assunto",
   },
   {
-    value: "+95",
-    label: "pontos de evolução média",
-    detail: "em ciclos guiados de estudo",
+    value: "89",
+    label: "assuntos mapeados",
+    detail: "cada um com sua prioridade de estudo calculada",
   },
 ];
 
-const weeklyQuestionUpdate = {
+const bankUpdateNote = {
   label: "atualização do banco",
-  title: "Novas questões toda semana",
-  description: "O banco recebe novos conteúdos semanalmente para manter seu treino atualizado.",
+  title: "Novos lotes conforme a revisão avança",
+  description:
+    "Cada questão entra depois de conferência de gabarito e revisão. Não prometemos um número fixo por semana.",
 };
 
-// TODO: depoimentos fictícios para visualizar o layout — substituir por relatos reais antes do lançamento.
-const testimonials = [
+const transparencyItems = [
   {
-    name: "Larissa M.",
-    context: "3º ano, quer Medicina na UFMG",
-    quote:
-      "Eu estudava muito e não saía do lugar. O Desempenho mostrou que eu perdia mais pontos em razão e proporção do que em funções — nunca teria priorizado isso sozinha.",
-    result: "+130 pontos em Matemática",
+    title: "Não garantimos nota, vaga nem aprovação",
+    description:
+      "Ninguém pode garantir isso. O que entregamos é ordem de estudo, treino dirigido e acompanhamento da sua evolução.",
   },
   {
-    name: "Pedro H.",
-    context: "Estuda e trabalha meio período",
-    quote:
-      "Tenho duas horas por dia, no máximo. O plano semanal decide o que eu treino, então esse tempo rende de verdade em vez de virar revisão aleatória.",
-    result: "6 semanas de constância",
+    title: "Não prevemos o que vai cair na prova",
+    description:
+      "A recorrência que você vê é o que já foi cobrado entre 2020 e 2025, medido questão por questão nas provas oficiais.",
   },
   {
-    name: "Ana Beatriz S.",
-    context: "Segunda tentativa de ENEM",
-    quote:
-      "A correção apontando exatamente a competência em que eu travava mudou minha redação. Saí do bloqueio da conclusão em três envios.",
-    result: "Redação de 720 para 880",
+    title: "Não substituímos escola nem cursinho",
+    description:
+      "Aqui você decide a ordem e o foco do estudo. O conteúdo em profundidade continua vindo das suas aulas e materiais.",
+  },
+  {
+    title: "A correção de redação não é instantânea",
+    description:
+      "Cada redação passa por correção com acompanhamento humano. Você vê o andamento na plataforma até a devolutiva ficar pronta.",
+  },
+  {
+    title: "Não temos vínculo com o Inep ou o MEC",
+    description:
+      "Somos uma plataforma independente de preparação. As prioridades são estimativas educacionais.",
+  },
+  {
+    title: "Você paga uma vez e sabe o que recebe",
+    description:
+      "Sem mensalidade e sem renovação automática. Os 50 créditos vêm inclusos e o custo de cada uso aparece antes de você confirmar.",
   },
 ];
 
@@ -107,7 +128,7 @@ const steps = [
   {
     title: "Siga sua rotina semanal",
     description:
-      "Receba um plano com as atividades e questões certas, recalculado semanalmente conforme seu desempenho.",
+      "Receba um plano com as atividades e questões certas para a semana, montado a partir das suas prioridades atuais.",
   },
 ];
 
@@ -125,9 +146,9 @@ const features = [
     icon: ClipboardCheck,
   },
   {
-    title: "Banco de questões atualizado",
+    title: "Banco de questões revisado",
     description:
-      "Questões organizadas por área, assunto, dificuldade e prioridade, com novas questões adicionadas semanalmente e fonte identificada quando aplicável.",
+      "Questões organizadas por área, assunto, dificuldade e prioridade, com a fonte indicada em cada uma.",
     icon: BookOpenCheck,
   },
   {
@@ -220,12 +241,12 @@ const performanceDemo = [
 const planItems = [
   "Simulado diagnóstico e simulados",
   "Análise de desempenho",
-  "Banco de questões com fonte identificada",
+  "Banco de questões com a fonte indicada",
   "Treino de alta prioridade",
   "Plano semanal de estudos",
   "Correção de redação",
   "Painel de desempenho e revisão de erros",
-  "Atualizações até a prova",
+  "Novos lotes de questões até a prova",
 ];
 
 function buildFaqs() {
@@ -238,7 +259,7 @@ function buildFaqs() {
     {
       question: "As questões são oficiais do ENEM?",
       answer:
-        "O banco reúne questões organizadas por área, assunto, dificuldade e prioridade. Novas questões são adicionadas semanalmente, com fonte identificada quando aplicável. Questões oficiais, autorais ou demonstrativas são sinalizadas conforme a origem.",
+        "A maior parte vem das provas oficiais do ENEM de 2020 a 2025, revisadas uma a uma; o restante são questões autorais escritas no mesmo padrão de cobrança. Cada questão mostra a sua fonte, então você sempre sabe o que está resolvendo. Novos lotes entram conforme a revisão editorial avança, sem quantidade fixa por semana.",
     },
     {
       question: "Como funcionam o acesso e o pagamento?",
@@ -278,17 +299,17 @@ export default async function HomePage() {
     <main>
       {/* Hero */}
       <section className="bg-paper">
-        <div className="mx-auto grid max-w-7xl items-center gap-14 px-4 py-16 sm:px-6 lg:grid-cols-[1fr_0.95fr] lg:px-8 lg:py-24">
+        <div className="mx-auto grid max-w-7xl items-center gap-10 px-4 py-14 sm:gap-12 sm:px-6 sm:py-16 lg:grid-cols-[1fr_0.95fr] lg:gap-14 lg:px-8 lg:py-24">
           <div>
             <p className="animate-rise text-xs font-semibold uppercase tracking-widest text-blue-700">
               Preparação estratégica para o ENEM {ENEM_YEAR}
             </p>
             <h1
-              className="animate-rise mt-5 max-w-xl font-display text-5xl font-semibold leading-[1.08] tracking-tight text-slate-950 md:text-6xl"
+              className="animate-rise mt-5 max-w-xl font-display text-4xl font-semibold leading-[1.08] tracking-tight text-slate-950 sm:text-5xl md:text-6xl"
               style={{ "--rise-delay": "70ms" } as React.CSSProperties}
             >
               Pare de estudar no escuro. Descubra{" "}
-              <span className="highlight">o&nbsp;que&nbsp;priorizar</span>.
+              <span className="highlight">o que priorizar</span>.
             </h1>
             <p
               className="animate-rise mt-6 max-w-lg text-lg leading-8 text-slate-600"
@@ -351,7 +372,7 @@ export default async function HomePage() {
                 {landingStats.map((stat) => (
                   <div
                     key={stat.label}
-                    className="border-slate-100 sm:border-l sm:pl-5 lg:pl-7 sm:first:border-l-0 sm:first:pl-0 lg:first:pl-0"
+                    className="border-slate-100 lg:border-l lg:pl-7 lg:first:border-l-0 lg:first:pl-0"
                   >
                     <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">
                       {stat.label}
@@ -365,15 +386,15 @@ export default async function HomePage() {
                   </div>
                 ))}
               </dl>
-              <div className="border-slate-100 sm:border-l sm:pl-5 lg:pl-7">
+              <div className="border-slate-100 lg:border-l lg:pl-7">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                  {weeklyQuestionUpdate.label}
+                  {bankUpdateNote.label}
                 </p>
                 <h3 className="mt-2 text-xl font-semibold leading-7 text-slate-950">
-                  {weeklyQuestionUpdate.title}
+                  {bankUpdateNote.title}
                 </h3>
                 <p className="mt-3 max-w-56 text-sm leading-6 text-slate-500">
-                  {weeklyQuestionUpdate.description}
+                  {bankUpdateNote.description}
                 </p>
               </div>
             </div>
@@ -388,7 +409,7 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               O problema
             </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+            <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
               Esforço sem prioridade{" "}
               <span className="highlight">não resulta em nota para aprovação</span>.
             </h2>
@@ -420,7 +441,7 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-300">
               Como funciona
             </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight">
+            <h2 className={`mt-4 ${sectionHeadingClass}`}>
               Da dúvida ao plano semanal em quatro etapas.
             </h2>
           </Reveal>
@@ -454,7 +475,7 @@ export default async function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
                 Desempenho
               </p>
-              <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+              <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
                 Suas prioridades, visíveis por área e assunto.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
@@ -463,7 +484,7 @@ export default async function HomePage() {
                 ganho de pontos.
               </p>
             </Reveal>
-            <div className="grid gap-5 md:grid-cols-2">
+            <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {performanceDemo.map((group, groupIndex) => (
                 <Reveal
                   key={group.area}
@@ -523,7 +544,7 @@ export default async function HomePage() {
               <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
                 Redação e produto real
               </p>
-              <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+              <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
                 Envie redações e acompanhe tudo no mesmo painel.
               </h2>
               <p className="mt-5 text-base leading-7 text-slate-600">
@@ -553,12 +574,12 @@ export default async function HomePage() {
                   ],
                 },
                 {
-                  title: "Banco de questões atualizado",
+                  title: "Banco de questões revisado",
                   icon: BookOpenCheck,
                   lines: [
                     "Filtros por área, assunto, dificuldade e prioridade",
-                    "Novas questões adicionadas semanalmente",
-                    "Fonte identificada quando aplicável",
+                    "Fonte indicada em cada questão",
+                    "Novos lotes conforme a revisão avança",
                     "Revisão de erros integrada",
                   ],
                 },
@@ -605,7 +626,7 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               O que você recebe
             </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+            <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
               Tudo para decidir o{" "}
               <span className="highlight">próximo passo nos estudos</span>.
             </h2>
@@ -631,44 +652,36 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Depoimentos */}
+      {/* Transparência */}
       <section className="bg-white py-14 sm:py-20">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
           <Reveal className="max-w-2xl">
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
-              Depoimentos
+              Transparência
             </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
-              Quem <span className="highlight">parou de estudar no escuro</span>.
+            <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
+              O que o Pontua Enem{" "}
+              <span className="highlight">não promete</span>.
             </h2>
+            <p className="mt-5 text-base leading-7 text-slate-600">
+              Você decide melhor sabendo os limites antes de pagar. Estas são as
+              linhas que não cruzamos:
+            </p>
           </Reveal>
-          <div className="mt-12 grid gap-5 md:grid-cols-3">
-            {testimonials.map((testimonial, index) => (
+          <div className="mt-10 grid gap-x-16 md:grid-cols-2">
+            {transparencyItems.map((item, index) => (
               <Reveal
-                key={testimonial.name}
-                delay={index * 80}
-                className="flex h-full flex-col rounded-xl bg-slate-50 p-6"
+                key={item.title}
+                delay={(index % 2) * 80 + Math.floor(index / 2) * 50}
               >
-                <span className="inline-flex w-fit items-center rounded-md bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-800">
-                  {testimonial.result}
-                </span>
-                <blockquote className="mt-4 flex-1 text-base leading-7 text-slate-800">
-                  “{testimonial.quote}”
-                </blockquote>
-                <footer className="mt-5 flex items-center gap-3">
-                  <span
-                    className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-sm font-semibold text-blue-700 ring-1 ring-inset ring-slate-200"
-                    aria-hidden="true"
-                  >
-                    {testimonial.name.charAt(0)}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-slate-950">
-                      {testimonial.name}
-                    </p>
-                    <p className="text-xs text-slate-500">{testimonial.context}</p>
-                  </div>
-                </footer>
+                <div className="border-b border-slate-100 py-6">
+                  <h3 className="text-base font-bold text-slate-950">
+                    {item.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-6 text-slate-600">
+                    {item.description}
+                  </p>
+                </div>
               </Reveal>
             ))}
           </div>
@@ -682,7 +695,7 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               Acesso
             </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
+            <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
               Pagamento único para acesso até {accessUntil}.
             </h2>
           </Reveal>
@@ -693,7 +706,7 @@ export default async function HomePage() {
             <div className="grid md:grid-cols-[0.9fr_1.1fr]">
               <div className="flex flex-col justify-center bg-slate-950 p-6 text-white sm:p-10">
                 <p className="text-sm font-semibold text-blue-300">{PRODUCT_NAME}</p>
-                <p className="tnum mt-4 font-display text-6xl font-semibold tracking-tight">
+                <p className="tnum mt-4 font-display text-5xl font-semibold tracking-tight lg:text-6xl">
                   {formatCurrency(price)}
                 </p>
                 <ul className="mt-6 space-y-2.5">
@@ -729,7 +742,7 @@ export default async function HomePage() {
               </div>
               <div className="p-6 sm:p-10">
                 <p className="text-sm font-semibold text-slate-500">Incluído no acesso</p>
-                <div className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2">
+                <div className="mt-5 grid gap-x-8 gap-y-3 sm:grid-cols-2 md:grid-cols-1 lg:grid-cols-2">
                   {planItems.map((item) => (
                     <div key={item} className="flex gap-3">
                       <Check
@@ -771,8 +784,8 @@ export default async function HomePage() {
             <p className="text-xs font-semibold uppercase tracking-widest text-blue-700">
               Perguntas frequentes
             </p>
-            <h2 className="mt-4 font-display text-4xl font-semibold leading-tight tracking-tight text-slate-950">
-              Transparência antes de promessa
+            <h2 className={`mt-4 text-slate-950 ${sectionHeadingClass}`}>
+              O que perguntam antes de comprar
             </h2>
           </Reveal>
           <Reveal delay={100} className="mt-12 divide-y divide-slate-100 border-y border-slate-100">
@@ -795,7 +808,7 @@ export default async function HomePage() {
       {/* CTA final */}
       <section className="bg-slate-950 py-16 text-white sm:py-24">
         <Reveal className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <h2 className="font-display text-4xl font-semibold leading-tight tracking-tight md:text-5xl">
+          <h2 className={`${sectionHeadingClass} md:text-5xl`}>
             A prova já tem data marcada. Seu plano de estudos{" "}
             <span className="highlight text-slate-950">também precisa ter</span>.
           </h2>

@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Coins,
   FileCheck2,
+  Gift,
   LayoutDashboard,
   Menu,
   PenLine,
@@ -41,6 +42,7 @@ const navigation = [
     items: [
       { label: "Correções", href: "/dashboard/redacoes", icon: FileCheck2, adminOnly: true },
       { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
+      { label: "Indique e ganhe", href: "/dashboard/indicacoes", icon: Gift },
     ],
   },
 ];
@@ -77,12 +79,27 @@ export function DashboardShell({
     };
   }, []);
 
+  // A partir de lg a sidebar é permanente e os controles de fechar somem
+  // (`lg:hidden`). Sem esta sincronização, girar o tablet com o menu aberto
+  // deixa o scroll travado por useLockPageScroll sem nenhuma saída visível.
+  useEffect(() => {
+    const query = window.matchMedia("(min-width: 1024px)");
+
+    function syncWithBreakpoint() {
+      if (query.matches) setOpen(false);
+    }
+
+    syncWithBreakpoint();
+    query.addEventListener("change", syncWithBreakpoint);
+    return () => query.removeEventListener("change", syncWithBreakpoint);
+  }, []);
+
   return (
     <div className="min-h-screen bg-slate-50">
       <RevealController />
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-slate-200 bg-white transition-transform lg:w-60 lg:translate-x-0 xl:w-72",
           open ? "translate-x-0" : "-translate-x-full",
         )}
       >
@@ -90,7 +107,7 @@ export function DashboardShell({
           <Logo />
           <button
             type="button"
-            className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 lg:hidden"
             onClick={() => setOpen(false)}
             aria-label="Fechar menu"
           >
@@ -128,7 +145,7 @@ export function DashboardShell({
                         onClick={() => setOpen(false)}
                         aria-current={active ? "page" : undefined}
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                          "flex items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-colors lg:py-2",
                           active
                             ? "bg-blue-50 font-semibold text-blue-900"
                             : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
@@ -159,8 +176,8 @@ export function DashboardShell({
           aria-label="Fechar menu lateral"
         />
       ) : null}
-      <div className="lg:pl-72">
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+      <div className="lg:pl-60 xl:pl-72">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-6 xl:px-8">
           <div className="flex items-center gap-3">
             <button
               type="button"
@@ -184,7 +201,7 @@ export function DashboardShell({
             ]}
           />
         </header>
-        <main className="px-4 py-6 sm:px-6 lg:px-8">
+        <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-6 xl:px-8">
           <div className="animate-rise">{children}</div>
         </main>
       </div>

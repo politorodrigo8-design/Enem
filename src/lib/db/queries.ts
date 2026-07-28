@@ -64,6 +64,9 @@ function stripAnswerKey<T extends { correct_option: string; explanation: string 
   return { ...question, correct_option: "", explanation: "" };
 }
 
+// 150 uuids ≈ 5,5 KB de URL, com folga larga para o limite do servidor.
+const mediaIdBatchSize = 150;
+
 async function attachQuestionMedia(
   supabase: Awaited<ReturnType<typeof createClient>>,
   questions: QuestionRecord[],
@@ -73,18 +76,30 @@ async function attachQuestionMedia(
     return questions;
   }
 
-  const { data, error } = await supabase
-    .from("question_media")
-    .select("*")
-    .in("question_id", questionIds)
-    .order("sort_order", { ascending: true });
+  // Os ids vão em lotes porque `in.(...)` viaja na URL: com o acervo inteiro a
+  // requisição passava de 48 KB e o Supabase respondia 414 (URI too long). O
+  // erro era silencioso — devolvia mídia vazia para TODAS as questões, e o filtro
+  // de qualidade então descartava as ~194 que exigem imagem. As imagens existiam
+  // no banco e nunca chegavam à tela.
+  const mediaRows: NonNullable<QuestionRecord["question_media"]> = [];
+  for (let index = 0; index < questionIds.length; index += mediaIdBatchSize) {
+    const batch = questionIds.slice(index, index + mediaIdBatchSize);
+    const { data, error } = await supabase
+      .from("question_media")
+      .select("*")
+      .in("question_id", batch)
+      .order("sort_order", { ascending: true });
 
-  if (error) {
-    return questions.map((question) => ({ ...question, question_media: [] }));
+    if (error) {
+      logQueryError("question_media.by_question_ids", error);
+      return questions.map((question) => ({ ...question, question_media: [] }));
+    }
+
+    mediaRows.push(...(data ?? []));
   }
 
   const mediaByQuestion = new Map<string, NonNullable<QuestionRecord["question_media"]>>();
-  for (const media of data ?? []) {
+  for (const media of mediaRows) {
     const current = mediaByQuestion.get(media.question_id) ?? [];
     current.push(media);
     mediaByQuestion.set(media.question_id, current);
@@ -228,12 +243,21 @@ export async function getProfile(): Promise<Profile | null> {
   return data;
 }
 
+// A API do Supabase corta a resposta em `max_rows` (1000 em supabase/config.toml).
+// Sem paginar, o acervo parava de crescer para o aluno: com 1309 questões no
+// banco chegavam 1000 ao servidor e 933 à tela, ou seja, ~300 questões ficavam
+// invisíveis em silêncio — e o número piora a cada importação.
+const questionPageSize = 500;
+
 export async function getQuestionRecords(): Promise<QuestionRecord[]> {
   const { supabase, user } = await requireUser();
-  const { data, error } = await supabase
-    .from("questions")
-    .select(
-      `
+  const records: QuestionRecord[] = [];
+
+  for (let from = 0; ; from += questionPageSize) {
+    const { data, error } = await supabase
+      .from("questions")
+      .select(
+        `
       *,
       subjects (*),
       topics (*),
@@ -241,23 +265,39 @@ export async function getQuestionRecords(): Promise<QuestionRecord[]> {
       user_question_answers (id, question_id, practice_session_id, selected_option, is_correct, response_time_seconds, answered_at),
       user_question_reviews (id, mastered)
     `,
-    )
-    .eq("user_question_answers.user_id", user.id)
-    .eq("user_question_reviews.user_id", user.id)
-    .order("created_at", { ascending: true });
+      )
+      .eq("user_question_answers.user_id", user.id)
+      .eq("user_question_reviews.user_id", user.id)
+      .order("created_at", { ascending: true })
+      .range(from, from + questionPageSize - 1);
 
-  if (error) {
-    logQueryError("questions.with_user_answers_and_reviews", error);
-    return getFallbackQuestionRecords();
+    if (error) {
+      logQueryError("questions.with_user_answers_and_reviews", error);
+      return getFallbackQuestionRecords();
+    }
+
+    const page = (data ?? []) as unknown as QuestionRecord[];
+    records.push(...page);
+    if (page.length < questionPageSize) break;
   }
 
-  const records = (data ?? []) as unknown as QuestionRecord[];
   const recordsWithMedia = await attachQuestionMedia(supabase, records);
   const readyRecords = recordsWithMedia
     .filter(isStudentReadyQuestion)
     .map(stripAnswerKey);
 
-  return mergeQuestionRecordSources(readyRecords, getFallbackQuestionRecords());
+  // O acervo local só entra quando o banco não tem nada a servir (o retorno de
+  // erro acima cobre o banco indisponível). Mesclar os dois quando o banco
+  // respondeu injetava questões com id sintético `fallback-question-*`, e
+  // resposta nesse id não tem onde ser gravada: user_question_answers.question_id
+  // referencia questions(id). O aluno lia "Resposta correta." e nada entrava no
+  // desempenho, na sequência de estudo nem na revisão de erros.
+  // Para publicar o acervo local no banco: scripts/import-questions.mjs --commit.
+  if (readyRecords.length > 0) {
+    return readyRecords;
+  }
+
+  return getFallbackQuestionRecords();
 }
 
 // Resolve o id de um tópico do banco para o nome canônico do assunto. Links de
@@ -672,48 +712,6 @@ function simulationSignature(simulation: SimulationWithQuestions) {
   return normalizeQuestionKey([simulation.title]);
 }
 
-function mergeQuestionRecordSources(
-  primary: QuestionRecord[],
-  fallback: QuestionRecord[],
-) {
-  const seen = new Set(primary.map(questionSignature));
-  const merged = [...primary];
-
-  for (const question of fallback) {
-    const signature = questionSignature(question);
-    if (seen.has(signature)) continue;
-    seen.add(signature);
-    merged.push(question);
-  }
-
-  return merged.sort((a, b) => {
-    const officialDelta = Number(b.is_official) - Number(a.is_official);
-    if (officialDelta) return officialDelta;
-    const yearDelta = Number(b.year) - Number(a.year);
-    if (yearDelta) return yearDelta;
-    return Number(b.priority_score ?? 0) - Number(a.priority_score ?? 0);
-  });
-}
-
-function questionSignature(question: QuestionRecord) {
-  if (question.is_official && question.question_number) {
-    return normalizeQuestionKey([
-      question.exam_name || "ENEM",
-      question.year,
-      question.exam_day || "",
-      question.question_number,
-      question.language || "",
-    ]);
-  }
-
-  return normalizeQuestionKey([
-    question.statement,
-    question.year,
-    question.source,
-    question.question_number || "",
-  ]);
-}
-
 function normalizeQuestionKey(parts: Array<string | number>) {
   return parts
     .join("|")
@@ -830,6 +828,12 @@ export async function getReferralAccountSummary() {
   }
 
   return { referralCode: data ?? "" };
+}
+
+/** Dados do programa de indicação para a página dedicada /dashboard/indicacoes. */
+export async function getReferralPageData(): Promise<ReferralDashboardData> {
+  const { supabase, user } = await requirePlatformAccess();
+  return getReferralDashboardData(supabase, user.id);
 }
 
 async function getReferralDashboardData(

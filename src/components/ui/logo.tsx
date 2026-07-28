@@ -14,14 +14,14 @@ export function Logo({
   return (
     <Link
       href="/"
-      className={cn("inline-flex items-center", className)}
+      className={cn("inline-flex min-h-11 items-center sm:min-h-0", className)}
       aria-label="Pontua Enem - página inicial"
     >
       <Image
         src={variant === "dark" ? logoDarkBg : logoLightBg}
         alt="Pontua Enem"
         priority
-        className="h-10 w-auto"
+        className="h-8 w-auto sm:h-10"
       />
     </Link>
   );

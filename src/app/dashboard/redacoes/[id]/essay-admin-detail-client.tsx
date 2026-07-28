@@ -43,6 +43,12 @@ const competenceFields = [
   { key: "competence_5", label: "Competência 5" },
 ] as const;
 
+const controlBase =
+  "mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100";
+// 44px de alvo de toque no mobile, densidade de 40px a partir de sm.
+const inputClass = `${controlBase} h-11 sm:h-10`;
+const textareaClass = `${controlBase} py-2 leading-6`;
+
 type CompetenceKey = (typeof competenceFields)[number]["key"];
 type ScoreState = Record<CompetenceKey, string>;
 type FeedbackState = Record<CompetenceKey, string>;
@@ -149,7 +155,7 @@ export function EssayAdminDetailClient({ essay }: { essay: EssaySubmissionDetail
                 onChange={(event) => setTargetAdminId(event.target.value)}
                 placeholder="UUID do administrador"
                 disabled={pending || finalized}
-                className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+                className={inputClass}
               />
             </label>
             <Button
@@ -316,7 +322,7 @@ function ScoreInput({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+        className={`${inputClass} font-semibold`}
       />
     </label>
   );
@@ -343,7 +349,7 @@ function Textarea({
         rows={rows}
         onChange={(event) => onChange(event.target.value)}
         disabled={disabled}
-        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-100"
+        className={textareaClass}
       />
     </label>
   );

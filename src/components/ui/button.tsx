@@ -17,9 +17,11 @@ const variantStyles: Record<ButtonVariant, string> = {
     "bg-rose-600 text-white shadow-sm hover:bg-rose-700 active:bg-rose-800 focus-visible:outline-rose-600",
 };
 
+// Abaixo de sm todo tamanho sobe para 44px de altura (alvo mínimo de toque);
+// a partir de sm volta a densidade de trabalho do dashboard. Ver DESIGN.md.
 const sizeStyles: Record<ButtonSize, string> = {
-  sm: "h-9 px-3 text-sm",
-  md: "h-10 px-4 text-sm",
+  sm: "h-11 px-3 text-sm sm:h-9",
+  md: "h-11 px-4 text-sm sm:h-10",
   lg: "h-12 px-5 text-base",
 };
 

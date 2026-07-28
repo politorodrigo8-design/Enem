@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AI_QUESTION_EXPLANATION_CREDIT_COST } from "@/lib/ai/credits";
 import { generateQuestionExplanationAction } from "@/lib/actions/ai";
 import { AiConfirmationDialog } from "../ai-confirmation-dialog";
-import { AiCreditCost } from "../ai-credit-cost";
+import { AiCreditCost, AiCreditShortage } from "../ai-credit-cost";
 import { AiFeatureHeader } from "../ai-feature-header";
 import { AiGenerationError } from "../ai-generation-error";
 import { AiResponsivePanel } from "../ai-responsive-panel";
@@ -20,10 +20,12 @@ export function QuestionExplanationCreditAction({
   questionId,
   selectedOption,
   disabled,
+  creditBalance,
 }: {
   questionId: string;
   selectedOption?: string;
   disabled?: boolean;
+  creditBalance?: number | null;
 }) {
   const requestContext = `${questionId}:${selectedOption ?? ""}`;
   const openerRef = useRef<HTMLButtonElement>(null);
@@ -69,17 +71,19 @@ export function QuestionExplanationCreditAction({
 
   return (
     <div className="mt-4 rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <AiFeatureHeader
-            icon={Sparkles}
-            title="Explicar questão"
-            description="Entenda o enunciado, as alternativas e a resolução passo a passo."
-            titleClassName="gap-1.5"
-            descriptionClassName="mt-1 text-xs leading-5 text-slate-700"
-          />
-          <AiCreditCost cost={AI_QUESTION_EXPLANATION_CREDIT_COST} />
-        </div>
+      <div>
+        <AiFeatureHeader
+          icon={Sparkles}
+          title="Explicar questão"
+          description="Entenda o enunciado, as alternativas e a resolução passo a passo."
+          titleClassName="gap-1.5"
+          descriptionClassName="mt-1 text-xs leading-5 text-slate-700"
+        />
+        <AiCreditCost cost={AI_QUESTION_EXPLANATION_CREDIT_COST} />
+        <AiCreditShortage
+          cost={AI_QUESTION_EXPLANATION_CREDIT_COST}
+          balance={creditBalance}
+        />
       </div>
       <Button
         ref={openerRef}
@@ -104,7 +108,7 @@ export function QuestionExplanationCreditAction({
         action={
           result ? (
             <Button variant="outline" size="sm" onClick={() => copyExplanation(result)}>
-              <Copy className="h-4 w-4" aria-hidden="true" />
+              <Copy className="h-4 w-4 shrink-0" aria-hidden="true" />
               Copiar explicação
             </Button>
           ) : null
@@ -114,6 +118,7 @@ export function QuestionExplanationCreditAction({
           <AiConfirmationDialog
             description="A explicação será criada com base no enunciado, nas alternativas, no gabarito e na sua resposta marcada."
             cost={AI_QUESTION_EXPLANATION_CREDIT_COST}
+            balance={creditBalance}
             buttonLabel="Confirmar explicação"
             onConfirm={generate}
           />

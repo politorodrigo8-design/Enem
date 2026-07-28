@@ -41,6 +41,9 @@ export async function ensureReferralCodeAction(): Promise<ReferralCodeResult> {
     };
   }
 
+  // O link aparece na home, em Créditos e no perfil: as três telas precisam
+  // enxergar o código recém-gerado sem o aluno recarregar nada.
+  revalidatePath("/dashboard");
   revalidatePath("/dashboard/creditos");
   revalidatePath("/dashboard/configuracoes");
   return { ok: true, message: "Link de indicação pronto.", referralCode: data };
@@ -66,7 +69,9 @@ export async function recordReferralShareEventAction(
     supabase,
     userId: user.id,
     eventName,
-    route: "/dashboard/creditos",
+    // O bloco de compartilhamento agora vive em mais de uma tela do painel; a
+    // ação não sabe de qual delas veio, então o registro fica no nível do painel.
+    route: "/dashboard",
   });
 
   return { ok: true, message: "Evento registrado." };

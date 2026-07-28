@@ -37,7 +37,7 @@ export default function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-10">
+    <main className="flex min-h-dvh items-center justify-center bg-slate-50 px-4 py-10">
       <div className="w-full max-w-xl">
         <div className="animate-rise mb-8 flex items-center justify-between">
           <Logo />
@@ -67,7 +67,9 @@ export default function ResetPasswordPage() {
                   error={form.formState.errors.confirmPassword?.message}
                   register={form.register("confirmPassword")}
                 />
-                {message ? <p className="text-sm font-semibold text-slate-700">{message}</p> : null}
+                {message ? (
+                  <p className="break-words text-sm font-semibold leading-6 text-slate-700">{message}</p>
+                ) : null}
                 <Button type="submit" full size="lg" disabled={pending}>
                   {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                   Atualizar senha
@@ -97,7 +99,8 @@ function PasswordField({
         <Lock className="h-4 w-4 text-slate-400" aria-hidden="true" />
         <input
           type="password"
-          className="h-11 w-full bg-transparent text-sm text-slate-950 outline-none"
+          autoComplete="new-password"
+          className="h-11 w-full min-w-0 bg-transparent text-sm text-slate-950 outline-none"
           {...register}
         />
       </div>

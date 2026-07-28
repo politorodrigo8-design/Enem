@@ -19,21 +19,33 @@ export type PrioritizedTopic = {
   reason: string;
 };
 
-export function prioritizeTopics(topics: TopicWithSubject[]): PrioritizedTopic[] {
+/** Autopercepção de dificuldade por área, na escala de 1 a 5 do diagnóstico. */
+export type PerceivedDifficulties = Record<string, number | string>;
+
+export function prioritizeTopics(
+  topics: TopicWithSubject[],
+  perceivedDifficulties?: PerceivedDifficulties | null,
+): PrioritizedTopic[] {
   return topics
     .map((topic) => {
       const performance = topic.user_topic_performance?.[0];
       const answered = Number(performance?.total_answers ?? 0);
-      const score =
-        Number(performance?.priority_score) || calculatePriorityScore(topic, performance);
+      const storedScore = Number(performance?.priority_score) || 0;
+      const score = storedScore || calculatePriorityScore(topic, performance);
+      // O score gravado no diagnóstico já embute a autopercepção do aluno: aí o
+      // selo fala de prioridade, e não de recorrência histórica solta.
+      const fromDiagnosis = !answered && storedScore > 0;
 
       return {
         topic,
         performance,
         score,
-        label: answered ? priorityLabel(score) : recurrenceLabel(topic),
+        label: answered || fromDiagnosis ? priorityLabel(score) : recurrenceLabel(topic),
         hasPersonalPerformance: answered > 0,
-        reason: buildPriorityReason(topic, performance),
+        reason: buildPriorityReason(topic, performance, {
+          fromDiagnosis,
+          areaDifficulty: areaDifficultyFor(topic, perceivedDifficulties),
+        }),
       };
     })
     .sort(
@@ -45,34 +57,59 @@ export function prioritizeTopics(topics: TopicWithSubject[]): PrioritizedTopic[]
     );
 }
 
-export function buildPriorityReason(
+function buildPriorityReason(
   topic: TopicWithSubject,
   performance: TopicPerformance | undefined,
+  { fromDiagnosis, areaDifficulty }: { fromDiagnosis: boolean; areaDifficulty: number | null },
 ) {
-  const recurrence = Number(topic.historical_recurrence ?? 0);
+  const recurrence = recurrenceClause(topic);
   const answered = Number(performance?.total_answers ?? 0);
   const accuracy = Math.round(Number(performance?.accuracy_percentage ?? 0));
-
-  const recurrencePart =
-    recurrence >= 75
-      ? "Cai quase todo ano no ENEM"
-      : recurrence >= 50
-        ? "Aparece com frequência no ENEM"
-        : "Aparece de vez em quando no ENEM";
+  const area = topic.subjects?.area;
 
   if (!answered) {
-    return `${recurrencePart}. Use como cobertura de prova enquanto ainda não houver respostas suas nesse assunto.`;
+    if (area && areaDifficulty != null && areaDifficulty >= 4) {
+      return `Você marcou ${area} como uma área difícil e este assunto ${recurrence}.`;
+    }
+    if (area && areaDifficulty != null && areaDifficulty <= 2) {
+      return `Você marcou ${area} como uma área tranquila, mas este assunto ${recurrence} — confirme resolvendo questões.`;
+    }
+    if (fromDiagnosis) {
+      return `${sentence(recurrence)} e entrou na sua lista pelas respostas do seu diagnóstico. Resolva algumas questões para ajustarmos com seus acertos.`;
+    }
+    return `${sentence(recurrence)}. Resolva algumas questões daqui para calibrar a prioridade com seus acertos.`;
   }
 
   if (accuracy < 50) {
-    return `${recurrencePart} e sua taxa de acerto está em ${accuracy}%.`;
+    return `${sentence(recurrence)} e sua taxa de acerto está em ${accuracy}%.`;
   }
 
   if (accuracy < 75) {
-    return `${recurrencePart}; você acerta ${accuracy}%, dá para consolidar.`;
+    return `${sentence(recurrence)}; você acerta ${accuracy}%, dá para consolidar.`;
   }
 
-  return `${recurrencePart}; você já domina (${accuracy}% de acerto). Mantenha com revisões.`;
+  return `${sentence(recurrence)}; você já domina (${accuracy}% de acerto). Mantenha com revisões.`;
+}
+
+function areaDifficultyFor(
+  topic: TopicWithSubject,
+  perceivedDifficulties?: PerceivedDifficulties | null,
+) {
+  const area = topic.subjects?.area;
+  if (!area || !perceivedDifficulties) return null;
+  const value = Number(perceivedDifficulties[area]);
+  return Number.isFinite(value) && value >= 1 && value <= 5 ? value : null;
+}
+
+function recurrenceClause(topic: TopicWithSubject) {
+  const recurrence = Number(topic.historical_recurrence ?? 0);
+  if (recurrence >= 75) return "cai quase todo ano no ENEM";
+  if (recurrence >= 50) return "aparece com frequência no ENEM";
+  return "aparece de vez em quando no ENEM";
+}
+
+function sentence(clause: string) {
+  return clause.charAt(0).toUpperCase() + clause.slice(1);
 }
 
 function recurrenceLabel(topic: TopicWithSubject) {

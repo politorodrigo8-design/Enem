@@ -14,7 +14,9 @@ export function StatCard({ label, value, helper, icon: Icon, className }: StatCa
   return (
     <div
       className={cn(
-        "rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5",
+        // h-full para a fileira de tiles não desalinhar quando um label quebra em
+        // duas linhas nas colunas estreitas de md/xl.
+        "h-full rounded-xl border border-slate-200 bg-white p-5 shadow-sm shadow-slate-900/5",
         className,
       )}
     >
@@ -22,9 +24,13 @@ export function StatCard({ label, value, helper, icon: Icon, className }: StatCa
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
           {label}
         </p>
-        {Icon ? <Icon className="h-4.5 w-4.5 text-slate-300" aria-hidden="true" /> : null}
+        {Icon ? (
+          <Icon className="h-4.5 w-4.5 shrink-0 text-slate-300" aria-hidden="true" />
+        ) : null}
       </div>
-      <p className="tnum mt-3 text-3xl font-bold tracking-tight text-slate-950">{value}</p>
+      <p className="tnum mt-3 break-words text-3xl font-bold tracking-tight text-slate-950">
+        {value}
+      </p>
       {helper ? <p className="mt-1 text-xs leading-5 text-slate-500">{helper}</p> : null}
     </div>
   );

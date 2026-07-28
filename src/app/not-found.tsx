@@ -5,7 +5,7 @@ import { Logo } from "@/components/ui/logo";
 
 export default function NotFound() {
   return (
-    <main className="flex min-h-screen bg-slate-50 px-4 py-12">
+    <main className="flex min-h-dvh bg-slate-50 px-4 py-12">
       <div className="mx-auto flex w-full max-w-2xl flex-col justify-center">
         <Logo className="mb-10" />
         <p className="text-sm font-bold uppercase tracking-widest text-blue-700">Erro 404</p>

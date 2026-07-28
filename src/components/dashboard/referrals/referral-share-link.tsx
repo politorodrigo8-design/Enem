@@ -1,14 +1,19 @@
 "use client";
 
-import { Check, Copy, Loader2, MessageCircle, RefreshCw, Share2 } from "lucide-react";
-import { useMemo, useState, useTransition } from "react";
+import { AlertCircle, Check, Copy, Loader2, MessageCircle, RefreshCw, Share2 } from "lucide-react";
+import { useId, useMemo, useState, useTransition } from "react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import {
   ensureReferralCodeAction,
   recordReferralShareEventAction,
 } from "@/lib/actions/referrals";
 import { buildReferralUrl } from "@/lib/referrals/cookies";
-import { referralProgramCopy } from "@/lib/referrals/constants";
+import {
+  buildReferralInviteMessage,
+  referralProgramCopy,
+} from "@/lib/referrals/constants";
+
+type Feedback = { text: string; tone: "success" | "error" } | null;
 
 export function ReferralShareLink({
   referralCode,
@@ -17,7 +22,9 @@ export function ReferralShareLink({
   referralCode: string;
   siteUrl: string;
 }) {
-  const [feedback, setFeedback] = useState("");
+  const inputId = useId();
+  const [feedback, setFeedback] = useState<Feedback>(null);
+  const [copied, setCopied] = useState(false);
   const [ensuredReferralCode, setEnsuredReferralCode] = useState("");
   const [isEventPending, startEventTransition] = useTransition();
   const [isEnsurePending, startEnsureTransition] = useTransition();
@@ -27,13 +34,13 @@ export function ReferralShareLink({
     () => (currentReferralCode ? buildReferralUrl(siteUrl, currentReferralCode) : ""),
     [siteUrl, currentReferralCode],
   );
-  const shareText = `${referralProgramCopy.shortDescription} Use meu link: ${referralUrl}`;
+  const shareText = buildReferralInviteMessage(referralUrl);
 
   function ensureLink() {
-    setFeedback("");
+    setFeedback(null);
     startEnsureTransition(async () => {
       const result = await ensureReferralCodeAction();
-      setFeedback(result.message);
+      setFeedback({ text: result.message, tone: result.ok ? "success" : "error" });
       if (result.ok && result.referralCode) {
         setEnsuredReferralCode(result.referralCode);
       }
@@ -41,20 +48,28 @@ export function ReferralShareLink({
   }
 
   async function copyLink() {
-    setFeedback("");
-    try {
-      await navigator.clipboard.writeText(referralUrl);
-      setFeedback("Link copiado");
-      startEventTransition(() => {
-        void recordReferralShareEventAction("referral_link_copied");
+    setFeedback(null);
+    const didCopy = await copyTextToClipboard(referralUrl);
+
+    if (!didCopy) {
+      setCopied(false);
+      setFeedback({
+        text: "Não foi possível copiar automaticamente. Selecione o link acima e copie.",
+        tone: "error",
       });
-    } catch {
-      setFeedback("Não foi possível copiar");
+      return;
     }
+
+    setCopied(true);
+    setFeedback({ text: "Link copiado.", tone: "success" });
+    window.setTimeout(() => setCopied(false), 2000);
+    startEventTransition(() => {
+      void recordReferralShareEventAction("referral_link_copied");
+    });
   }
 
   async function shareLink() {
-    setFeedback("");
+    setFeedback(null);
     if (!navigator.share) {
       window.open(whatsAppUrl(shareText), "_blank", "noopener,noreferrer");
       startEventTransition(() => {
@@ -66,15 +81,22 @@ export function ReferralShareLink({
     try {
       await navigator.share({
         title: referralProgramCopy.title,
-        text: referralProgramCopy.shortDescription,
+        text: shareText,
         url: referralUrl,
       });
-      setFeedback("Compartilhamento iniciado");
+      setFeedback({ text: "Convite enviado.", tone: "success" });
       startEventTransition(() => {
         void recordReferralShareEventAction("referral_share_started");
       });
-    } catch {
-      setFeedback("Compartilhamento cancelado");
+    } catch (error) {
+      // Fechar a folha de compartilhamento do sistema dispara AbortError: é
+      // desistência do aluno, não falha — não vale pintar de erro.
+      const aborted = error instanceof Error && error.name === "AbortError";
+      setFeedback(
+        aborted
+          ? { text: "Compartilhamento cancelado.", tone: "success" }
+          : { text: "Não foi possível abrir o compartilhamento.", tone: "error" },
+      );
     }
   }
 
@@ -83,10 +105,10 @@ export function ReferralShareLink({
       <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="font-semibold">Seu link de indicação ainda não está disponível.</p>
+            <p className="font-semibold">Seu link de indicação ainda não carregou.</p>
             <p className="mt-1 text-amber-800">
-              Tente gerar o link agora. Se continuar indisponível, a conexão com a
-              conta precisa ser conferida.
+              Toque em gerar link para criar o seu agora. Todo aluno tem direito a
+              um link próprio.
             </p>
           </div>
           <Button
@@ -104,9 +126,7 @@ export function ReferralShareLink({
             Gerar link
           </Button>
         </div>
-        <p className="mt-3 min-h-5 font-semibold" aria-live="polite">
-          {feedback}
-        </p>
+        <FeedbackLine feedback={feedback} />
       </div>
     );
   }
@@ -114,13 +134,16 @@ export function ReferralShareLink({
   return (
     <div className="space-y-3">
       <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-        <label className="block min-w-0" htmlFor="referral-link">
+        <label className="block min-w-0" htmlFor={inputId}>
           <span className="text-sm font-semibold text-slate-700">Link de indicação</span>
           <input
-            id="referral-link"
+            id={inputId}
             readOnly
             value={referralUrl}
-            className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none"
+            // Seleção automática ao focar é o plano C de cópia: em navegador sem
+            // clipboard e sem execCommand, o aluno só precisa do atalho de copiar.
+            onFocus={(event) => event.currentTarget.select()}
+            className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700 outline-none focus-visible:border-blue-700 focus-visible:ring-2 focus-visible:ring-blue-100"
           />
         </label>
         <div className="flex flex-wrap items-end gap-2">
@@ -130,7 +153,7 @@ export function ReferralShareLink({
             onClick={copyLink}
             disabled={isEventPending || isEnsurePending}
           >
-            {feedback === "Link copiado" ? (
+            {copied ? (
               <Check className="h-4 w-4" aria-hidden="true" />
             ) : (
               <Copy className="h-4 w-4" aria-hidden="true" />
@@ -150,9 +173,7 @@ export function ReferralShareLink({
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="min-h-5 text-sm font-semibold text-emerald-700" aria-live="polite">
-          {feedback}
-        </p>
+        <FeedbackLine feedback={feedback} />
         <a
           className={buttonClasses({
             variant: "ghost",
@@ -169,11 +190,64 @@ export function ReferralShareLink({
           }
         >
           <MessageCircle className="h-4 w-4" aria-hidden="true" />
-          WhatsApp
+          Enviar no WhatsApp
         </a>
       </div>
     </div>
   );
+}
+
+function FeedbackLine({ feedback }: { feedback: Feedback }) {
+  return (
+    <p
+      className={`flex min-h-5 items-center gap-1.5 text-sm font-semibold ${
+        feedback?.tone === "error" ? "text-rose-700" : "text-emerald-700"
+      }`}
+      aria-live="polite"
+    >
+      {feedback?.tone === "error" ? (
+        <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+      ) : null}
+      {feedback?.text ?? ""}
+    </p>
+  );
+}
+
+/**
+ * navigator.clipboard só existe em contexto seguro: no celular, um acesso por
+ * IP na rede ou um WebView antigo cai fora dele. A seleção com execCommand
+ * ainda funciona nesses casos e é o que evita o botão morrer calado.
+ */
+async function copyTextToClipboard(value: string) {
+  if (!value) return false;
+
+  if (navigator.clipboard?.writeText) {
+    try {
+      await navigator.clipboard.writeText(value);
+      return true;
+    } catch {
+      // Segue para o caminho legado.
+    }
+  }
+
+  try {
+    const field = document.createElement("textarea");
+    field.value = value;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.top = "0";
+    field.style.left = "0";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.focus();
+    field.select();
+    field.setSelectionRange(0, value.length);
+    const copied = document.execCommand("copy");
+    field.remove();
+    return copied;
+  } catch {
+    return false;
+  }
 }
 
 function whatsAppUrl(text: string) {

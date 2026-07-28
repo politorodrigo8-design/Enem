@@ -76,7 +76,22 @@ export function RevealController() {
 
     mutationObserver.observe(document.body, { childList: true, subtree: true });
 
+    // Rede de segurança: o conteúdo nasce com opacity 0 e só aparece quando o
+    // observer marca. Se o callback não rodar (aba em segundo plano, navegador
+    // que engasga, extensão que interfere), a tela ficaria permanentemente em
+    // branco. Passado o tempo da animação, revela o que já está visível — o que
+    // continua abaixo da dobra segue esperando o scroll, como desenhado. A
+    // entrada é enfeite; a legibilidade não é negociável.
+    const safetyNet = window.setTimeout(() => {
+      const pendingInViewport = getRevealElements().filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.top < window.innerHeight && rect.bottom > 0;
+      });
+      revealAll(pendingInViewport);
+    }, 1200);
+
     return () => {
+      window.clearTimeout(safetyNet);
       mutationObserver.disconnect();
       observer.disconnect();
     };

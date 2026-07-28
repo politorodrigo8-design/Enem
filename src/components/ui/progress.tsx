@@ -26,9 +26,9 @@ export function Progress({
   return (
     <div className={className}>
       {label ? (
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-medium text-slate-700">{label}</span>
-          <span className="tnum font-semibold text-slate-950">{safeValue}%</span>
+        <div className="mb-2 flex items-baseline justify-between gap-3 text-sm">
+          <span className="min-w-0 break-words font-medium text-slate-700">{label}</span>
+          <span className="tnum shrink-0 font-semibold text-slate-950">{safeValue}%</span>
         </div>
       ) : null}
       <div

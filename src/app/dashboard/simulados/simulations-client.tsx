@@ -49,7 +49,6 @@ import {
   firstUnansweredIndex,
   latestActiveAttempt,
 } from "@/lib/practice-session/rules.mjs";
-import { cn } from "@/lib/utils";
 import {
   isLocalQuestionId,
   recordLocalQuestionAnswer,
@@ -118,6 +117,9 @@ export function SimulationsClient({
   const [foreignLanguage, setForeignLanguage] = useState<"en" | "es">("en");
   const [pending, startTransition] = useTransition();
   const autoStarted = useRef(false);
+  // Cronômetro do simulado é acumulado; para gravar o tempo DE CADA questão
+  // guardamos o instante da última resposta e enviamos só a diferença.
+  const lastAnswerSeconds = useRef(0);
 
   const examQuestions = useMemo(
     () =>
@@ -134,12 +136,14 @@ export function SimulationsClient({
     const storedAttempt = latestInProgressAttempt(simulation);
     if (storedAttempt) {
       const storedAnswers = answersFromSimulationAttempt(storedAttempt);
-      toast.success("Simulado em andamento restaurado.");
+      const restoredSeconds = elapsedSeconds(storedAttempt.started_at);
+      toast.success("Você voltou de onde parou. Suas respostas foram restauradas.");
       setActive(simulation);
       setUserSimulationId(storedAttempt.id);
       setQuestionIndex(firstUnansweredSimulationIndex(simulation, storedAnswers));
       setAnswers(storedAnswers);
-      setSeconds(elapsedSeconds(storedAttempt.started_at));
+      setSeconds(restoredSeconds);
+      lastAnswerSeconds.current = restoredSeconds;
       setFinished(false);
       setFinishData(null);
       setFallbackAttempt(false);
@@ -153,6 +157,7 @@ export function SimulationsClient({
       setQuestionIndex(0);
       setAnswers({});
       setSeconds(0);
+      lastAnswerSeconds.current = 0;
       setFinished(false);
       setFinishData(null);
       setFallbackAttempt(true);
@@ -168,6 +173,7 @@ export function SimulationsClient({
         setQuestionIndex(0);
         setAnswers({});
         setSeconds(0);
+        lastAnswerSeconds.current = 0;
         setFinished(false);
         setFinishData(null);
         setFallbackAttempt(false);
@@ -235,6 +241,8 @@ export function SimulationsClient({
   }
 
   function selectAnswer(question: QuestionRecord, option: string) {
+    const questionSeconds = Math.max(0, seconds - lastAnswerSeconds.current);
+    lastAnswerSeconds.current = seconds;
     setAnswers((currentAnswers) => ({ ...currentAnswers, [question.id]: option }));
     if (!userSimulationId || fallbackAttempt) return;
 
@@ -243,13 +251,40 @@ export function SimulationsClient({
         userSimulationId,
         questionId: question.id,
         selectedOption: option,
-        responseTimeSeconds: seconds,
+        responseTimeSeconds: questionSeconds,
       });
       if (!result.ok) toast.error(result.message);
     });
   }
 
+  function leaveAttempt() {
+    setActive(null);
+    setFallbackAttempt(false);
+    router.replace("/dashboard/simulados", { scroll: false });
+    router.refresh();
+  }
+
+  function exitWithoutFinishing() {
+    const confirmed = window.confirm(
+      fallbackAttempt
+        ? "Esta tentativa não pode ser retomada: ao sair, suas respostas são perdidas e nenhuma nota é gerada. Sair mesmo assim?"
+        : "Suas respostas ficam salvas e você pode voltar de onde parou em “Simulados em aberto”. A nota só sai quando você finalizar. Sair agora?",
+    );
+    if (!confirmed) return;
+    leaveAttempt();
+  }
+
   function finish() {
+    const blankCount = examQuestions.filter((question) => !answers[question.id]).length;
+    if (blankCount > 0) {
+      const blankLabel =
+        blankCount === 1 ? "1 questão sem resposta" : `${blankCount} questões sem resposta`;
+      const confirmed = window.confirm(
+        `Você vai finalizar com ${blankLabel}. Como no ENEM, questão em branco conta como erro na nota. Finalizar agora?`,
+      );
+      if (!confirmed) return;
+    }
+
     startTransition(async () => {
       const result =
         fallbackAttempt && active
@@ -261,8 +296,11 @@ export function SimulationsClient({
           : await finishSimulationAction(userSimulationId, answers);
       toast[result.ok ? "success" : "error"](result.message);
       if (result.ok) {
+        // Só questões respondidas entram aqui: o acerto por área não pode ser
+        // diluído pelas que ficaram em branco (essas já pesam na nota estimada).
         const correctness: Record<string, boolean> = {};
         (result.results ?? []).forEach((item) => {
+          if (!answers[item.questionId]) return;
           correctness[item.questionId] = item.isCorrect;
         });
         if (fallbackAttempt) {
@@ -300,6 +338,11 @@ export function SimulationsClient({
     const wrongQuestions = examQuestions.filter(
       (question) => Boolean(answers[question.id]) && !correctness[question.id],
     );
+    const answeredCount = examQuestions.filter((question) => answers[question.id]).length;
+    const blankCount = Math.max(0, totalCount - answeredCount);
+    const answeredPercentage = answeredCount
+      ? Math.round((correct / answeredCount) * 100)
+      : 0;
     // Como no ENEM, questão em branco conta como erro na estimativa.
     const estimatedScore = estimateEnemScore(
       examQuestions.map((question) => ({
@@ -311,19 +354,10 @@ export function SimulationsClient({
     return (
       <div className="animate-rise">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-base font-semibold text-slate-950">
+          <h2 className="min-w-0 break-words text-base font-semibold text-slate-950">
             Resultado: {active.title}
           </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              setActive(null);
-              setFallbackAttempt(false);
-              router.replace("/dashboard/simulados", { scroll: false });
-              router.refresh();
-            }}
-          >
+          <Button variant="outline" size="sm" onClick={leaveAttempt}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Voltar aos simulados
           </Button>
@@ -334,7 +368,7 @@ export function SimulationsClient({
             <StatCard
               label="Nota estimada"
               value={estimatedScore ? String(estimatedScore) : "—"}
-              helper="aproximação da escala ENEM"
+              helper="estimativa de estudo, não previsão do ENEM"
               icon={Gauge}
             />
           </Reveal>
@@ -342,7 +376,11 @@ export function SimulationsClient({
             <StatCard
               label="Acertos"
               value={`${correct}/${totalCount}`}
-              helper="questões do simulado"
+              helper={
+                blankCount
+                  ? `${blankCount} ${blankCount === 1 ? "questão" : "questões"} em branco`
+                  : "questões do simulado"
+              }
               icon={CheckCircle2}
             />
           </Reveal>
@@ -350,7 +388,11 @@ export function SimulationsClient({
             <StatCard
               label="Aproveitamento"
               value={`${percentage}%`}
-              helper="questões em branco contam como erro"
+              helper={
+                blankCount
+                  ? "sobre o total; em branco conta como erro"
+                  : "sobre o total de questões do simulado"
+              }
               icon={TrendingUp}
             />
           </Reveal>
@@ -358,11 +400,22 @@ export function SimulationsClient({
             <StatCard
               label="Para revisar"
               value={String(wrongQuestions.length)}
-              helper="erros registrados nesta tentativa"
+              helper="erros entre as questões respondidas"
               icon={RotateCcw}
             />
           </Reveal>
         </section>
+
+        {blankCount ? (
+          <Notice tone="warning" className="mt-4">
+            Você finalizou com {blankCount}{" "}
+            {blankCount === 1 ? "questão em branco" : "questões em branco"} — como no
+            ENEM, {blankCount === 1 ? "ela conta" : "elas contam"} como erro na nota
+            estimada. Entre as {answeredCount}{" "}
+            {answeredCount === 1 ? "questão que você respondeu" : "questões que você respondeu"},
+            o aproveitamento foi de {answeredPercentage}%.
+          </Notice>
+        ) : null}
 
         <p className="mt-3 text-xs leading-5 text-slate-500">
           {ENEM_SCORE_ESTIMATE_NOTE}
@@ -390,7 +443,7 @@ export function SimulationsClient({
                 <CardTitle>Principais erros</CardTitle>
               </CardHeader>
               <CardContent>
-                {wrongQuestions.length && !fallbackAttempt ? (
+                {wrongQuestions.length ? (
                   <ul className="divide-y divide-slate-100">
                     {wrongQuestions.slice(0, 5).map((question) => (
                       <li
@@ -414,7 +467,9 @@ export function SimulationsClient({
                   </ul>
                 ) : (
                   <p className="text-sm leading-6 text-slate-500">
-                    Nenhum erro registrado nesta tentativa. Bom trabalho.
+                    {answeredCount
+                      ? "Nenhum erro entre as questões que você respondeu. Bom trabalho."
+                      : "Você finalizou sem responder nenhuma questão, então não há erro para revisar."}
                   </p>
                 )}
                 {wrongQuestions.length ? (
@@ -434,19 +489,14 @@ export function SimulationsClient({
           </section>
         </Reveal>
 
-        {fallbackAttempt ? (
-          <Notice tone="success" icon={CheckCircle2} className="mt-6">
-            Simulado local finalizado. O resultado fica visível nesta tela.
-          </Notice>
-        ) : null}
-
         <Notice
-          tone="success"
+          tone={fallbackAttempt ? "info" : "success"}
           icon={CheckCircle2}
-          className={cn("mt-6", fallbackAttempt && "hidden")}
+          className="mt-6"
         >
-          Seus erros já entraram na Revisão de erros e o seu desempenho por
-          assunto foi atualizado.
+          {fallbackAttempt
+            ? "Este simulado usou questões de fora do seu histórico: os erros entram na Revisão de erros deste navegador, mas o resultado não soma no seu desempenho por assunto."
+            : "Seus erros já entraram na Revisão de erros e o seu desempenho por assunto foi atualizado."}
         </Notice>
       </div>
     );
@@ -455,41 +505,34 @@ export function SimulationsClient({
   if (active && current) {
     const selected = answers[current.id];
     const progress = ((questionIndex + 1) / examQuestions.length) * 100;
+    const answeredCount = examQuestions.filter((question) => answers[question.id]).length;
+    const isLastQuestion = questionIndex === examQuestions.length - 1;
 
     return (
       <div>
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setActive(null);
-              setFallbackAttempt(false);
-              router.replace("/dashboard/simulados", { scroll: false });
-            }}
-          >
+        {/* Cronômetro e posição na prova acompanham a rolagem: em tela estreita o
+            enunciado com 5 alternativas empurra esse bloco fora da viewport. */}
+        <div className="sticky top-16 z-20 -mx-4 mb-6 flex items-center justify-between gap-2 border-b border-slate-200 bg-white/95 px-4 py-2 backdrop-blur sm:-mx-6 sm:gap-4 sm:px-6 xl:-mx-8 xl:px-8">
+          <Button variant="outline" className="shrink-0" onClick={exitWithoutFinishing}>
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Sair
+            Sair<span className="hidden sm:inline"> sem finalizar</span>
           </Button>
+          <span className="tnum shrink-0 whitespace-nowrap text-xs font-semibold text-slate-600 sm:text-sm">
+            Questão {questionIndex + 1} de {examQuestions.length}
+            <span className="hidden md:inline"> · {answeredCount} respondidas</span>
+          </span>
           <Timer seconds={seconds} setSeconds={setSeconds} />
         </div>
         <Card>
           <CardContent>
-            <div className="mb-6">
-              <div className="mb-2 flex items-center justify-between text-sm font-semibold text-slate-600">
-                <span>
-                  Questão {questionIndex + 1} de {examQuestions.length}
-                </span>
-                <span className="tnum">{Math.round(progress)}%</span>
-              </div>
-              <Progress value={progress} />
-            </div>
+            <Progress value={progress} label="Progresso" className="mb-6" />
             <div key={current.id} className="animate-rise">
               <div className="flex flex-wrap gap-2">
                 <Badge tone="blue">{current.subjects.area}</Badge>
                 <Badge tone="slate">{current.difficulty}</Badge>
                 <Badge tone="blue">{current.topics.name}</Badge>
               </div>
-              <p className="mt-6 text-lg leading-8 text-slate-900">
+              <p className="mt-6 break-words text-base leading-7 text-slate-900 sm:text-lg sm:leading-8">
                 {current.statement}
               </p>
               <QuestionMedia question={current} />
@@ -511,14 +554,14 @@ export function SimulationsClient({
                       <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-bold text-slate-700">
                         {option.option_key}
                       </span>
-                      <span className="text-sm leading-6 text-slate-800">
+                      <span className="min-w-0 break-words text-sm leading-6 text-slate-800">
                         {option.option_text}
                       </span>
                     </button>
                   ))}
               </div>
             </div>
-            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-between">
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <Button
                 variant="outline"
                 disabled={questionIndex === 0}
@@ -527,20 +570,31 @@ export function SimulationsClient({
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Anterior
               </Button>
-              {questionIndex === examQuestions.length - 1 ? (
-                <Button onClick={finish} disabled={!selected || pending}>
-                  <Flag className="h-4 w-4" aria-hidden="true" />
-                  Finalizar simulado
-                </Button>
-              ) : (
+              {/* Finalizar aparece em qualquer questão: quem travou no meio da prova
+                  precisa de saída com nota, não só na última. */}
+              <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center">
                 <Button
-                  onClick={() => setQuestionIndex((currentIndex) => currentIndex + 1)}
-                  disabled={!selected}
+                  variant={isLastQuestion ? "primary" : "outline"}
+                  onClick={finish}
+                  disabled={pending || !answeredCount}
                 >
-                  Próxima questão
+                  <Flag className="h-4 w-4" aria-hidden="true" />
+                  Finalizar e ver nota
                 </Button>
-              )}
+                {isLastQuestion ? null : (
+                  <Button
+                    onClick={() => setQuestionIndex((currentIndex) => currentIndex + 1)}
+                  >
+                    {selected ? "Próxima questão" : "Pular questão"}
+                  </Button>
+                )}
+              </div>
             </div>
+            {answeredCount ? null : (
+              <p className="mt-3 text-xs leading-5 text-slate-500">
+                Responda ao menos uma questão para finalizar e ver a nota estimada.
+              </p>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -550,13 +604,26 @@ export function SimulationsClient({
   const fallbackCatalog =
     simulations.length > 0 &&
     simulations.every((simulation) => isFallbackSimulation(simulation));
-  const generatedSimulations = simulations
-    .filter((simulation) => simulation.is_generated)
+  // Tentativa interrompida (ou simulado montado que nunca começou) precisa de porta
+  // de entrada: sem esta lista o aluno perde uma prova de 90 questões pela metade.
+  const openSimulations = simulations
+    .filter((simulation) => !isFallbackSimulation(simulation))
+    .map((simulation) => ({
+      simulation,
+      attempt: latestInProgressAttempt(simulation),
+    }))
+    .filter(
+      ({ simulation, attempt }) =>
+        attempt ||
+        (simulation.is_generated && !simulation.user_simulations?.length),
+    )
     .sort((a, b) => {
-      const lastA = a.user_simulations?.[0]?.started_at ?? "";
-      const lastB = b.user_simulations?.[0]?.started_at ?? "";
-      return lastB.localeCompare(lastA);
-    });
+      if (Boolean(a.attempt) !== Boolean(b.attempt)) return a.attempt ? -1 : 1;
+      const keyA = a.attempt?.started_at ?? a.simulation.created_at ?? "";
+      const keyB = b.attempt?.started_at ?? b.simulation.created_at ?? "";
+      return String(keyB).localeCompare(String(keyA));
+    })
+    .slice(0, 6);
   const attempts = simulations
     .flatMap((simulation) =>
       (simulation.user_simulations ?? [])
@@ -570,19 +637,77 @@ export function SimulationsClient({
 
   return (
     <div className="space-y-8">
+      {openSimulations.length ? (
+        <section>
+          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+            Simulados em aberto
+          </h2>
+          <p className="mb-3 mt-1 text-sm leading-6 text-slate-600">
+            Suas respostas ficam salvas: você volta de onde parou e a nota sai quando
+            finalizar.
+          </p>
+          <Card>
+            <CardContent className="p-0">
+              <ul className="divide-y divide-slate-100">
+                {openSimulations.map(({ simulation, attempt }) => {
+                  const questionCount = simulation.simulation_questions.length;
+                  const answeredCount = attempt
+                    ? Object.keys(answersFromSimulationAttempt(attempt)).length
+                    : 0;
+
+                  return (
+                    <li
+                      key={attempt?.id ?? simulation.id}
+                      className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
+                    >
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-slate-950">
+                          {simulation.title}
+                        </p>
+                        <p className="tnum mt-0.5 text-xs text-slate-500">
+                          {attempt
+                            ? `${answeredCount} de ${questionCount} questões respondidas • iniciado em ${formatAppDateTime(
+                                attempt.started_at,
+                                {
+                                  day: "2-digit",
+                                  month: "2-digit",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                },
+                              )}`
+                            : `${questionCount} questões • ainda não iniciado`}
+                        </p>
+                      </div>
+                      <Button
+                        className="w-full sm:w-auto"
+                        disabled={pending || locked}
+                        onClick={() => start(simulation)}
+                      >
+                        <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                        {attempt ? "Continuar de onde parei" : "Iniciar simulado"}
+                      </Button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+        </section>
+      ) : null}
+
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
             Simuladão ENEM
           </h2>
           <label className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-            Língua estrangeira
+            <span className="whitespace-nowrap">Língua estrangeira</span>
             <select
               value={foreignLanguage}
               onChange={(event) =>
                 setForeignLanguage(event.target.value as "en" | "es")
               }
-              className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-700"
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-700 sm:min-h-0"
             >
               <option value="en">Inglês</option>
               <option value="es">Espanhol</option>
@@ -595,7 +720,7 @@ export function SimulationsClient({
               <Card className="h-full">
                 <CardContent className="flex h-full flex-col justify-between gap-5 p-5">
                   <div>
-                    <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col items-start gap-3 sm:flex-row sm:justify-between sm:gap-4">
                       <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                         <Target className="h-5 w-5" aria-hidden="true" />
                       </div>
@@ -764,7 +889,7 @@ export function SimulationsClient({
                           : "—"}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 sm:shrink-0 sm:flex-nowrap sm:justify-end sm:gap-4">
                       <p className="tnum text-sm font-bold text-slate-800">
                         {attempt.correct_answers}/{attempt.total_questions}
                         <span className="ml-1.5 text-xs font-medium text-slate-500">
@@ -775,6 +900,7 @@ export function SimulationsClient({
                         <Button
                           variant="outline"
                           size="sm"
+                          className="w-full sm:w-auto"
                           disabled={pending || locked}
                           onClick={() => regenerateAndStart(simulation.id)}
                         >
@@ -789,13 +915,6 @@ export function SimulationsClient({
             </CardContent>
           </Card>
         </section>
-      ) : null}
-
-      {generatedSimulations.length && !attempts.length ? (
-        <Notice tone="info">
-          Você tem simulados montados sem tentativa registrada. Gere um novo
-          acima quando quiser começar — cada geração sorteia questões diferentes.
-        </Notice>
       ) : null}
     </div>
   );
@@ -902,8 +1021,9 @@ function SimulationBuilder({
   }
 
   const includesLinguagens = areas.includes("Linguagens");
+  // min-h-11 garante o alvo mínimo de toque no mobile; a partir de sm volta à densidade do dashboard.
   const selectClasses =
-    "rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-700";
+    "min-h-11 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 focus-visible:outline-2 focus-visible:outline-blue-700 sm:min-h-0";
 
   return (
     <Card>
@@ -928,7 +1048,7 @@ function SimulationBuilder({
                   type="button"
                   onClick={() => toggleArea(area.value)}
                   aria-pressed={selected}
-                  className={`rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-blue-700 ${
+                  className={`inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-blue-700 sm:min-h-8 ${
                     selected
                       ? "bg-blue-700 text-white hover:bg-blue-800"
                       : "bg-slate-50 text-slate-700 ring-1 ring-inset ring-slate-200 hover:bg-slate-100"
@@ -939,7 +1059,7 @@ function SimulationBuilder({
               );
             })}
           </div>
-          <div className="mt-4 flex flex-wrap items-end gap-4 border-t border-slate-100 pt-4">
+          <div className="mt-4 grid gap-4 border-t border-slate-100 pt-4 sm:flex sm:flex-wrap sm:items-end">
             <label className="grid gap-1 text-xs font-semibold text-slate-600">
               Questões
               <select
@@ -984,12 +1104,12 @@ function SimulationBuilder({
                 </select>
               </label>
             ) : null}
-            <label className="flex items-center gap-2 pb-2 text-sm font-medium text-slate-700">
+            <label className="flex min-h-11 items-center gap-2 text-sm font-medium text-slate-700 sm:min-h-0 sm:pb-2">
               <input
                 type="checkbox"
                 checked={prioritizeWeaknesses}
                 onChange={(event) => setPrioritizeWeaknesses(event.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-700"
+                className="h-5 w-5 rounded border-slate-300 text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-700 sm:h-4 sm:w-4"
               />
               Priorizar meus pontos fracos
             </label>
@@ -1021,16 +1141,24 @@ function Timer({
     return () => window.clearInterval(interval);
   }, [setSeconds]);
 
-  const minutes = Math.floor(seconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const rest = (seconds % 60).toString().padStart(2, "0");
-
   return (
-    <div className="tnum rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
-      {minutes}:{rest}
+    <div className="tnum shrink-0 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700">
+      {formatClock(seconds)}
     </div>
   );
+}
+
+/**
+ * Tentativa retomada conta o tempo desde o início da prova, que pode passar de
+ * um dia: sem a casa das horas o mostrador viraria "1872:05".
+ */
+function formatClock(totalSeconds: number) {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const rest = (totalSeconds % 60).toString().padStart(2, "0");
+  return hours ? `${hours}:${minutes}:${rest}` : `${minutes}:${rest}`;
 }
 
 function getAreaMetrics(
@@ -1075,7 +1203,7 @@ function QuestionMedia({ question }: { question: QuestionRecord }) {
                 width={media.width ?? 1000}
                 height={media.height ?? 600}
                 unoptimized
-                className="max-h-[520px] w-full object-contain"
+                className="max-h-[min(520px,70dvh)] w-full object-contain"
               />
               {media.caption || media.source_pdf || media.source_page ? (
                 <figcaption className="border-t border-slate-200 px-4 py-3 text-xs leading-5 text-slate-600">
@@ -1104,7 +1232,7 @@ function QuestionMedia({ question }: { question: QuestionRecord }) {
         alt={legacyMedia.alt}
         width={legacyMedia.width}
         height={legacyMedia.height}
-        className="h-auto w-full object-contain"
+        className="h-auto max-h-[min(520px,70dvh)] w-full object-contain"
         unoptimized
       />
     </figure>

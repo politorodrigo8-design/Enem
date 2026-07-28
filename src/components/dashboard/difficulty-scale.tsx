@@ -30,7 +30,7 @@ export function DifficultyScale({
         </span>
       </div>
       <div
-        className="grid grid-cols-5 gap-1.5"
+        className="grid grid-cols-5 gap-1 sm:gap-1.5"
         role="radiogroup"
         aria-label={`Dificuldade em ${label}`}
       >
@@ -43,7 +43,8 @@ export function DifficultyScale({
             aria-label={`${level} — ${levelLabels[level]}`}
             onClick={() => onChange(level)}
             className={cn(
-              "tnum h-9 rounded-lg border text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+              // Só volta a 36px em lg: a faixa de tablet também é toque.
+              "tnum h-11 rounded-lg border text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 lg:h-9",
               value === level
                 ? "border-blue-700 bg-blue-700 text-white"
                 : "border-slate-200 bg-white text-slate-500 hover:border-slate-300 hover:text-slate-800",
@@ -60,15 +61,15 @@ export function DifficultyScale({
 /** Versão de leitura da escala: barras preenchidas até o nível. */
 export function DifficultyMeter({ value, label }: { value: number; label: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 py-2.5">
-      <span className="text-sm font-medium text-slate-800">{label}</span>
-      <div className="flex items-center gap-2.5">
+    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-2.5">
+      <span className="min-w-0 text-sm font-medium text-slate-800">{label}</span>
+      <div className="flex shrink-0 items-center gap-2.5">
         <div className="flex gap-1" aria-hidden="true">
           {levels.map((level) => (
             <span
               key={level}
               className={cn(
-                "h-2 w-5 rounded-full",
+                "h-2 w-5 shrink-0 rounded-full",
                 level <= value ? "bg-blue-700" : "bg-slate-200",
               )}
             />

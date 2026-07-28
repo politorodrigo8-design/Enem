@@ -7,7 +7,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
 import { recalculateDiagnosisPriorities } from "@/lib/db/diagnosis";
-import { addDaysISO, calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
+import { calculatePriorityScore, getWeekStart } from "@/lib/db/scoring";
+import { upcomingPlanDates } from "@/lib/study/plan-schedule.mjs";
 import {
   getFallbackQuestionRecords,
   getFallbackQuestionWithAnswer,
@@ -66,7 +67,9 @@ type PracticeSessionStatsResult =
 
 async function getUserContext(): Promise<UserContext> {
   if (!isSupabaseConfigured()) {
-    return { error: "Configure o Supabase para salvar dados reais." };
+    return {
+      error: "Não foi possível salvar agora. Recarregue a página em alguns instantes.",
+    };
   }
 
   const supabase = await createClient();
@@ -191,7 +194,7 @@ export async function submitQuestionAnswerAction(input: {
   if (isFallbackQuestionId(input.questionId)) {
     const question = getFallbackQuestionWithAnswer(input.questionId);
     if (!question) {
-      return { ok: false, message: "Questão não encontrada no acervo local." };
+      return { ok: false, message: "Questão não encontrada. Atualize a página e escolha outra." };
     }
 
     const { result } = buildQuestionAnswerRecord({
@@ -248,7 +251,7 @@ export async function submitQuestionAnswerAction(input: {
   if (!isStudentReadyQuestion(question)) {
     return {
       ok: false,
-      message: "Esta questão ainda está em revisão editorial e não pode ser respondida.",
+      message: "Esta questão está em revisão e ainda não pode ser respondida. Escolha outra questão.",
     };
   }
 
@@ -403,10 +406,10 @@ async function ensurePracticeSession({
       .eq("user_id", userId)
       .maybeSingle();
     if (error) return practiceSessionMutationError("learning.practiceSession.load", error);
-    if (!existing) return { ok: false, message: "SessÃ£o nÃ£o encontrada. Reabra o treino." };
-    if (existing.status !== "Em andamento") {
-      return { ok: false, message: "Esta sessÃ£o jÃ¡ foi encerrada. Inicie outra." };
-    }
+    if (!existing) return { ok: false, message: "Sessão não encontrada. Reabra o treino." };
+    // Sessão encerrada em outra aba: a resposta continua valendo para o
+    // desempenho e para a revisão de erros — só não entra mais nesta sessão.
+    if (existing.status !== "Em andamento") return { ok: true, id: null };
 
     const { error: updateError } = await supabase
       .from("practice_sessions")
@@ -583,12 +586,12 @@ export async function finishPracticeSessionAction(input: {
       .maybeSingle();
 
     if (sessionError) return learningError("learning.finishPracticeSession.session", sessionError);
-    if (!session) return { ok: false, message: "SessÃ£o nÃ£o encontrada. Reabra o treino." };
+    if (!session) return { ok: false, message: "Sessão não encontrada. Reabra o treino." };
 
     if (session.status === "Finalizado") {
       return {
         ok: true,
-        message: "SessÃ£o jÃ¡ finalizada.",
+        message: "Sessão já finalizada.",
         answered: session.answered_count,
         correct: session.correct_count,
         wrong: session.wrong_count,
@@ -605,7 +608,7 @@ export async function finishPracticeSessionAction(input: {
     if (!finalStats || finalStats.answered === 0) {
       return {
         ok: false,
-        message: "Responda pelo menos uma questÃ£o da sessÃ£o antes de finalizar.",
+        message: "Responda pelo menos uma questão da sessão antes de finalizar.",
       };
     }
 
@@ -630,7 +633,7 @@ export async function finishPracticeSessionAction(input: {
     if (!updated) {
       return {
         ok: true,
-        message: "SessÃ£o jÃ¡ finalizada.",
+        message: "Sessão já finalizada.",
         answered: finalStats.answered,
         correct: finalStats.correct,
         wrong: finalStats.wrong,
@@ -653,8 +656,8 @@ export async function finishPracticeSessionAction(input: {
       ok: true,
       message:
         finalStats.wrong > 0
-          ? "SessÃ£o finalizada. Seus erros jÃ¡ estÃ£o na revisÃ£o."
-          : "SessÃ£o finalizada. Seu desempenho foi atualizado.",
+          ? "Sessão finalizada. Seus erros já estão na revisão."
+          : "Sessão finalizada. Seu desempenho foi atualizado.",
       answered: finalStats.answered,
       correct: finalStats.correct,
       wrong: finalStats.wrong,
@@ -722,7 +725,7 @@ export async function finishPracticeSessionAction(input: {
   const wrong = answered - correct;
   const finalStats = answered > 0 ? { answered, correct, wrong } : localSummary;
   if (!finalStats || finalStats.answered === 0) {
-    return { ok: false, message: "Responda pelo menos uma questÃ£o da sessÃ£o antes de finalizar." };
+    return { ok: false, message: "Responda pelo menos uma questão da sessão antes de finalizar." };
   }
 
   await recordPracticeSessionCompleted({
@@ -814,7 +817,6 @@ async function recordPracticeSessionCompleted({
 
 function revalidatePracticeSessionPaths() {
   revalidatePath("/dashboard/praticar");
-  revalidatePath("/dashboard/revisao");
   revalidatePath("/dashboard/desempenho");
   revalidatePath("/dashboard", "layout");
 }
@@ -1017,7 +1019,7 @@ export async function saveSimulationAnswerAction(input: {
   if (!isStudentReadyQuestion(question)) {
     return {
       ok: false,
-      message: "Esta questão ainda está em revisão editorial e não pode ser salva no simulado.",
+      message: "Esta questão está em revisão e não pode entrar no simulado. Siga para a próxima.",
     };
   }
 
@@ -1107,7 +1109,7 @@ export async function finishSimulationAction(
     const storedTotal = simulation.total_questions || questionById.size || storedResults.length;
     return {
       ok: true,
-      message: "Simulado jÃ¡ finalizado.",
+      message: "Simulado já finalizado.",
       results: storedResults,
       correct: storedCorrect,
       total: storedTotal,
@@ -1163,7 +1165,7 @@ export async function finishSimulationAction(
   if (!finalizedAttempt) {
     return {
       ok: true,
-      message: "Simulado jÃ¡ finalizado.",
+      message: "Simulado já finalizado.",
       results,
       correct,
       total: totalQuestions,
@@ -1358,7 +1360,7 @@ export async function finishFallbackSimulationAction(input: {
     scoreFallbackSimulation(input.simulationId, input.answers) ??
     scoreFallbackQuestionSet(input.questionIds ?? [], input.answers);
   if (!result) {
-    return { ok: false, message: "Simulado não encontrado no acervo local." };
+    return { ok: false, message: "Simulado não encontrado. Volte à lista e escolha outro." };
   }
 
   await recordProductEvent({
@@ -1534,7 +1536,7 @@ async function createGeneratedSimulation(
     if (fallbackSimulation) {
       return {
         ok: true,
-        message: `Simulado montado com ${fallbackSimulation.simulation_questions.length} questões do acervo local.`,
+        message: `Simulado montado com ${fallbackSimulation.simulation_questions.length} questões.`,
         simulation: fallbackSimulation,
         simulationId: fallbackSimulation.id,
       };
@@ -1542,7 +1544,7 @@ async function createGeneratedSimulation(
 
     return {
       ok: false,
-      message: `O banco tem ${candidates?.length ?? 0} questões para esses filtros; reduza a quantidade ou amplie os critérios.`,
+      message: `Encontramos ${candidates?.length ?? 0} questões para esses filtros. Reduza a quantidade ou amplie as áreas escolhidas.`,
     };
   }
 
@@ -1583,7 +1585,7 @@ async function createGeneratedSimulation(
     .from("simulations")
     .insert({
       title,
-      description: `Gerado a partir do banco de questões (${areas.join(", ")}).`,
+      description: `Montado a partir do acervo de questões (${areas.join(", ")}).`,
       duration_minutes: calculateSimulationDurationMinutes(questionCount),
       difficulty: criteria.difficulty ?? "Média",
       status: "Disponível",
@@ -1620,7 +1622,7 @@ async function createGeneratedSimulation(
   revalidatePath("/dashboard/simulados");
   return {
     ok: true,
-    message: `Simulado montado com ${picked.length} questões do banco.`,
+    message: `Simulado montado com ${picked.length} questões.`,
     simulationId: simulation.id,
   };
 }
@@ -1669,7 +1671,7 @@ function buildGeneratedFallbackSimulation(
   return {
     id: `fallback-simulation-generated-${createdAt.replace(/[^0-9]/g, "")}-${Math.random().toString(36).slice(2, 8)}`,
     title,
-    description: `Gerado a partir do acervo local de questões (${areas.join(", ")}).`,
+    description: `Montado a partir do acervo de questões (${areas.join(", ")}).`,
     duration_minutes: calculateSimulationDurationMinutes(questionCount),
     difficulty: criteria.difficulty ?? "Média",
     status: "Disponível",
@@ -1725,11 +1727,6 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
   if ("error" in context) return { ok: false, message: context.error };
   const { supabase, user } = context;
   const weekStart = getWeekStart();
-  await supabase
-    .from("study_plans")
-    .update({ status: "Arquivado" })
-    .eq("user_id", user.id)
-    .eq("week_start", weekStart);
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -1765,17 +1762,6 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     availableByTopic.get(normalizeTaxonomyKey(topic.name)) ?? 0;
   const topics = candidateTopics.filter((topic) => availableFor(topic) > 0);
 
-  const { data: plan, error: planError } = await supabase
-    .from("study_plans")
-    .insert({ user_id: user.id, week_start: weekStart, status: "Ativo" })
-    .select("id")
-    .single();
-
-  if (planError || !plan) {
-    if (planError) logServerError("learning.generateStudyPlan.create", planError);
-    return { ok: false, message: "Não foi possível criar o plano." };
-  }
-
   const parsedDays = parseSelectedWeekdays(profile?.available_days);
   const availableDays = parsedDays.length
     ? parsedDays
@@ -1789,22 +1775,53 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
   );
   const questionGoal = Math.min(25, Math.max(8, Math.round(duration / 4)));
 
-  const items = topics.slice(0, availableDays.length).map((topic, index) => {
-    const day = availableDays[index];
-    const offset = weekdayOffsetFromMonday(day) ?? index;
-    return {
-      study_plan_id: plan.id,
-      topic_id: topic.id,
-      scheduled_date: addDaysISO(weekStart, offset),
-      duration_minutes: duration,
-      question_goal: Math.min(questionGoal, availableFor(topic)),
-    };
-  });
+  // As atividades caem nas próximas ocorrências dos dias escolhidos, a partir
+  // de hoje: o assunto mais prioritário fica no dia mais próximo.
+  const scheduledDates = upcomingPlanDates(
+    appDateISO(),
+    availableDays.map((day) => weekdayOffsetFromMonday(day)),
+  );
+  const scheduledTopics = topics
+    .slice(0, scheduledDates.length)
+    .map((topic, index) => ({ topic, scheduledDate: scheduledDates[index] }));
 
-  if (items.length) {
-    const { error } = await supabase.from("study_plan_items").insert(items);
-    if (error) return learningError("learning.generateStudyPlan.items", error);
+  // O plano antigo só é arquivado quando existe um novo para substituí-lo:
+  // uma falha aqui não pode deixar o aluno sem nenhum plano ativo.
+  if (!scheduledTopics.length) {
+    return {
+      ok: false,
+      message:
+        "Não conseguimos montar seu plano agora. Confira seus dias disponíveis no diagnóstico e tente novamente.",
+    };
   }
+
+  const { error: archiveError } = await supabase
+    .from("study_plans")
+    .update({ status: "Arquivado" })
+    .eq("user_id", user.id)
+    .eq("week_start", weekStart);
+  if (archiveError) return learningError("learning.generateStudyPlan.archive", archiveError);
+
+  const { data: plan, error: planError } = await supabase
+    .from("study_plans")
+    .insert({ user_id: user.id, week_start: weekStart, status: "Ativo" })
+    .select("id")
+    .single();
+
+  if (planError || !plan) {
+    if (planError) logServerError("learning.generateStudyPlan.create", planError);
+    return { ok: false, message: "Não foi possível criar o plano agora. Tente novamente." };
+  }
+
+  const items = scheduledTopics.map(({ topic, scheduledDate }) => ({
+    study_plan_id: plan.id,
+    topic_id: topic.id,
+    scheduled_date: scheduledDate,
+    duration_minutes: duration,
+    question_goal: Math.min(questionGoal, availableFor(topic)),
+  }));
+  const { error: itemsError } = await supabase.from("study_plan_items").insert(items);
+  if (itemsError) return learningError("learning.generateStudyPlan.items", itemsError);
 
   revalidatePath("/dashboard");
   await recordProductEvent({
@@ -1814,7 +1831,10 @@ export async function generateStudyPlanAction(): Promise<ActionResult> {
     route: "/dashboard",
     metadata: { item_count: items.length },
   });
-  return { ok: true, message: "Plano da semana gerado." };
+  return {
+    ok: true,
+    message: `Plano gerado com ${items.length} ${items.length === 1 ? "atividade" : "atividades"}, começando pelo seu próximo dia de estudo.`,
+  };
 }
 
 export async function completeStudyPlanItemAction(

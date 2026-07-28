@@ -69,6 +69,13 @@ export function copyExplanation(result: QuestionExplanationResult) {
   toast.success("Explicação copiada.");
 }
 
+// A action de IA devolve a falta de saldo já como mensagem pronta ("Saldo
+// insuficiente...") e sem código de erro no retorno; é por ela que a parede sabe
+// oferecer a compra de créditos em vez de um "tentar novamente" que nunca passa.
+export function isInsufficientCreditsMessage(message: string) {
+  return message.toLowerCase().includes("saldo insuficiente");
+}
+
 export function formatTopicPath(area: string, subject: string, topic: string) {
   const parts = [area];
   if (normalize(subject) !== normalize(area)) parts.push(subject);

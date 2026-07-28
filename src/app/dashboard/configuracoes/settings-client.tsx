@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Check, Copy, Gift, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import { Check, Gift, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -12,7 +12,8 @@ import { accessLevelLabel, type AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
 import { isProfilePhotoDataUrl, PROFILE_PHOTO_UPDATED_EVENT } from "@/lib/profile-photo";
-import { buildReferralUrl } from "@/lib/referrals/cookies";
+import { referralProgramCopy } from "@/lib/referrals/constants";
+import { ReferralShareLink } from "@/components/dashboard/referrals/referral-share-link";
 import type { OnboardingInput } from "@/lib/schemas/beta";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -51,7 +52,6 @@ export function SettingsClient({
 }) {
   const router = useRouter();
   const formId = useId();
-  const referralUrl = referralCode ? buildReferralUrl(siteUrl, referralCode) : "";
   const initialStudyPreferences = getStudyPreferences(profile);
   const initialProfilePhotoUrl = getProfilePhotoUrl(initialStudyPreferences);
   const storedDifficulties =
@@ -82,7 +82,6 @@ export function SettingsClient({
     password: "",
     confirmPassword: "",
   });
-  const [referralCopied, setReferralCopied] = useState(false);
   const [pendingPhoto, setPendingPhoto] = useState(false);
   const [preferencesText, setPreferencesText] = useState(
     typeof form.study_preferences?.notes === "string"
@@ -95,22 +94,6 @@ export function SettingsClient({
   });
   const profilePhotoUrl = getProfilePhotoUrl(form.study_preferences);
   const profilePhotoChanged = profilePhotoUrl !== confirmedProfilePhotoUrl;
-
-  async function copyReferralLink() {
-    if (!referralUrl) {
-      toast.error("Seu link de indicação ainda não está disponível.");
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(referralUrl);
-      setReferralCopied(true);
-      toast.success("Link de indicação copiado.");
-      window.setTimeout(() => setReferralCopied(false), 1800);
-    } catch {
-      toast.error("Não foi possível copiar o link agora.");
-    }
-  }
 
   async function uploadProfilePhoto(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -430,10 +413,10 @@ export function SettingsClient({
           </CardHeader>
           <CardContent>
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                 <ShieldCheck className="h-5 w-5" aria-hidden="true" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <Badge tone={access.hasPlatformAccess ? "green" : "slate"}>
                   {accessLevelLabel(access.level)}
                 </Badge>
@@ -453,51 +436,29 @@ export function SettingsClient({
 
         <Card>
           <CardHeader>
-            <CardTitle>Programa de indicação</CardTitle>
+            <CardTitle>{referralProgramCopy.title}</CardTitle>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
             <div className="flex items-start gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
                 <Gift className="h-5 w-5" aria-hidden="true" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  Link de indicação
+                <p className="text-sm leading-6 text-slate-600">
+                  {referralProgramCopy.dashboardDescription}
                 </p>
-                <p className="mt-1 truncate text-sm font-semibold tracking-tight text-slate-950">
-                  {referralUrl || "Link indisponível agora"}
+                <p className="mt-1 text-xs leading-5 text-slate-500">
+                  {referralProgramCopy.holdNotice} {referralProgramCopy.purchaseCondition}
                 </p>
-                <p className="mt-3 text-sm leading-6 text-slate-600">
-                  Ganhe 30 créditos quando um amigo assinar. Ele também recebe 20
-                  créditos extras.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={copyReferralLink}
-                    disabled={!referralUrl}
-                  >
-                    {referralCopied ? (
-                      <Check className="h-4 w-4" aria-hidden="true" />
-                    ) : (
-                      <Copy className="h-4 w-4" aria-hidden="true" />
-                    )}
-                    Copiar link
-                  </Button>
-                  <Link
-                    href="/dashboard/creditos#indicacoes"
-                    className={buttonClasses({
-                      variant: "ghost",
-                      size: "sm",
-                    })}
-                  >
-                    Ver detalhes
-                  </Link>
-                </div>
               </div>
             </div>
+            <ReferralShareLink referralCode={referralCode} siteUrl={siteUrl} />
+            <Link
+              href="/dashboard/indicacoes"
+              className={buttonClasses({ variant: "ghost", size: "sm" })}
+            >
+              Ver minhas indicações
+            </Link>
           </CardContent>
         </Card>
 
@@ -543,8 +504,8 @@ export function SettingsClient({
         <Card>
           <CardContent>
             <div className="flex items-start gap-3">
-              <UserCog className="mt-1 h-5 w-5 text-blue-700" aria-hidden="true" />
-              <div>
+              <UserCog className="mt-1 h-5 w-5 shrink-0 text-blue-700" aria-hidden="true" />
+              <div className="min-w-0">
                 <p className="text-sm font-bold text-slate-950">Sessão</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   Saia da conta quando terminar de usar um computador compartilhado.
@@ -656,7 +617,7 @@ function Input({
         max={max}
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:h-10"
       />
     </label>
   );

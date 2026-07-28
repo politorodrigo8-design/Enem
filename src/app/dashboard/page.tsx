@@ -8,6 +8,7 @@ import {
   Timer,
 } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
+import { ReferralHomeCard } from "@/components/dashboard/referrals/referral-program-section";
 import { buttonClasses } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,20 +19,23 @@ import {
   getCurrentStudyPlan,
   getDashboardEssayCreditData,
   getProfile,
+  getReferralAccountSummary,
   getTodayStudy,
   getTopicsWithPerformance,
 } from "@/lib/db/queries";
+import { getSiteUrl } from "@/lib/supabase/config";
 import { prioritizeTopics } from "@/lib/study/priorities";
 import type { EssaySubmission } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
 import { StudyPlanSection } from "./study-plan-section";
 
 export default async function DashboardPage() {
-  const [profile, plan, topics, essayCreditData] = await Promise.all([
+  const [profile, plan, topics, essayCreditData, referral] = await Promise.all([
     getProfile(),
     getCurrentStudyPlan(),
     getTopicsWithPerformance(),
     getDashboardEssayCreditData(),
+    getReferralAccountSummary(),
   ]);
   const today = await getTodayStudy(plan, profile);
   const access = getAccessContext(profile);
@@ -69,11 +73,11 @@ export default async function DashboardPage() {
         <Card className={goalMet ? "border-emerald-200 bg-emerald-50/50" : undefined}>
           <CardContent className="p-5 sm:p-6">
             <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-2xl">
+              <div className="min-w-0 max-w-2xl">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Meta de hoje
                 </p>
-                <h2 className="mt-1.5 text-2xl font-bold tracking-tight text-slate-950">
+                <h2 className="mt-1.5 break-words text-2xl font-bold tracking-tight text-slate-950">
                   {goalMet
                     ? "Meta de hoje concluída"
                     : todayTopic
@@ -123,7 +127,11 @@ export default async function DashboardPage() {
 
       <section id="plano-semana" className="mt-6">
         <Reveal delay={80}>
-          <StudyPlanSection plan={plan} access={access} />
+          <StudyPlanSection
+            plan={plan}
+            access={access}
+            creditBalance={essayCreditData.account.balance}
+          />
         </Reveal>
       </section>
 
@@ -155,6 +163,15 @@ export default async function DashboardPage() {
               </div>
             </CardContent>
           </Card>
+        </Reveal>
+      </section>
+
+      <section className="mt-6">
+        <Reveal delay={260}>
+          <ReferralHomeCard
+            referralCode={referral.referralCode}
+            siteUrl={getSiteUrl()}
+          />
         </Reveal>
       </section>
     </div>
@@ -232,7 +249,7 @@ function EssayNextStep({ essay }: { essay: EssaySubmission | null }) {
               <Badge tone={essayStatusTones[essay.status]}>
                 {essayStatusLabels[essay.status]}
               </Badge>
-              <span className="text-sm leading-6 text-slate-600">
+              <span className="min-w-0 break-words text-sm leading-6 text-slate-600">
                 {essay.theme || "Redação sem tema informado"}
               </span>
             </div>

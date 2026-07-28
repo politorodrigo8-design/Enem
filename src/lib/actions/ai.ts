@@ -24,7 +24,11 @@ import {
   isFallbackQuestionId,
 } from "@/lib/db/fallback-content";
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
-import { generateGroqText, GroqConfigurationError } from "@/lib/services/groq";
+import {
+  generateGroqText,
+  GroqConfigurationError,
+  isGroqConfigured,
+} from "@/lib/services/groq";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { logServerError } from "@/lib/security/public-errors";
 import {
@@ -40,6 +44,8 @@ type AiActionError = {
   ok: false;
   message: string;
   insufficientData?: boolean;
+  /** IA fora do ar: tentar de novo agora não resolve e nenhum crédito é gasto. */
+  unavailable?: boolean;
 };
 
 type AiActionSuccessBase = {
@@ -294,9 +300,15 @@ export type SmartStudyPlanResult = z.infer<typeof studyPlanResultSchema> & {
 
 const MIN_PERFORMANCE_ANSWERS = 5;
 
+// Duas tentativas dentro do limite de execução da página que hospeda a ação:
+// estourar o tempo deixaria a reserva de crédito pendurada sem resposta.
+const AI_GENERATION_TIMEOUT_MS = 20_000;
+
 async function getUserContext(): Promise<UserContext> {
   if (!isSupabaseConfigured()) {
-    return { error: "Configure o Supabase para usar a IA com créditos." };
+    return {
+      error: "A IA está indisponível neste momento. Tente novamente mais tarde.",
+    };
   }
 
   const supabase = await createClient();
@@ -338,6 +350,8 @@ export async function generateQuestionExplanationAction(
 ): Promise<QuestionExplanationActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
+
+  if (!isGroqConfigured()) return aiUnavailableResult();
 
   const parsed = questionExplanationSchema.safeParse(input);
   if (!parsed.success) {
@@ -383,7 +397,7 @@ export async function generateQuestionExplanationAction(
         maxCompletionTokens: 1_400,
         responseFormat: { type: "json_object" },
         temperature: attempt === 0 ? 0.3 : 0.15,
-        timeoutMs: 45_000,
+        timeoutMs: AI_GENERATION_TIMEOUT_MS,
         messages: [
           {
             role: "system",
@@ -412,15 +426,17 @@ export async function generateQuestionExplanationAction(
         userId: context.user.id,
         attempt,
       });
+      if (error instanceof GroqConfigurationError) break;
     }
   }
 
   if (!explanation || !ai) {
-    await refundAiCreditReservation(context, reservation.ledger.id, lastError);
-    return {
-      ok: false,
-      message: "Não foi possível gerar a explicação agora. Seu crédito não foi consumido.",
-    };
+    return aiGenerationFailure({
+      context,
+      ledgerId: reservation.ledger.id,
+      cause: lastError,
+      failureHeadline: "Não foi possível gerar a explicação agora.",
+    });
   }
 
   const ledger = await confirmAiCreditReservation(context, reservation.ledger, {
@@ -456,6 +472,8 @@ export async function generateQuestionExplanationAction(
 export async function generatePerformanceAnalysisAction(): Promise<PerformanceAnalysisActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
+
+  if (!isGroqConfigured()) return aiUnavailableResult();
 
   const rateLimit = await checkRateLimit({
     operation: "ai.generate",
@@ -500,7 +518,7 @@ export async function generatePerformanceAnalysisAction(): Promise<PerformanceAn
         maxCompletionTokens: 1_800,
         responseFormat: { type: "json_object" },
         temperature: attempt === 0 ? 0.35 : 0.15,
-        timeoutMs: 45_000,
+        timeoutMs: AI_GENERATION_TIMEOUT_MS,
         messages: [
           {
             role: "system",
@@ -529,15 +547,17 @@ export async function generatePerformanceAnalysisAction(): Promise<PerformanceAn
         userId: context.user.id,
         attempt,
       });
+      if (error instanceof GroqConfigurationError) break;
     }
   }
 
   if (!analysis || !ai) {
-    await refundAiCreditReservation(context, reservation.ledger.id, lastError);
-    return {
-      ok: false,
-      message: "Não foi possível concluir a análise agora. Seu crédito não foi consumido.",
-    };
+    return aiGenerationFailure({
+      context,
+      ledgerId: reservation.ledger.id,
+      cause: lastError,
+      failureHeadline: "Não foi possível concluir a análise agora.",
+    });
   }
 
   const ledger = await confirmAiCreditReservation(context, reservation.ledger, {
@@ -573,6 +593,8 @@ export async function generateSmartStudyPlanAction(
 ): Promise<SmartStudyPlanActionResult> {
   const context = await getUserContext();
   if ("error" in context) return { ok: false, message: context.error };
+
+  if (!isGroqConfigured()) return aiUnavailableResult();
 
   const parsed = smartStudyPlanSchema.safeParse(input);
   if (!parsed.success) return { ok: false, message: "Prioridades inválidas para o plano." };
@@ -633,7 +655,7 @@ export async function generateSmartStudyPlanAction(
         maxCompletionTokens: 2_200,
         responseFormat: { type: "json_object" },
         temperature: attempt === 0 ? 0.4 : 0.2,
-        timeoutMs: 45_000,
+        timeoutMs: AI_GENERATION_TIMEOUT_MS,
         messages: [
           {
             role: "system",
@@ -662,15 +684,17 @@ export async function generateSmartStudyPlanAction(
         userId: context.user.id,
         attempt,
       });
+      if (error instanceof GroqConfigurationError) break;
     }
   }
 
   if (!studyPlan || !ai) {
-    await refundAiCreditReservation(context, reservation.ledger.id, lastError);
-    return {
-      ok: false,
-      message: "Não foi possível otimizar o plano agora. Seu crédito não foi consumido.",
-    };
+    return aiGenerationFailure({
+      context,
+      ledgerId: reservation.ledger.id,
+      cause: lastError,
+      failureHeadline: "Não foi possível otimizar o plano agora.",
+    });
   }
 
   const ledger = await confirmAiCreditReservation(context, reservation.ledger, {
@@ -840,7 +864,7 @@ async function refundAiCreditReservation(
   context: Exclude<UserContext, { error: string }>,
   ledgerId: string,
   cause: unknown,
-) {
+): Promise<{ refunded: boolean }> {
   const { error } = await context.supabase.rpc("refund_ai_credit_reservation", {
     input_ledger_id: ledgerId,
     input_reason: aiFailureReason(cause),
@@ -851,7 +875,54 @@ async function refundAiCreditReservation(
       userId: context.user.id,
       ledgerId,
     });
+    return { refunded: false };
   }
+
+  revalidateCreditViews();
+  return { refunded: true };
+}
+
+/** IA fora do ar: nada é reservado, então o aluno também não paga pela espera. */
+function aiUnavailableResult(): AiActionError {
+  return {
+    ok: false,
+    unavailable: true,
+    message:
+      "A IA está indisponível neste momento e nenhum crédito foi usado. Tente novamente mais tarde.",
+  };
+}
+
+/**
+ * Resposta única para toda falha de geração: o crédito reservado volta antes de
+ * o aluno ver a mensagem, e a mensagem só afirma a devolução quando ela de fato
+ * aconteceu. Sem isso o aluno lê "seu crédito não foi consumido" com o saldo
+ * menor — o gatilho clássico de reclamação.
+ */
+async function aiGenerationFailure({
+  context,
+  ledgerId,
+  cause,
+  failureHeadline,
+}: {
+  context: Exclude<UserContext, { error: string }>;
+  ledgerId: string;
+  cause: unknown;
+  failureHeadline: string;
+}): Promise<AiActionError> {
+  const { refunded } = await refundAiCreditReservation(context, ledgerId, cause);
+  const unavailable = cause instanceof GroqConfigurationError;
+  const headline = unavailable
+    ? "A IA está indisponível neste momento."
+    : failureHeadline;
+  const creditNote = refunded
+    ? "Seu crédito foi devolvido — tente novamente em alguns minutos."
+    : "Se o crédito não voltar ao seu saldo em alguns minutos, escreva para suporte@pontuaenem.com.br.";
+
+  return {
+    ok: false,
+    message: `${headline} ${creditNote}`,
+    ...(unavailable ? { unavailable: true } : {}),
+  };
 }
 
 async function getQuestionForAi(
@@ -1040,7 +1111,7 @@ async function getStudyPlanContext(
 
   if (fallbackTopicsResult.error) {
     logServerError("ai.studyPlanContext.fallbackTopics", fallbackTopicsResult.error, { userId });
-    return { ok: false, message: "NÃ£o foi possÃ­vel carregar assuntos recorrentes do ENEM." };
+    return { ok: false, message: "Não foi possível carregar assuntos recorrentes do ENEM." };
   }
 
   const profile = profileResult.data as

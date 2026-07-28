@@ -161,14 +161,25 @@ test("auditoria Mercado Pago registra apenas prefixo seguro da credencial", () =
   );
 });
 
-test("preferencia Mercado Pago usa apenas MERCADO_PAGO_ACCESS_TOKEN e nao envia notification_url", () => {
+test("preferencia Mercado Pago usa apenas MERCADO_PAGO_ACCESS_TOKEN", () => {
   assert.match(mercadoPagoServiceSource, /process\.env\.MERCADO_PAGO_ACCESS_TOKEN/);
-  assert.match(mercadoPagoServiceSource, /hasNotificationUrl: false/);
-  assert.doesNotMatch(mercadoPagoServiceSource, /notification_url:/);
   assert.doesNotMatch(mercadoPagoServiceSource, /process\.env\.STRIPE_SECRET_KEY/);
   assert.doesNotMatch(mercadoPagoServiceSource, /process\.env\.PAYMENT_PROVIDER_SECRET/);
   assert.doesNotMatch(mercadoPagoServiceSource, /process\.env\.MERCADO_PAGO_TEST_ACCESS_TOKEN/);
   assert.doesNotMatch(mercadoPagoServiceSource, /process\.env\.MERCADO_PAGO_PRODUCTION_ACCESS_TOKEN/);
+});
+
+// Sem notification_url o Mercado Pago não avisa o servidor, e a liberação passa
+// a depender de o comprador voltar ao site: quem paga por Pix ou boleto no app
+// do banco pagaria sem receber acesso. O campo exige HTTPS, então em
+// desenvolvimento ele precisa ficar de fora para não derrubar o checkout local.
+test("preferencia Mercado Pago registra notification_url apenas com origem HTTPS", () => {
+  assert.match(mercadoPagoServiceSource, /notification_url: notificationUrl/);
+  assert.match(
+    mercadoPagoServiceSource,
+    /siteUrl\.startsWith\("https:\/\/"\)\s*\?\s*`\$\{siteUrl\}\/api\/payments\/webhook`\s*:\s*null/,
+  );
+  assert.match(mercadoPagoServiceSource, /hasNotificationUrl: Boolean\(notificationUrl\)/);
 });
 
 test("rota do webhook usa validador SDK antes de processar pagamento", () => {
@@ -666,6 +677,82 @@ test("reconciliacao bloqueia valor incorreto", () => {
     action: "invalid",
     reason: "amount_mismatch",
   });
+});
+
+test("compra de pacote de creditos aprovada libera credito", () => {
+  const decision = getMercadoPagoPaymentProcessingDecision({
+    payment: mercadoPagoPaymentFixture({ transaction_amount: 19.9 }),
+    order: orderFixture({ amount_cents: 1990 }),
+    product: productFixture({
+      slug: "creditos-20",
+      product_kind: "credit_package",
+      credit_amount: 20,
+      product_name: "Pacote 20 creditos",
+    }),
+    expectedUserId: "user-1",
+  });
+
+  assert.equal(decision.action, "grant");
+  assert.equal(decision.reason, "approved_payment_matched");
+});
+
+test("pacote de creditos sem quantidade definida nao libera nada", () => {
+  const decision = getMercadoPagoPaymentProcessingDecision({
+    payment: mercadoPagoPaymentFixture({ transaction_amount: 19.9 }),
+    order: orderFixture({ amount_cents: 1990 }),
+    product: productFixture({
+      slug: "creditos-20",
+      product_kind: "credit_package",
+      credit_amount: null,
+    }),
+    expectedUserId: "user-1",
+  });
+
+  assert.deepEqual(decision, { action: "invalid", reason: "invalid_credit_package" });
+});
+
+test("preco promocional do produto de acesso libera acesso", () => {
+  const decision = getMercadoPagoPaymentProcessingDecision({
+    payment: mercadoPagoPaymentFixture({ transaction_amount: 79.9 }),
+    order: orderFixture({ amount_cents: 7990 }),
+    product: productFixture(),
+    expectedUserId: "user-1",
+  });
+
+  assert.equal(decision.action, "grant");
+});
+
+test("valor pago menor que o do pedido nao libera acesso", () => {
+  const decision = getMercadoPagoPaymentProcessingDecision({
+    payment: mercadoPagoPaymentFixture({ transaction_amount: 1 }),
+    order: orderFixture({ amount_cents: 9990 }),
+    product: productFixture(),
+    expectedUserId: "user-1",
+  });
+
+  assert.deepEqual(decision, { action: "invalid", reason: "amount_mismatch" });
+});
+
+test("pedido com valor invalido nao libera acesso", () => {
+  const decision = getMercadoPagoPaymentProcessingDecision({
+    payment: mercadoPagoPaymentFixture({ transaction_amount: 0 }),
+    order: orderFixture({ amount_cents: 0 }),
+    product: productFixture(),
+    expectedUserId: "user-1",
+  });
+
+  assert.deepEqual(decision, { action: "invalid", reason: "invalid_order_amount" });
+});
+
+test("produto de tipo desconhecido nao libera nada", () => {
+  const decision = getMercadoPagoPaymentProcessingDecision({
+    payment: mercadoPagoPaymentFixture(),
+    order: orderFixture(),
+    product: productFixture({ product_kind: "brinde" }),
+    expectedUserId: "user-1",
+  });
+
+  assert.deepEqual(decision, { action: "invalid", reason: "unexpected_product" });
 });
 
 test("reconciliacao bloqueia external_reference incorreta", () => {

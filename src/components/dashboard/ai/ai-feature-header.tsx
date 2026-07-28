@@ -19,7 +19,10 @@ export function AiFeatureHeader({
   return (
     <div>
       <p className={cn("flex items-center text-sm font-bold text-blue-950", titleClassName)}>
-        <Icon className={cn("h-4 w-4 text-blue-700", iconClassName)} aria-hidden="true" />
+        <Icon
+          className={cn("h-4 w-4 shrink-0 text-blue-700", iconClassName)}
+          aria-hidden="true"
+        />
         {title}
       </p>
       <p className={descriptionClassName}>{description}</p>

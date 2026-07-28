@@ -19,10 +19,10 @@ export default async function AccessRequiredPage() {
   const price = getCurrentProductPrice(product);
 
   return (
-    <main className="bg-slate-50 py-16">
+    <main className="bg-slate-50 py-10 sm:py-16">
       <div className="animate-rise mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Card>
-          <CardContent className="p-8 sm:p-10">
+          <CardContent className="p-6 sm:p-10">
             <p className="text-sm font-semibold text-blue-700">Conta criada</p>
             <h1 className="mt-3 text-3xl font-display font-semibold tracking-tight text-slate-950">
               Falta um passo: concluir a compra.

@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { QuestionBankClient } from "../questoes/question-bank-client";
-import { ReviewClient } from "../revisao/review-client";
+import {
+  QuestionBankClient,
+  type TopicPriority,
+} from "../questoes/question-bank-client";
+import { ReviewClient, hasReviewHistory } from "../revisao/review-client";
 import type { AccessContext } from "@/lib/access";
 import type { ActivePracticeSession, QuestionRecord } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
@@ -13,6 +16,8 @@ import {
 
 export type PracticeTab = "banco" | "revisao";
 
+// O id "revisao" continua na URL: outras telas linkam para ?tab=revisao. Só o
+// rótulo mudou, para dizer o que a aba realmente mostra.
 const tabs: Array<{ id: PracticeTab; label: string }> = [
   { id: "banco", label: "Banco de questões" },
   { id: "revisao", label: "Já respondidas" },
@@ -21,18 +26,22 @@ const tabs: Array<{ id: PracticeTab; label: string }> = [
 export function PracticeTabs({
   initialTab,
   questions,
-  reviewQuestions,
   access,
+  userId,
   initialQuestionId,
   initialTopic,
+  initialGoal,
+  topicPriority,
   activePracticeSession,
 }: {
   initialTab: PracticeTab;
   questions: QuestionRecord[];
-  reviewQuestions: QuestionRecord[];
   access: AccessContext;
+  userId: string;
   initialQuestionId?: string;
   initialTopic?: string;
+  initialGoal?: number | null;
+  topicPriority?: TopicPriority;
   activePracticeSession?: ActivePracticeSession | null;
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialTab);
@@ -41,27 +50,18 @@ export function PracticeTabs({
     questions,
     localProgress,
   );
-  const localWrongQuestions = questionsWithLocalProgress.filter((question) => {
-    const latest = latestAnswer(question);
-    return latest && !latest.is_correct;
-  });
-  const reviewQuestionsWithLocalProgress = mergeReviewQuestions(
-    reviewQuestions,
-    localWrongQuestions,
-  );
+  const historyCount = questionsWithLocalProgress.filter(hasReviewHistory).length;
 
   return (
     <div>
       <div
-        className="mb-6 flex flex-wrap gap-2 border-b border-slate-200"
+        className="mb-6 grid grid-cols-2 border-b border-slate-200 sm:flex sm:flex-wrap sm:gap-2"
         role="tablist"
         aria-label="Modos de prática"
       >
         {tabs.map((item) => {
           const count =
-            item.id === "revisao"
-              ? reviewQuestionsWithLocalProgress.length
-              : questionsWithLocalProgress.length;
+            item.id === "revisao" ? historyCount : questionsWithLocalProgress.length;
 
           return (
             <button
@@ -78,7 +78,7 @@ export function PracticeTabs({
                 );
               }}
               className={cn(
-                "-mb-px inline-flex items-center gap-2 border-b-2 px-3 py-2.5 text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+                "-mb-px inline-flex min-h-11 items-center justify-center gap-2 border-b-2 px-3 py-2.5 text-center text-sm font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0 sm:justify-start sm:text-left",
                 tab === item.id
                   ? "border-blue-700 font-semibold text-blue-900"
                   : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900",
@@ -105,8 +105,11 @@ export function PracticeTabs({
           <QuestionBankClient
             questions={questions}
             access={access}
+            userId={userId}
             initialQuestionId={initialQuestionId}
             initialTopic={initialTopic}
+            initialGoal={initialGoal}
+            topicPriority={topicPriority}
             activePracticeSession={activePracticeSession}
           />
         </div>
@@ -114,32 +117,9 @@ export function PracticeTabs({
 
       {tab === "revisao" ? (
         <div key="revisao" className="animate-rise">
-          <ReviewClient
-            reviewQuestions={reviewQuestionsWithLocalProgress}
-            answeredQuestions={questionsWithLocalProgress}
-          />
+          <ReviewClient questions={questionsWithLocalProgress} />
         </div>
       ) : null}
     </div>
   );
-}
-
-function mergeReviewQuestions(
-  reviewQuestions: QuestionRecord[],
-  localWrongQuestions: QuestionRecord[],
-) {
-  const seen = new Set(reviewQuestions.map((question) => question.id));
-  return [
-    ...reviewQuestions,
-    ...localWrongQuestions.filter((question) => !seen.has(question.id)),
-  ];
-}
-
-function latestAnswer(question: QuestionRecord) {
-  return question.user_question_answers
-    ?.slice()
-    .sort(
-      (a, b) =>
-        new Date(b.answered_at).getTime() - new Date(a.answered_at).getTime(),
-    )[0];
 }

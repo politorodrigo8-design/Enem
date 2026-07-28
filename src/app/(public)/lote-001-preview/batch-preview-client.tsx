@@ -47,19 +47,19 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
       <div className="mb-6">
         <p className="text-sm font-semibold uppercase text-blue-700">Preview editorial</p>
         <h1 className="mt-2 text-3xl font-bold text-slate-950">Lote 001 aprovado</h1>
-        <p className="mt-2 text-sm text-slate-600">
-          {questions.length} questões approved carregadas dos JSONs de importação. Áreas: {areas}.
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          {questions.length} questões aprovadas neste lote. Áreas: {areas}.
         </p>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
+            <div className="min-w-0">
               <CardTitle>
                 Questão {index + 1} de {questions.length}
               </CardTitle>
-              <p className="mt-2 text-sm text-slate-500">
+              <p className="mt-2 break-words text-sm text-slate-500">
                 {question.source} | Q{question.question_number} | {question.year}
               </p>
             </div>
@@ -84,7 +84,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
             </figure>
           ) : null}
 
-          <p className="whitespace-pre-line text-lg leading-8 text-slate-900">
+          <p className="whitespace-pre-line break-words text-lg leading-8 text-slate-900">
             {question.statement}
           </p>
 
@@ -111,14 +111,14 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
                   <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-slate-100 text-sm font-bold text-slate-700">
                     {option.option_key}
                   </span>
-                  <span className="text-sm leading-6 text-slate-800">{option.option_text}</span>
+                  <span className="min-w-0 break-words text-sm leading-6 text-slate-800">{option.option_text}</span>
                 </button>
               );
             })}
           </div>
 
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex gap-3">
+            <div className="grid grid-cols-2 gap-3 sm:flex">
               <Button variant="outline" onClick={() => move(Math.max(0, index - 1))} disabled={index === 0}>
                 <ArrowLeft className="h-4 w-4" aria-hidden="true" />
                 Anterior
@@ -149,7 +149,7 @@ export function BatchPreviewClient({ questions }: { questions: PreviewQuestion[]
                   {currentResult ? "Resposta correta" : "Resposta incorreta"}
                 </p>
               </div>
-              <p className="mt-3 text-sm leading-6 text-slate-700">{question.explanation}</p>
+              <p className="mt-3 break-words text-sm leading-6 text-slate-700">{question.explanation}</p>
             </div>
           ) : null}
         </CardContent>

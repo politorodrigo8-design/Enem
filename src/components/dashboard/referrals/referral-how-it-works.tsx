@@ -1,7 +1,14 @@
+import {
+  REFERRAL_REFERRED_BONUS_CREDITS,
+  REFERRAL_REFERRER_REWARD_CREDITS,
+  REFERRAL_REWARD_HOLD_DAYS,
+  referralProgramCopy,
+} from "@/lib/referrals/constants";
+
 const steps = [
-  "Compartilhe seu link.",
-  "Seu amigo cria uma nova conta e compra o Pontua ENEM.",
-  "Ele recebe 20 créditos extras e você recebe 30 créditos.",
+  "Envie seu link para quem ainda não usa o Pontua ENEM.",
+  "Seu amigo cria a conta pelo link e compra o acesso à plataforma.",
+  `Ele recebe ${REFERRAL_REFERRED_BONUS_CREDITS} créditos na confirmação do pagamento e você recebe ${REFERRAL_REFERRER_REWARD_CREDITS} em ${REFERRAL_REWARD_HOLD_DAYS} dias.`,
 ];
 
 export function ReferralHowItWorks() {
@@ -18,10 +25,11 @@ export function ReferralHowItWorks() {
           </li>
         ))}
       </ol>
-      <p className="mt-4 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-500">
-        Os créditos da indicação são liberados apenas para compras válidas e podem ser
-        cancelados em caso de reembolso, fraude ou violação das regras do programa.
-      </p>
+      <div className="mt-4 space-y-1.5 border-t border-slate-200 pt-3 text-xs leading-5 text-slate-500">
+        <p>{referralProgramCopy.purchaseCondition}</p>
+        <p>{referralProgramCopy.linkNotice}</p>
+        <p>{referralProgramCopy.terms}</p>
+      </div>
     </div>
   );
 }

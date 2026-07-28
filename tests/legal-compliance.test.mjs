@@ -37,6 +37,26 @@ const publicLegalPages = [
   "../src/app/(public)/privacidade/page.tsx",
   "../src/app/(public)/reembolso/page.tsx",
 ].map((path) => readFileSync(new URL(path, import.meta.url), "utf8"));
+const termsPage = readFileSync(
+  new URL("../src/app/(public)/termos/page.tsx", import.meta.url),
+  "utf8",
+);
+const privacyPage = readFileSync(
+  new URL("../src/app/(public)/privacidade/page.tsx", import.meta.url),
+  "utf8",
+);
+const publicLayout = readFileSync(
+  new URL("../src/app/(public)/layout.tsx", import.meta.url),
+  "utf8",
+);
+const legalConfig = readFileSync(
+  new URL("../src/lib/legal/config.ts", import.meta.url),
+  "utf8",
+);
+const landingPage = readFileSync(
+  new URL("../src/app/(public)/page.tsx", import.meta.url),
+  "utf8",
+);
 
 test("migration cria versões e aceites legais com RLS restritiva", () => {
   assert.match(migration, /create table if not exists public\.legal_document_versions/);
@@ -88,10 +108,31 @@ test("checkouts bloqueiam sem aceite e servidor recusa payload ausente", () => {
 });
 
 test("documentos públicos não mantêm linguagem provisória interna", () => {
-  const forbidden = /fase inicial|não foi identificado no código|deve ser revisado|devem ser revisados|antes das vendas|abertura de vendas/i;
+  const forbidden =
+    /fase inicial|não foi identificado no código|deve ser revisado|devem ser revisados|antes das vendas|abertura de vendas|revisão jurídica pendente|pendente de revisão/i;
   for (const content of publicLegalPages) {
     assert.doesNotMatch(content, forbidden);
   }
+});
+
+test("identificação do fornecedor tem uma fonte única e nenhum dado fixo na página", () => {
+  assert.match(legalConfig, /export function getSupplierIdentificationLines/);
+  assert.match(legalConfig, /export function getPrivacyOfficerLabel/);
+  const cnpjPattern = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/;
+  for (const content of [publicLayout, termsPage, privacyPage]) {
+    assert.match(content, /getSupplierIdentificationLines/);
+    assert.doesNotMatch(content, cnpjPattern);
+  }
+  assert.match(privacyPage, /getPrivacyOfficerLabel/);
+  assert.match(privacyPage, /Encarregado pelo tratamento de dados/);
+});
+
+test("landing não usa depoimento, resultado inventado nem cadência de banco prometida", () => {
+  assert.doesNotMatch(landingPage, /testimonial|Depoimentos/i);
+  assert.doesNotMatch(landingPage, /pontos de evolução média/i);
+  assert.doesNotMatch(landingPage, /semanalmente|toda semana/i);
+  assert.doesNotMatch(landingPage, /value: "180"/);
+  assert.match(landingPage, /não promete/i);
 });
 
 test("servidor sincroniza versoes legais vigentes antes de registrar aceite", () => {

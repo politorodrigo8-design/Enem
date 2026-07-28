@@ -13,7 +13,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { CreditPackageCheckoutButton } from "@/components/dashboard/credit-package-checkout-button";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
-import { ReferralProgramSection } from "@/components/dashboard/referrals/referral-program-section";
+import { ReferralHomeCard } from "@/components/dashboard/referrals/referral-program-section";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -145,6 +145,11 @@ export default async function CreditsPage({
         description="Seu saldo atual e o que dá para fazer com ele."
       />
 
+      {/*
+        Itens de grid com `truncate`/`whitespace-nowrap` dentro precisam de
+        `min-w-0`: sem isso o min-content do texto de uma linha vira a largura
+        mínima da coluna e o card estoura o viewport no mobile.
+      */}
       <div className="grid gap-6 xl:grid-cols-[0.8fr_1.2fr]">
         <Reveal delay={0}>
           <Card className="h-full">
@@ -184,7 +189,7 @@ export default async function CreditsPage({
           </Card>
         </Reveal>
 
-        <Reveal delay={80}>
+        <Reveal delay={80} className="min-w-0">
           <Card className="h-full">
             <CardHeader>
               <CardTitle>O que os créditos pagam</CardTitle>
@@ -199,31 +204,35 @@ export default async function CreditsPage({
                   <li key={use.title}>
                     <Link
                       href={use.href}
-                      className="group flex items-center gap-4 py-3 transition-colors hover:bg-slate-50 sm:-mx-2 sm:rounded-lg sm:px-2"
+                      className="group flex flex-col gap-2 py-3 transition-colors hover:bg-slate-50 sm:-mx-2 sm:flex-row sm:items-center sm:gap-4 sm:rounded-lg sm:px-2"
                     >
-                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                        <use.icon className="h-4 w-4" aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-slate-950">
-                          {use.title}
+                      <span className="flex min-w-0 flex-1 items-center gap-3">
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
+                          <use.icon className="h-4 w-4" aria-hidden="true" />
                         </span>
-                        <span className="mt-0.5 block truncate text-xs leading-5 text-slate-500">
-                          {use.description}
+                        <span className="min-w-0">
+                          <span className="block text-sm font-semibold text-slate-950">
+                            {use.title}
+                          </span>
+                          <span className="mt-0.5 block text-xs leading-5 text-slate-500 sm:truncate">
+                            {use.description}
+                          </span>
                         </span>
                       </span>
-                      <span className="tnum shrink-0 rounded-md bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-200">
-                        {use.cost} {use.cost === 1 ? "crédito" : "créditos"}
-                      </span>
-                      {use.actionLabel ? (
-                        <span className="hidden shrink-0 text-xs font-bold text-blue-700 sm:inline">
-                          {use.actionLabel}
+                      <span className="flex items-center gap-3 pl-12 sm:pl-0">
+                        <span className="tnum shrink-0 whitespace-nowrap rounded-md bg-slate-50 px-2 py-1 text-xs font-bold text-slate-700 ring-1 ring-inset ring-slate-200">
+                          {use.cost} {use.cost === 1 ? "crédito" : "créditos"}
                         </span>
-                      ) : null}
-                      <ArrowRight
-                        className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-blue-700"
-                        aria-hidden="true"
-                      />
+                        {use.actionLabel ? (
+                          <span className="hidden shrink-0 text-xs font-bold text-blue-700 sm:inline">
+                            {use.actionLabel}
+                          </span>
+                        ) : null}
+                        <ArrowRight
+                          className="h-4 w-4 shrink-0 text-slate-300 transition-colors group-hover:text-blue-700"
+                          aria-hidden="true"
+                        />
+                      </span>
                     </Link>
                   </li>
                 ))}
@@ -244,7 +253,7 @@ export default async function CreditsPage({
               automática.
             </p>
           </div>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {creditPackageProducts.map((pack) => (
               <Card
                 key={pack.id}
@@ -268,14 +277,14 @@ export default async function CreditsPage({
                   <p className="mt-1 text-sm leading-6 text-slate-600">
                     {pack.description}
                   </p>
-                  <div className="mt-5 flex items-baseline justify-between gap-3 border-t border-slate-100 pt-5">
+                  <div className="mt-5 flex flex-col gap-2 border-t border-slate-100 pt-5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-3">
                     <p className="tnum text-3xl font-bold tracking-tight text-slate-950">
                       {pack.credits}
                       <span className="ml-1.5 text-base font-semibold text-slate-500">
                         créditos
                       </span>
                     </p>
-                    <div className="text-right">
+                    <div className="text-left sm:text-right">
                       <p className="tnum text-xl font-bold text-blue-800">
                         {pack.price}
                       </p>
@@ -309,12 +318,17 @@ export default async function CreditsPage({
         </section>
       </Reveal>
 
-      <Reveal delay={160}>
-        <ReferralProgramSection data={data.referrals} siteUrl={getSiteUrl()} />
+      {/* Versão curta: o programa inteiro (estatísticas e histórico) mora em
+          /dashboard/indicacoes, para onde o card leva. */}
+      <Reveal delay={160} className="mt-10 block">
+        <ReferralHomeCard
+          referralCode={data.referrals.referralCode}
+          siteUrl={getSiteUrl()}
+        />
       </Reveal>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <Reveal delay={120}>
+        <Reveal delay={120} className="min-w-0">
           <Card id="historico">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -357,25 +371,14 @@ export default async function CreditsPage({
                   {data.ledgerPage > 1 ? (
                     <Link
                       href={getLedgerPageHref(data.ledgerPage - 1)}
-                      className={buttonClasses({
-                        variant: "outline",
-                        size: "sm",
-                        className: "h-9 w-9 shrink-0 px-0",
-                      })}
+                      className={ledgerPagerClasses()}
                       aria-label="Página anterior do histórico"
                       title="Página anterior"
                     >
                       <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   ) : (
-                    <span
-                      className={buttonClasses({
-                        variant: "outline",
-                        size: "sm",
-                        className: "h-9 w-9 shrink-0 px-0 opacity-55",
-                      })}
-                      aria-disabled="true"
-                    >
+                    <span className={ledgerPagerClasses(true)} aria-disabled="true">
                       <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                     </span>
                   )}
@@ -385,25 +388,14 @@ export default async function CreditsPage({
                   {data.ledgerPage < ledgerPageCount ? (
                     <Link
                       href={getLedgerPageHref(data.ledgerPage + 1)}
-                      className={buttonClasses({
-                        variant: "outline",
-                        size: "sm",
-                        className: "h-9 w-9 shrink-0 px-0",
-                      })}
+                      className={ledgerPagerClasses()}
                       aria-label="Próxima página do histórico"
                       title="Próxima página"
                     >
                       <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </Link>
                   ) : (
-                    <span
-                      className={buttonClasses({
-                        variant: "outline",
-                        size: "sm",
-                        className: "h-9 w-9 shrink-0 px-0 opacity-55",
-                      })}
-                      aria-disabled="true"
-                    >
+                    <span className={ledgerPagerClasses(true)} aria-disabled="true">
                       <ChevronRight className="h-4 w-4" aria-hidden="true" />
                     </span>
                   )}
@@ -413,7 +405,7 @@ export default async function CreditsPage({
           </Card>
         </Reveal>
 
-        <Reveal delay={160}>
+        <Reveal delay={160} className="min-w-0">
           <Card className="h-fit">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -445,16 +437,29 @@ export default async function CreditsPage({
                   ))}
                 </ul>
               ) : (
-                <p className="text-sm leading-6 text-slate-500">
-                  Redações enviadas aparecerão aqui com status e créditos
-                  utilizados.
-                </p>
+                <div>
+                  <p className="text-sm leading-6 text-slate-500">
+                    Você ainda não enviou nenhuma redação. Cada envio custa{" "}
+                    {ESSAY_CREDIT_COST} créditos e volta corrigido pelas cinco
+                    competências.
+                  </p>
+                  <Link
+                    href="/dashboard/correcao-redacao"
+                    className={buttonClasses({
+                      variant: "outline",
+                      size: "sm",
+                      className: "mt-4",
+                    })}
+                  >
+                    <PenLine className="h-4 w-4" aria-hidden="true" />
+                    Enviar primeira redação
+                  </Link>
+                </div>
               )}
             </CardContent>
           </Card>
         </Reveal>
       </div>
-
     </div>
   );
 }
@@ -471,6 +476,15 @@ function parsePageParam(value: string | string[] | undefined) {
   const rawValue = Array.isArray(value) ? value[0] : value;
   const parsedValue = Number.parseInt(rawValue ?? "", 10);
   return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 1;
+}
+
+/** Botão quadrado do paginador: 44px no mobile, densidade do dashboard a partir de sm. */
+function ledgerPagerClasses(isDisabled = false) {
+  return buttonClasses({
+    variant: "outline",
+    size: "sm",
+    className: `h-11 w-11 shrink-0 px-0 sm:h-9 sm:w-9${isDisabled ? " opacity-55" : ""}`,
+  });
 }
 
 function getLedgerPageHref(page: number) {

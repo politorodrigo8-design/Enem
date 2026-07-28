@@ -5,7 +5,7 @@ import { Reveal } from "@/components/ui/reveal";
 import { buttonClasses } from "@/components/ui/button";
 import { getAccessContext } from "@/lib/access";
 import {
-  getAreaMetrics,
+  getDashboardEssayCreditData,
   getProfile,
   getQuestionRecords,
   getTopicsWithPerformance,
@@ -19,11 +19,11 @@ import {
 } from "./priority-topics";
 
 export default async function PerformancePage() {
-  const [topics, profile, questions, areaMetrics] = await Promise.all([
+  const [topics, profile, questions, creditData] = await Promise.all([
     getTopicsWithPerformance(),
     getProfile(),
     getQuestionRecords(),
-    getAreaMetrics(),
+    getDashboardEssayCreditData(),
   ]);
   const access = getAccessContext(profile);
 
@@ -72,8 +72,8 @@ export default async function PerformancePage() {
 
       <PerformanceView
         questions={questions}
-        areaMetrics={areaMetrics}
         access={access}
+        creditBalance={creditData.account.balance}
       />
 
       <section className="mt-6">

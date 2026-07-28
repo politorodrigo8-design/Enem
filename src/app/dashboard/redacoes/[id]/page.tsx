@@ -84,9 +84,9 @@ export default async function AdminEssayDetailPage({
           {essay.student_note ? (
             <div className="rounded-lg bg-slate-50 p-4 ring-1 ring-inset ring-slate-200">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Observacao do aluno
+                Observação do aluno
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
                 {essay.student_note}
               </p>
             </div>
@@ -96,7 +96,7 @@ export default async function AdminEssayDetailPage({
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Texto digitado
               </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-800">
+              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-800">
                 {essay.essay_text}
               </p>
             </div>
@@ -140,7 +140,9 @@ export default async function AdminEssayDetailPage({
 
 function Info({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200">
+    // min-w-0 é obrigatório: o `truncate` abaixo aplica nowrap e, sem isso,
+    // o e-mail longo virava o min-content da coluna e estourava a grade.
+    <div className="min-w-0 rounded-lg bg-slate-50 p-3 ring-1 ring-inset ring-slate-200">
       <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
         {label}
       </p>

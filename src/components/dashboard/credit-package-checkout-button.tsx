@@ -6,6 +6,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
+import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
 
 export function CreditPackageCheckoutButton({
   productSlug,
@@ -29,6 +30,8 @@ export function CreditPackageCheckoutButton({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isDisabled = disabled || pending;
   const canContinue = !isDisabled && legalAccepted;
+
+  useLockPageScroll(open);
 
   useEffect(() => {
     if (!open) return;
@@ -107,17 +110,19 @@ export function CreditPackageCheckoutButton({
 
       {open ? (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 px-4 py-6"
+          className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overscroll-contain bg-slate-950/55 p-4 sm:items-center"
           role="presentation"
+          onClick={closeModal}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby={`credit-package-title-${productSlug}`}
-            className="w-full max-w-md rounded-xl bg-white p-5 shadow-xl shadow-slate-950/20"
+            className="my-auto w-full max-w-md rounded-xl bg-white p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-lg shadow-slate-950/10"
+            onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-4">
-              <div>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   Compra de créditos
                 </p>
@@ -130,7 +135,7 @@ export function CreditPackageCheckoutButton({
               </div>
               <button
                 type="button"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className="-mr-2 -mt-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:-mr-1 sm:-mt-1 sm:h-9 sm:w-9"
                 onClick={closeModal}
                 aria-label="Fechar confirmação"
               >
@@ -142,7 +147,7 @@ export function CreditPackageCheckoutButton({
               <p>
                 Valor: <span className="font-bold text-slate-950">{price}</span>
               </p>
-              <p>
+              <p className="break-words">
                 Os créditos serão adicionados à conta{" "}
                 <span className="font-bold text-slate-950">
                   {accountEmail || "aluno Pontua Enem"}
@@ -156,7 +161,7 @@ export function CreditPackageCheckoutButton({
                 type="checkbox"
                 checked={legalAccepted}
                 onChange={(event) => setLegalAccepted(event.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
               />
               <span>
                 Li e concordo com os{" "}

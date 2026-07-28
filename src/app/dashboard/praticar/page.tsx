@@ -4,9 +4,11 @@ import {
   getProfile,
   getActivePracticeSession,
   getQuestionRecords,
-  getReviewQuestions,
   getTopicNameById,
+  getTopicsWithPerformance,
 } from "@/lib/db/queries";
+import { withCleanStatements } from "@/lib/questions/quality";
+import { prioritizeTopics } from "@/lib/study/priorities";
 import { PracticeTabs, type PracticeTab } from "./practice-tabs";
 
 const uuidPattern =
@@ -19,15 +21,16 @@ export default async function PracticePage({
     tab?: string;
     question?: string;
     topic?: string;
+    meta?: string;
   }>;
 }) {
-  const [{ tab, question, topic }, questions, reviewQuestions, activePracticeSession, profile] =
+  const [{ tab, question, topic, meta }, questions, activePracticeSession, profile, topics] =
     await Promise.all([
       searchParams,
       getQuestionRecords(),
-      getReviewQuestions(),
       getActivePracticeSession("question_bank"),
       getProfile(),
+      getTopicsWithPerformance(),
     ]);
 
   // topic_id do banco vira nome do assunto: o filtro do cliente casa por nome,
@@ -40,6 +43,19 @@ export default async function PracticePage({
   const access = getAccessContext(profile);
   const initialTab: PracticeTab = tab === "revisao" ? tab : "banco";
 
+  // Mesma priorização de assuntos que a tela Hoje usa: é ela que define quais
+  // assuntos entram em "Recomendadas" e o critério exibido ao aluno.
+  const topicPriority = Object.fromEntries(
+    prioritizeTopics(topics).map((item) => [
+      item.topic.name,
+      {
+        score: item.score,
+        reason: item.reason,
+        hasPerformance: item.hasPersonalPerformance,
+      },
+    ]),
+  );
+
   return (
     <div>
       <DashboardPageHeader
@@ -48,13 +64,22 @@ export default async function PracticePage({
       />
       <PracticeTabs
         initialTab={initialTab}
-        questions={questions}
-        reviewQuestions={reviewQuestions}
+        questions={withCleanStatements(questions)}
         access={access}
+        userId={profile?.id ?? ""}
         initialQuestionId={question}
         initialTopic={initialTopic}
+        initialGoal={parseGoal(meta)}
+        topicPriority={topicPriority}
         activePracticeSession={activePracticeSession}
       />
     </div>
   );
+}
+
+// A meta do dia chega pela URL quando o aluno entra pelo botão da tela Hoje.
+function parseGoal(value?: string) {
+  const goal = Number(value);
+  if (!Number.isFinite(goal)) return null;
+  return goal >= 5 && goal <= 50 ? Math.floor(goal) : null;
 }

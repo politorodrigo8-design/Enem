@@ -133,7 +133,11 @@ export async function POST(request: NextRequest) {
   }
   if (!canCreateMercadoPagoCheckout(product)) {
     return NextResponse.json(
-      { ok: false, message: "Checkout real ainda não está liberado." },
+      {
+        ok: false,
+        message:
+          "As vendas estão fechadas neste momento. Escreva para suporte@pontuaenem.com.br e avisamos você quando reabrirem.",
+      },
       { status: 409 },
     );
   }

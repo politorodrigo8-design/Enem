@@ -26,6 +26,9 @@ html {
   scroll-behavior: smooth;
   scroll-padding-top: 5rem;
   overflow-x: clip;
+  /* Reserva a calha da barra de rolagem: sem isso, o scroll-lock de modais e
+     do drawer desloca o layout ~15px na abertura e no fechamento. */
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -43,6 +46,18 @@ input,
 select,
 textarea {
   letter-spacing: 0;
+}
+
+/* Piso de 16px em campos abaixo de sm: menos que isso e o iOS Safari
+   aplica zoom automático ao focar, e não desfaz no blur — a interface
+   inteira fica escalada. A densidade de 14px do dashboard continua
+   valendo a partir de sm. Ver DESIGN.md. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
 }
 
 /* Estatísticas e notas sempre alinhadas em coluna. */

@@ -26,7 +26,8 @@ import { WeekdaySelector } from "@/components/dashboard/weekday-selector";
 import { saveDiagnosisAction } from "@/lib/actions/learning";
 import type { Profile } from "@/lib/db/types";
 import { priorityTone } from "@/lib/utils";
-import type { DiagnosisInput } from "@/lib/schemas/diagnosis";
+import { diagnosisSchema, type DiagnosisInput } from "@/lib/schemas/diagnosis";
+import { findWizardIssue } from "@/lib/wizard-validation";
 
 export type PrioritySummary = {
   id: string;
@@ -46,6 +47,13 @@ const areas = [
 ];
 
 const formSteps = ["Objetivo", "Rotina", "Autopercepção"];
+
+/** Campos de cada etapa, na ordem do wizard: leva o erro de volta ao campo. */
+const stepFields = [
+  ["target_course", "target_university", "target_score", "previous_score"],
+  ["weekly_hours", "available_days"],
+  ["perceived_difficulties"],
+] as const;
 
 export function DiagnosisClient({
   profile,
@@ -115,7 +123,7 @@ function DiagnosisResult({
         </Button>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -185,11 +193,11 @@ function DiagnosisResult({
       </div>
 
       <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-4">
+        <CardHeader className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
           <CardTitle>Suas prioridades agora</CardTitle>
           <Link
             href="/dashboard/desempenho"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 transition-colors hover:text-blue-800"
+            className="inline-flex min-h-11 shrink-0 items-center gap-1.5 text-sm font-medium text-blue-700 transition-colors hover:text-blue-800 sm:min-h-0"
           >
             <Radar className="h-4 w-4" aria-hidden="true" />
             Ver no Desempenho
@@ -201,10 +209,10 @@ function DiagnosisResult({
               {priorities.map((priority) => (
                 <li
                   key={priority.id}
-                  className="flex items-center justify-between gap-4 py-3 first:pt-0 last:pb-0"
+                  className="flex flex-col items-start gap-1.5 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
                 >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-950">
+                  <div className="w-full min-w-0 sm:w-auto">
+                    <p className="break-words text-sm font-semibold text-slate-950 sm:truncate">
                       {priority.subject}: {priority.name}
                     </p>
                     <p className="mt-0.5 text-xs text-slate-500">
@@ -290,6 +298,13 @@ function DiagnosisForm({
   const isLast = step === formSteps.length - 1;
 
   function continueFlow() {
+    const issue = findWizardIssue(diagnosisSchema, form, stepFields, step);
+    if (issue) {
+      setStep(issue.step);
+      toast.error(issue.message);
+      return;
+    }
+
     if (!isLast) {
       setStep((current) => current + 1);
       return;
@@ -307,7 +322,7 @@ function DiagnosisForm({
 
   return (
     <Card className="animate-rise">
-      <CardContent className="p-6">
+      <CardContent className="p-5 sm:p-6">
         <div className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-5">
           <ol className="flex flex-wrap items-center gap-x-5 gap-y-2">
             {formSteps.map((label, index) => (
@@ -340,7 +355,7 @@ function DiagnosisForm({
           {canCancel ? (
             <button
               type="button"
-              className="text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+              className="inline-flex min-h-11 items-center text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 sm:min-h-0"
               onClick={onCancel}
             >
               Cancelar
@@ -457,10 +472,15 @@ function DiagnosisForm({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
               ) : isLast ? (
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+              ) : null}
+              {isLast ? (
+                "Salvar diagnóstico"
               ) : (
-                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                <>
+                  Continuar
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                </>
               )}
-              {isLast ? "Salvar diagnóstico" : "Continuar"}
             </Button>
           </div>
         </div>
@@ -492,7 +512,7 @@ function InputField({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 placeholder:text-slate-400 transition-colors hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15"
+        className="mt-2 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-950 placeholder:text-slate-400 transition-colors hover:border-slate-300 focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15 sm:h-10"
       />
     </label>
   );

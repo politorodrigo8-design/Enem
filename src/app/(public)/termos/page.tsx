@@ -6,7 +6,11 @@ import {
   ESSAY_UPLOAD_LIMIT_LABEL,
   PRODUCT_NAME,
 } from "@/lib/product-config";
-import { legalContacts, legalDocuments } from "@/lib/legal/config";
+import {
+  getSupplierIdentificationLines,
+  legalContacts,
+  legalDocuments,
+} from "@/lib/legal/config";
 
 const termsDocument = legalDocuments.terms_of_use;
 const SUPPORT_EMAIL = legalContacts.supportEmail;
@@ -153,9 +157,8 @@ export default function TermsPage() {
                 a Política de Reembolso e a legislação aplicável.
               </p>
               <p>
-                Revisão jurídica pendente: o programa de indicação pode conceder créditos
-                promocionais quando um novo usuário concluir uma compra válida pelo link de
-                indicação. Autoindicação, fraude, uso abusivo ou tentativa de burlar o
+                O programa de indicação pode conceder créditos promocionais quando um novo
+                usuário concluir uma compra válida pelo link de indicação. Autoindicação, fraude, uso abusivo ou tentativa de burlar o
                 pagamento são proibidos. Créditos promocionais não são transferíveis, não
                 são convertíveis em dinheiro e podem ser cancelados ou revertidos em caso
                 de reembolso, fraude, chargeback ou violação das regras do programa.
@@ -175,9 +178,9 @@ export default function TermsPage() {
           body: (
             <>
               <p>
-                Questões e conteúdos podem ser oficiais, adaptados, autorais ou
-                demonstrativos, conforme indicado quando aplicável. Erros materiais podem
-                ocorrer; o canal de suporte pode ser usado para comunicá-los.
+                Questões e conteúdos podem ser oficiais, adaptados ou autorais, com a fonte
+                indicada em cada questão. Erros materiais podem ocorrer; o canal de suporte
+                pode ser usado para comunicá-los.
               </p>
               <LegalList
                 items={[
@@ -273,15 +276,24 @@ export default function TermsPage() {
           body: (
             <>
               <p>
+                Identificação do fornecedor responsável pela plataforma e pela
+                oferta:
+              </p>
+              <dl className="grid gap-1 rounded-lg bg-slate-50 p-4">
+                {getSupplierIdentificationLines().map((line) => (
+                  <div key={line.label} className="flex flex-wrap gap-x-1.5">
+                    <dt className="font-semibold text-slate-900">{line.label}:</dt>
+                    <dd className="min-w-0 break-words">{line.value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p>
                 Canal oficial de suporte:{" "}
                 <a className="font-semibold text-blue-700 hover:text-blue-800" href={`mailto:${SUPPORT_EMAIL}`}>
                   {SUPPORT_EMAIL}
                 </a>
-                .
-              </p>
-              <p>
-                Solicitações sobre conta, pagamento, créditos, redações ou uso da
-                plataforma devem ser enviadas por esse canal.
+                . Solicitações sobre conta, pagamento, créditos, redações ou uso
+                da plataforma devem ser enviadas por esse canal.
               </p>
             </>
           ),

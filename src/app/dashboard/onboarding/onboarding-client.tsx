@@ -16,7 +16,8 @@ import { Progress } from "@/components/ui/progress";
 import { WeekdaySelector } from "@/components/dashboard/weekday-selector";
 import { saveOnboardingAction } from "@/lib/actions/beta";
 import type { Profile } from "@/lib/db/types";
-import type { OnboardingInput } from "@/lib/schemas/beta";
+import { onboardingSchema, type OnboardingInput } from "@/lib/schemas/beta";
+import { findWizardIssue } from "@/lib/wizard-validation";
 
 const areas = [
   "Linguagens",
@@ -25,6 +26,14 @@ const areas = [
   "Matemática",
   "Redação",
 ];
+
+/** Campos de cada etapa, na ordem do wizard: leva o erro de volta ao campo. */
+const stepFields = [
+  ["full_name"],
+  ["target_course", "target_university", "target_score", "previous_score"],
+  ["weekly_hours", "available_days"],
+  ["perceived_difficulties"],
+] as const;
 
 const steps = [
   {
@@ -74,6 +83,13 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
   const isLast = step === steps.length - 1;
 
   function next() {
+    const issue = findWizardIssue(onboardingSchema, form, stepFields, step);
+    if (issue) {
+      setStep(issue.step);
+      toast.error(issue.message);
+      return;
+    }
+
     if (!isLast) {
       setStep((current) => current + 1);
       return;
@@ -91,13 +107,11 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
 
   return (
     <Card className="mx-auto max-w-2xl">
-      <CardContent className="p-6 sm:p-8">
-        <div className="mb-8">
-          <div className="mb-2 flex items-baseline justify-between gap-4">
-            <p className="tnum text-xs font-semibold uppercase tracking-widest text-blue-700">
-              Etapa {step + 1} de {steps.length}
-            </p>
-          </div>
+      <CardContent className="p-5 sm:p-8">
+        <div className="mb-6 sm:mb-8">
+          <p className="tnum mb-2 text-xs font-semibold uppercase tracking-widest text-blue-700">
+            Etapa {step + 1} de {steps.length}
+          </p>
           <Progress value={progress} tone="blue" />
           <h2 className="mt-5 text-xl font-bold tracking-tight text-slate-950">
             {steps[step].title}
@@ -107,7 +121,8 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
           </p>
         </div>
 
-        <div className="min-h-[280px]">
+        {/* A reserva de altura evita salto entre etapas, mas só onde há espaço. */}
+        <div className="min-h-0 sm:min-h-[280px]">
           <div key={step} className="animate-rise">
           {step === 0 ? (
             <InputField
@@ -237,10 +252,20 @@ export function OnboardingClient({ profile }: { profile: Profile | null }) {
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
             ) : isLast ? (
               <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
+            ) : null}
+            {isLast ? (
+              <>
+                <span className="sm:hidden">Ver meu diagnóstico</span>
+                <span className="hidden sm:inline">
+                  Concluir e ver meu diagnóstico
+                </span>
+              </>
             ) : (
-              <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              <>
+                Continuar
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </>
             )}
-            {isLast ? "Concluir e ver meu diagnóstico" : "Continuar"}
           </Button>
         </div>
       </CardContent>

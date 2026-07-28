@@ -51,7 +51,14 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         {children}
-        <Toaster richColors position="top-right" />
+        {/* Offsets descem o toaster para baixo do header de 64px (no mobile ele
+            ocupa a faixa inteira e cobriria o botão de menu e o menu da conta). */}
+        <Toaster
+          richColors
+          position="top-right"
+          offset={{ top: "5rem" }}
+          mobileOffset={{ top: "4.5rem", left: "1rem", right: "1rem" }}
+        />
       </body>
     </html>
   );

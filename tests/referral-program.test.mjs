@@ -46,6 +46,30 @@ const creditsPage = readFileSync(
   new URL("../src/app/dashboard/creditos/page.tsx", import.meta.url),
   "utf8",
 );
+const referralsPage = readFileSync(
+  new URL("../src/app/dashboard/indicacoes/page.tsx", import.meta.url),
+  "utf8",
+);
+const dashboardHome = readFileSync(
+  new URL("../src/app/dashboard/page.tsx", import.meta.url),
+  "utf8",
+);
+const dashboardShell = readFileSync(
+  new URL("../src/components/dashboard/dashboard-shell.tsx", import.meta.url),
+  "utf8",
+);
+const settingsClient = readFileSync(
+  new URL("../src/app/dashboard/configuracoes/settings-client.tsx", import.meta.url),
+  "utf8",
+);
+const howItWorks = readFileSync(
+  new URL("../src/components/dashboard/referrals/referral-how-it-works.tsx", import.meta.url),
+  "utf8",
+);
+const shareLink = readFileSync(
+  new URL("../src/components/dashboard/referrals/referral-share-link.tsx", import.meta.url),
+  "utf8",
+);
 const referralUi = [
   "../src/components/dashboard/referrals/referral-program-section.tsx",
   "../src/components/dashboard/referrals/referral-share-link.tsx",
@@ -130,10 +154,17 @@ test("checkout e Mercado Pago carregam metadados internos da indicacao", () => {
   assert.match(paymentRoute, /referral_attributed: Boolean\(referral\)/);
 });
 
-test("UI de creditos tem link, compartilhamento, indicadores, historico e layout responsivo", () => {
-  assert.match(creditsPage, /ReferralProgramSection/);
-  assert.ok(creditsPage.indexOf("Precisa de mais créditos?") < creditsPage.indexOf("<ReferralProgramSection"));
-  assert.ok(creditsPage.indexOf("<ReferralProgramSection") < creditsPage.indexOf("Histórico recente"));
+test("UI de indicacao tem link, compartilhamento, indicadores, historico e layout responsivo", () => {
+  // O programa completo mora na rota dedicada; a página de créditos leva até lá
+  // com a versão curta, sem duplicar estatísticas e histórico.
+  assert.match(referralsPage, /ReferralProgramSection/);
+  assert.match(referralsPage, /getReferralPageData/);
+  assert.match(creditsPage, /ReferralHomeCard/);
+  assert.doesNotMatch(creditsPage, /ReferralProgramSection/);
+  assert.ok(
+    creditsPage.indexOf("Precisa de mais créditos?") < creditsPage.indexOf("<ReferralHomeCard"),
+  );
+  assert.ok(creditsPage.indexOf("<ReferralHomeCard") < creditsPage.indexOf("Histórico recente"));
   assert.match(referralUi, /Copiar link/);
   assert.match(referralUi, /Gerar link/);
   assert.match(referralUi, /Link de indicação/);
@@ -145,4 +176,53 @@ test("UI de creditos tem link, compartilhamento, indicadores, historico e layout
   assert.match(referralUi, /https:\/\/wa\.me/);
   assert.match(referralUi, /grid gap-3 sm:grid-cols-2 xl:grid-cols-4/);
   assert.match(referralUi, /Histórico de indicações/);
+});
+
+test("todo aluno encontra o programa sem procurar: menu, home e perfil", () => {
+  assert.match(dashboardShell, /Indique e ganhe/);
+  // Rota própria, não âncora dentro de Créditos: com hash o item do menu nunca
+  // ficava destacado (a marcação compara pathname, que não carrega hash).
+  assert.match(dashboardShell, /href: "\/dashboard\/indicacoes"/);
+  assert.doesNotMatch(dashboardShell, /#indicacoes/);
+  assert.match(dashboardHome, /ReferralHomeCard/);
+  assert.match(dashboardHome, /getReferralAccountSummary\(\)/);
+  assert.match(settingsClient, /ReferralShareLink/);
+  // O perfil não pode ter um caminho sem saída: o próprio componente de link
+  // oferece "Gerar link" quando o código não veio.
+  assert.doesNotMatch(settingsClient, /Link indisponível agora/);
+});
+
+test("copy da campanha sai das constantes, nunca escrita na mao", () => {
+  assert.doesNotMatch(constants, /Ganhe 30 créditos/);
+  assert.match(constants, /\$\{REFERRAL_REFERRER_REWARD_CREDITS\}/);
+  assert.match(constants, /\$\{REFERRAL_REFERRED_BONUS_CREDITS\}/);
+  assert.match(constants, /\$\{REFERRAL_REWARD_HOLD_DAYS\} dias/);
+  assert.match(constants, /referralRewardInEssayCorrections/);
+  assert.doesNotMatch(settingsClient, /Ganhe 30 créditos/);
+  assert.match(howItWorks, /REFERRAL_REWARD_HOLD_DAYS/);
+});
+
+test("ganho dos dois lados, carencia e condicao de compra ficam na primeira tela", () => {
+  assert.match(referralUi, /Você ganha/);
+  assert.match(referralUi, /Seu amigo ganha/);
+  assert.match(referralUi, /referralProgramCopy\.holdNotice/);
+  assert.match(referralUi, /referralProgramCopy\.purchaseCondition/);
+  // Crédito só significa algo traduzido em uso: 30 créditos = 3 correções.
+  assert.match(referralUi, /ESSAY_CREDIT_COST/);
+  assert.match(referralUi, /correções.*de redação|de redação/);
+});
+
+test("copia do link sobrevive a mobile sem clipboard e informa falha", () => {
+  assert.match(shareLink, /navigator\.clipboard\?\.writeText/);
+  assert.match(shareLink, /document\.execCommand\("copy"\)/);
+  assert.match(shareLink, /tone: "error"/);
+  assert.match(shareLink, /Selecione o link acima e copie/);
+  assert.match(shareLink, /AbortError/);
+  assert.match(shareLink, /aria-live="polite"/);
+});
+
+test("estado vazio do historico convida a indicar", () => {
+  assert.doesNotMatch(referralUi, /Nenhuma indicação registrada ainda/);
+  assert.match(referralUi, /Você ainda não indicou ninguém/);
+  assert.match(referralUi, /REFERRAL_REFERRED_BONUS_CREDITS/);
 });

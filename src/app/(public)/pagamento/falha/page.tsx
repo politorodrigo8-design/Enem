@@ -5,10 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 
 export default function PaymentFailurePage() {
   return (
-    <main className="bg-slate-50 py-16">
+    <main className="bg-slate-50 py-10 sm:py-16">
       <div className="animate-rise mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
         <Card>
-          <CardContent className="p-8 sm:p-10">
+          <CardContent className="p-6 sm:p-10">
             <XCircle className="h-10 w-10 text-rose-600" aria-hidden="true" />
             <h1 className="mt-5 text-3xl font-display font-semibold tracking-tight text-slate-950">
               Pagamento não aprovado

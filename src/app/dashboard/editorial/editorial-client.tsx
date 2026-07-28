@@ -17,6 +17,12 @@ import type { QuestionRecord } from "@/lib/db/types";
 const reviewStatuses = ["pending", "approved", "rejected", "needs_review"];
 const difficulties = ["Baixa", "Média", "Alta"];
 
+const controlBase =
+  "mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700";
+// 44px de alvo de toque no mobile, densidade de 40px a partir de sm.
+const inputClass = `${controlBase} h-11 sm:h-10`;
+const textareaClass = `${controlBase} py-2 leading-6`;
+
 export function EditorialClient({ questions }: { questions: QuestionRecord[] }) {
   const [status, setStatus] = useState("todos");
   const [area, setArea] = useState("todas");
@@ -97,7 +103,7 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className={inputClass}
                 placeholder="Enunciado, tópico ou número"
               />
             </label>
@@ -106,7 +112,9 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
           </CardContent>
         </Card>
 
-        <div className="max-h-[680px] space-y-2 overflow-auto pr-1">
+        {/* A lista só ganha rolagem própria quando o painel é lateral (xl);
+            empilhada, rolar dentro de uma caixa curta atrapalha. */}
+        <div className="max-h-[22rem] space-y-2 overflow-auto overscroll-contain pr-1 xl:max-h-[680px]">
           {filtered.map((question) => {
             const itemDraft = drafts[question.id] ?? toDraft(question);
             const active = selectedQuestion?.id === question.id;
@@ -162,14 +170,14 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 2xl:grid-cols-4">
               <Select label="Status" value={draft.review_status} options={reviewStatuses} onChange={(value) => updateDraft({ review_status: value as EditorialQuestionInput["review_status"] })} />
               <Select label="Dificuldade" value={draft.difficulty} options={difficulties} onChange={(value) => updateDraft({ difficulty: value as EditorialQuestionInput["difficulty"] })} />
               <Select label="Gabarito" value={draft.correct_option} options={["A", "B", "C", "D", "E"]} onChange={(value) => updateDraft({ correct_option: value as EditorialQuestionInput["correct_option"] })} />
               <Field label="Versão" value={draft.classification_version} onChange={(value) => updateDraft({ classification_version: value })} />
             </div>
 
-            <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Área" value={draft.area} onChange={(value) => updateDraft({ area: value })} />
               <Field label="Disciplina" value={draft.subject} onChange={(value) => updateDraft({ subject: value })} />
               <Field label="Tópico" value={draft.topic} onChange={(value) => updateDraft({ topic: value })} />
@@ -191,7 +199,7 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
             <Textarea label="Resolução" value={draft.explanation} onChange={(value) => updateDraft({ explanation: value })} rows={5} />
             <Textarea label="Notas editoriais" value={draft.editorial_notes ?? ""} onChange={(value) => updateDraft({ editorial_notes: value })} rows={3} />
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
               <Checkbox label="Revisada" checked={draft.reviewed} onChange={(value) => updateDraft({ reviewed: value })} />
               <Checkbox label="Fonte verificada" checked={draft.source_verified} onChange={(value) => updateDraft({ source_verified: value })} />
               <Checkbox label="Gabarito verificado" checked={draft.answer_verified} onChange={(value) => updateDraft({ answer_verified: value })} />
@@ -201,14 +209,15 @@ export function EditorialClient({ questions }: { questions: QuestionRecord[] }) 
 
             <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-bold text-slate-950">Mídia e fonte original</p>
-              <div className="mt-3 grid gap-3 md:grid-cols-2">
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {selectedQuestion.question_media?.length ? (
                   selectedQuestion.question_media.map((media) => (
                     <a
                       key={media.id}
                       href={media.url}
                       target="_blank"
-                      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                      rel="noopener noreferrer"
+                      className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-blue-700 transition-colors hover:border-slate-300 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0"
                     >
                       <ExternalLink className="h-4 w-4" aria-hidden="true" />
                       {media.media_type} {media.source_page ? `página ${media.source_page}` : ""}
@@ -282,7 +291,7 @@ function Select({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className={inputClass}
       >
         {options.map((option) => (
           <option key={option}>{option}</option>
@@ -307,7 +316,7 @@ function Field({
       <input
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className={inputClass}
       />
     </label>
   );
@@ -331,7 +340,7 @@ function Textarea({
         value={value}
         rows={rows}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-2 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+        className={textareaClass}
       />
     </label>
   );
@@ -347,7 +356,7 @@ function Checkbox({
   onChange: (checked: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50">
+    <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition-colors hover:border-slate-300 hover:bg-slate-50 sm:min-h-0">
       <input
         type="checkbox"
         checked={checked}

@@ -55,6 +55,18 @@ test("aplicar plano inteligente preserva historico e nao aciona cobranca", () =>
   assert.doesNotMatch(applyAction, /reserveAiCredits|confirmAiCreditReservation/);
 });
 
+test("falha de geracao estorna o credito e a mensagem depende do estorno", () => {
+  assert.equal((aiActionSource.match(/return aiGenerationFailure\(\{/g) ?? []).length, 3);
+  assert.match(aiActionSource, /return \{ refunded: false \}/);
+  assert.match(aiActionSource, /refunded\s*\n?\s*\?\s*"Seu crédito foi devolvido/);
+  assert.match(aiActionSource, /suporte@pontuaenem\.com\.br/);
+});
+
+test("acoes de IA nao reservam credito com o provedor indisponivel", () => {
+  assert.equal((aiActionSource.match(/if \(!isGroqConfigured\(\)\) return aiUnavailableResult\(\);/g) ?? []).length, 3);
+  assert.match(aiActionSource, /nenhum crédito foi usado/);
+});
+
 test("interface publica nao expõe provedor, modelo ou textos antigos das features", () => {
   const publicAiText = `${aiUiSource}\n${creditsPageSource}`;
   assert.doesNotMatch(publicAiText, /Groq ativa|Modelo:|llama-3\.3|assuntos para atacar|Tira duvida|Explicar questao|Gerar analise|Otimizar plano/);

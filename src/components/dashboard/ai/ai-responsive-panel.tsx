@@ -99,20 +99,27 @@ export function AiResponsivePanel({
           "pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]",
           mode === "drawer"
             ? "inset-y-0 right-0 w-full sm:max-w-[620px] sm:inset-y-3 sm:right-3 sm:max-h-[calc(100dvh-1.5rem)] sm:rounded-xl sm:border sm:border-slate-200"
-            : "inset-x-0 bottom-0 top-0 w-full sm:bottom-auto sm:top-1/2 sm:left-1/2 sm:max-h-[88dvh] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
+            : "inset-x-0 bottom-0 top-0 w-full sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:max-h-[88dvh] sm:w-[calc(100%-3rem)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl",
           mode === "modal" && (wide ? "sm:max-w-[1040px]" : "sm:max-w-[860px]"),
         )}
       >
-        <header className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-4 py-3 sm:px-6">
-          <div>
+        <header className="flex shrink-0 flex-wrap items-start gap-x-3 gap-y-2 border-b border-slate-200 px-4 py-3 sm:flex-nowrap sm:justify-between sm:px-6">
+          <div className="min-w-0">
             <h2 id="ai-panel-title" className="text-base font-bold text-slate-950">
               {title}
             </h2>
             <p className="mt-0.5 text-xs text-slate-500">Resultado organizado para estudo.</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
             {action}
-            <Button variant="ghost" size="sm" onClick={onClose} disabled={busy} aria-label="Fechar">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-11 shrink-0 px-0 sm:w-9 sm:px-3"
+              onClick={onClose}
+              disabled={busy}
+              aria-label="Fechar"
+            >
               <X className="h-4 w-4" aria-hidden="true" />
             </Button>
           </div>

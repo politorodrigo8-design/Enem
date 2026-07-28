@@ -32,14 +32,6 @@ export function formatCurrency(cents: number) {
   }).format(cents / 100);
 }
 
-export function getMockCheckoutState() {
-  return {
-    enabled: false,
-    message:
-      "Créditos avulsos ainda não estão à venda. Esta área mostra como o controle de uso deve funcionar quando os recursos avançados forem liberados.",
-  };
-}
-
 export function getCurrentProductPrice(product: Pick<
   Product,
   "regular_price_cents" | "sale_price_cents" | "sale_starts_at" | "sale_ends_at" | "active"

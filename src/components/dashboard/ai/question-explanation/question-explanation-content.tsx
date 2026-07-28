@@ -27,7 +27,7 @@ export function QuestionExplanationContent({
               <p className="font-semibold text-slate-950">{index + 1}. {step.title}</p>
               <p className="mt-2 text-sm leading-6 text-slate-700">{step.explanation}</p>
               {step.calculation ? (
-                <p className="tnum mt-3 rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
+                <p className="tnum mt-3 break-words rounded-md bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-900">
                   {step.calculation}
                 </p>
               ) : null}
@@ -57,7 +57,7 @@ export function QuestionExplanationContent({
       ) : null}
       {result.alternativesAnalysis.length ? (
         <details className="rounded-lg border border-slate-200 p-4">
-          <summary className="cursor-pointer text-sm font-bold text-slate-950">
+          <summary className="-my-1.5 cursor-pointer py-3 text-sm font-bold text-slate-950">
             Por que as outras alternativas não servem?
           </summary>
           <ul className="mt-3 space-y-2 text-sm leading-6 text-slate-700">

@@ -38,16 +38,25 @@ test("tema semanal ativo troca por janela de datas", () => {
   assert.match(contentSource, /currentDate >= topic\.startsAt && currentDate < topic\.endsAt/);
 });
 
+test("sem janela aberta a tela cai para a proposta mais recente, nunca fica vazia", () => {
+  assert.match(contentSource, /export function getWeeklyEssayTopicSuggestion/);
+  assert.match(contentSource, /isCurrentWeek: true/);
+  assert.match(contentSource, /isCurrentWeek: false/);
+  assert.match(contentSource, /topic\.startsAt <= currentDate/);
+  // O cliente lê a sugestão com fallback, não a janela seca.
+  assert.match(essayClientSource, /getWeeklyEssayTopicSuggestion\(\)/);
+  assert.doesNotMatch(essayClientSource, /getActiveWeeklyEssayTopic/);
+});
+
 test("card semanal oferece a proposta completa sem expor historico vazio", () => {
   assert.match(cardSource, /Tema sugerido da semana/);
+  assert.match(cardSource, /Proposta de treino/);
   assert.match(cardSource, /Usar este tema/);
   assert.match(cardSource, /Ver proposta completa/);
   assert.match(cardSource, /Liberar proposta completa/);
   assert.match(cardSource, /AiResponsivePanel/);
   assert.match(cardSource, /AiConfirmationDialog/);
   assert.match(cardSource, /mode="drawer"/);
-  assert.match(cardSource, /topicCount > 1/);
-  assert.match(cardSource, /otherTopicsHref/);
   assert.match(cardSource, /não devem ser copiados integralmente/);
 });
 

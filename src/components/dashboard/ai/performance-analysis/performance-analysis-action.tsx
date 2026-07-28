@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { AI_PERFORMANCE_ANALYSIS_CREDIT_COST } from "@/lib/ai/credits";
 import { generatePerformanceAnalysisAction } from "@/lib/actions/ai";
 import { AiConfirmationDialog } from "../ai-confirmation-dialog";
-import { AiCreditCost } from "../ai-credit-cost";
+import { AiCreditCost, AiCreditShortage } from "../ai-credit-cost";
 import { AiFeatureHeader } from "../ai-feature-header";
 import { AiGenerationError } from "../ai-generation-error";
 import { AiResponsivePanel } from "../ai-responsive-panel";
@@ -16,7 +16,13 @@ import { InsufficientPerformanceData } from "./insufficient-performance-data";
 import { PerformanceAnalysisContent } from "./performance-analysis-content";
 import { PerformanceAnalysisSkeleton } from "./performance-analysis-skeleton";
 
-export function PerformanceAnalysisCreditAction({ disabled }: { disabled?: boolean }) {
+export function PerformanceAnalysisCreditAction({
+  disabled,
+  creditBalance,
+}: {
+  disabled?: boolean;
+  creditBalance?: number | null;
+}) {
   const openerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [result, setResult] = useState<PerformanceAnalysisResult | null>(null);
@@ -56,10 +62,15 @@ export function PerformanceAnalysisCreditAction({ disabled }: { disabled?: boole
             Esta análise considera suas respostas recentes, taxa de acertos, assuntos com maior dificuldade e desempenho por área.
           </p>
           <AiCreditCost cost={AI_PERFORMANCE_ANALYSIS_CREDIT_COST} />
+          <AiCreditShortage
+            cost={AI_PERFORMANCE_ANALYSIS_CREDIT_COST}
+            balance={creditBalance}
+          />
         </div>
         <Button
           ref={openerRef}
           type="button"
+          className="shrink-0"
           variant="outline"
           size="sm"
           onClick={() => setOpen(true)}
@@ -83,6 +94,7 @@ export function PerformanceAnalysisCreditAction({ disabled }: { disabled?: boole
           <AiConfirmationDialog
             description="A análise será baseada nos seus resultados recentes e nas métricas calculadas pela plataforma."
             cost={AI_PERFORMANCE_ANALYSIS_CREDIT_COST}
+            balance={creditBalance}
             buttonLabel="Confirmar análise"
             onConfirm={generate}
           />

@@ -52,7 +52,7 @@ const headline: Record<Mode, { title: string; description: string }> = {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-paper" />}>
+    <Suspense fallback={<div className="min-h-dvh bg-paper" />}>
       <LoginPageContent />
     </Suspense>
   );
@@ -149,7 +149,7 @@ function LoginPageContent() {
     signupLegalAcceptance?.privacy_policy === legalVersions.privacy_policy;
 
   return (
-    <main className="grid min-h-screen bg-paper lg:grid-cols-[1.05fr_1fr]">
+    <main className="grid min-h-dvh bg-paper lg:grid-cols-[1.05fr_1fr]">
       <section className="relative hidden overflow-hidden bg-slate-950 text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
         <Logo variant="dark" />
         <div className="animate-rise max-w-lg">
@@ -184,7 +184,7 @@ function LoginPageContent() {
           <div className="hidden lg:block" />
           <Link
             href="/"
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900"
+            className="-my-1.5 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 sm:my-0 sm:min-h-0 sm:px-0"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden="true" />
             Voltar ao site
@@ -192,7 +192,7 @@ function LoginPageContent() {
         </div>
 
         <div
-          className="animate-rise mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-12"
+          className="animate-rise mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8 sm:py-12"
           style={{ "--rise-delay": "80ms" } as React.CSSProperties}
         >
           <h2 className="text-3xl font-bold tracking-tight text-slate-950">
@@ -228,7 +228,7 @@ function LoginPageContent() {
                 labelAside={
                   <button
                     type="button"
-                    className="text-sm font-medium text-blue-700 transition-colors hover:text-blue-800"
+                    className="-my-2.5 inline-flex min-h-11 items-center px-1 text-sm font-medium text-blue-700 transition-colors hover:text-blue-800 sm:-my-1.5 sm:min-h-9"
                     onClick={() => setMode("reset")}
                   >
                     Esqueci minha senha
@@ -361,17 +361,17 @@ function LoginPageContent() {
           ) : null}
         </div>
 
-        <p className="text-center text-xs leading-5 text-slate-400">
+        <p className="text-center text-xs leading-5 text-slate-600">
           Consulte os{" "}
-          <Link href="/termos" className="underline underline-offset-2 hover:text-slate-600">
+          <Link href="/termos" className="underline underline-offset-2 hover:text-slate-900">
             Termos de Uso
           </Link>
           {" · "}
-          <Link href="/privacidade" className="underline underline-offset-2 hover:text-slate-600">
+          <Link href="/privacidade" className="underline underline-offset-2 hover:text-slate-900">
             Política de Privacidade
           </Link>
           {" · "}
-          <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-600">
+          <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-900">
             Política de Reembolso
           </Link>
           .
@@ -391,14 +391,14 @@ function LegalCheckbox({
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 text-sm leading-6 text-slate-700">
+    <label className="flex cursor-pointer items-start gap-3 py-1 text-sm leading-6 text-slate-700">
       <input
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+        className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
       />
-      <span>{children}</span>
+      <span className="min-w-0">{children}</span>
     </label>
   );
 }
@@ -485,7 +485,7 @@ function PasswordField({
 
   return (
     <label className="block">
-      <span className="mb-1.5 flex items-center justify-between">
+      <span className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3">
         <span className="text-sm font-medium text-slate-700">{label}</span>
         {labelAside}
       </span>

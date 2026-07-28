@@ -63,8 +63,8 @@ export function AccountMenu({
         className="flex items-center gap-2.5 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
       >
         <Avatar initials={initials} profilePhotoUrl={profilePhotoUrl} />
-        <span className="hidden text-left sm:block">
-          <span className="block text-sm font-semibold leading-tight text-slate-950">
+        <span className="hidden min-w-0 max-w-36 text-left lg:block">
+          <span className="block truncate text-sm font-semibold leading-tight text-slate-950">
             {fullName}
           </span>
         </span>

@@ -1,10 +1,10 @@
 "use client";
 
 import {
+  ArrowLeft,
+  ArrowRight,
   CheckCircle2,
-  History,
   ImageIcon,
-  ListChecks,
   PlayCircle,
   RotateCcw,
   Search,
@@ -12,10 +12,9 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { QuestionExplanationCreditAction } from "@/components/dashboard/ai-credit-actions";
-import { StatCard } from "@/components/dashboard/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,8 +27,7 @@ import {
 } from "@/lib/local-question-progress";
 import { cn } from "@/lib/utils";
 
-type ReviewTab = "errors" | "answered";
-type ReviewFilter = "Todas" | "Erradas" | "Acertadas" | "Marcadas";
+type ReviewFilter = "Para refazer" | "Acertadas" | "Marcadas";
 type RetryResult = {
   selectedOption: string;
   isCorrect: boolean;
@@ -39,75 +37,134 @@ type RetryResult = {
 
 const retryResetDelayMs = 4500;
 
-const tabs: Array<{ id: ReviewTab; label: string; description: string }> = [
-  {
-    id: "errors",
-    label: "Para refazer",
-    description: "Errou ou marcou, tenta de novo por aqui.",
-  },
-  {
-    id: "answered",
-    label: "Histórico",
-    description: "Todas as questões já respondidas no treino.",
-  },
-];
+const filters: ReviewFilter[] = ["Para refazer", "Acertadas", "Marcadas"];
 
-const filters: ReviewFilter[] = ["Todas", "Erradas", "Acertadas", "Marcadas"];
+/** Entra no histórico o que já foi respondido ou marcado para voltar depois. */
+export function hasReviewHistory(question: QuestionRecord) {
+  return Boolean(question.user_question_answers?.length) || isMarked(question);
+}
 
-export function ReviewClient({
-  reviewQuestions,
-  answeredQuestions,
-}: {
-  reviewQuestions: QuestionRecord[];
-  answeredQuestions: QuestionRecord[];
-}) {
-  const [tab, setTab] = useState<ReviewTab>("errors");
-  const [filter, setFilter] = useState<ReviewFilter>("Todas");
+export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
+  const [filter, setFilter] = useState<ReviewFilter>("Para refazer");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [results, setResults] = useState<Record<string, RetryResult>>({});
-  const [attemptOutcomes, setAttemptOutcomes] = useState<Record<string, RetryResult>>({});
-  const [completedQuestionIds, setCompletedQuestionIds] = useState<Set<string>>(
-    () => new Set(),
-  );
-  const [attemptedQuestionIds, setAttemptedQuestionIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [index, setIndex] = useState(0);
   const [pending, startTransition] = useTransition();
+  // Em coluna única os botões de navegação ficam no fim do card: sem reposicionar
+  // o scroll o aluno cairia no meio da questão seguinte.
+  const questionCardRef = useRef<HTMLDivElement>(null);
 
-  const activeReviewQuestions = useMemo(
-    () => reviewQuestions.filter((question) => !completedQuestionIds.has(question.id)),
-    [completedQuestionIds, reviewQuestions],
+  const history = useMemo(() => questions.filter(hasReviewHistory), [questions]);
+  const filterCounts = useMemo(
+    () => ({
+      "Para refazer": history.filter((question) => matchesFilter(question, "Para refazer"))
+        .length,
+      Acertadas: history.filter((question) => matchesFilter(question, "Acertadas")).length,
+      Marcadas: history.filter((question) => matchesFilter(question, "Marcadas")).length,
+    }),
+    [history],
   );
-  const answered = useMemo(
+
+  // A fila é um retrato congelado no momento em que o filtro é escolhido:
+  // responder aqui muda o histórico, e uma fila viva faria a questão atual
+  // desaparecer debaixo do aluno antes de ele ler a correção.
+  const [queueIds, setQueueIds] = useState<string[]>(() =>
+    history
+      .filter((question) => matchesFilter(question, "Para refazer"))
+      .map((question) => question.id),
+  );
+  const questionById = useMemo(
+    () => new Map(history.map((question) => [question.id, question])),
+    [history],
+  );
+  const queue = useMemo(
     () =>
-      uniqueQuestions([
-        ...answeredQuestions,
-        ...reviewQuestions.filter(
-          (question) =>
-            attemptedQuestionIds.has(question.id) || attemptOutcomes[question.id],
-        ),
-      ]),
-    [answeredQuestions, attemptOutcomes, attemptedQuestionIds, reviewQuestions],
-  );
-  const sourceQuestions = tab === "errors" ? activeReviewQuestions : answered;
-  const filtered = useMemo(
-    () => sourceQuestions.filter((question) => matchesFilter(question, filter, attemptOutcomes)),
-    [attemptOutcomes, filter, sourceQuestions],
+      queueIds
+        .map((id) => questionById.get(id))
+        .filter((item): item is QuestionRecord => Boolean(item)),
+    [questionById, queueIds],
   );
 
-  const wrongCount = activeReviewQuestions.filter(
-    (question) =>
-      hasWrongHistory(question) || attemptOutcomes[question.id]?.isCorrect === false,
-  ).length;
-  const answeredCorrectCount = answered.filter((question) => latestAnswer(question)?.is_correct)
-    .length;
+  const currentIndex = Math.min(index, Math.max(queue.length - 1, 0));
+  const question = queue[currentIndex];
+  const result = question ? results[question.id] : undefined;
+  const selectedOption = question ? selectedAnswers[question.id] ?? "" : "";
 
-  if (!reviewQuestions.length && !answered.length) {
+  function changeFilter(next: ReviewFilter) {
+    setFilter(next);
+    setQueueIds(
+      history
+        .filter((item) => matchesFilter(item, next))
+        .map((item) => item.id),
+    );
+    setIndex(0);
+  }
+
+  function move(nextIndex: number) {
+    setIndex(Math.max(0, Math.min(queue.length - 1, nextIndex)));
+    questionCardRef.current?.scrollIntoView({ block: "start" });
+  }
+
+  function retry() {
+    if (!question || !selectedOption) return;
+    const target = question;
+
+    startTransition(async () => {
+      const response = await submitQuestionAnswerAction({
+        questionId: target.id,
+        selectedOption,
+        responseTimeSeconds: 0,
+        source: "review",
+      });
+      toast[response.ok ? "success" : "error"](response.message);
+      if (!response.ok) return;
+
+      const retryResult = {
+        selectedOption,
+        isCorrect: Boolean(response.isCorrect),
+        explanation: response.explanation ?? "",
+        correctOption: response.correctOption ?? "",
+      };
+      setResults((current) => ({ ...current, [target.id]: retryResult }));
+
+      if (isLocalQuestionId(target.id)) {
+        recordLocalQuestionAnswer({
+          questionId: target.id,
+          selectedOption,
+          isCorrect: retryResult.isCorrect,
+          responseTimeSeconds: 0,
+          answeredAt: new Date().toISOString(),
+        });
+      }
+
+      if (retryResult.isCorrect) {
+        if (isLocalQuestionId(target.id) || !isMarked(target)) return;
+        const mastered = await markReviewMasteredAction(target.id);
+        if (!mastered.ok) toast.error(mastered.message);
+        return;
+      }
+
+      window.setTimeout(() => {
+        setResults((current) => {
+          const next = { ...current };
+          delete next[target.id];
+          return next;
+        });
+        setSelectedAnswers((current) => {
+          const next = { ...current };
+          delete next[target.id];
+          return next;
+        });
+      }, retryResetDelayMs);
+    });
+  }
+
+  if (!history.length) {
     return (
       <EmptyState
         icon={Search}
-        title="Nada para revisar"
-        description="Erros, favoritas e questões já respondidas aparecem aqui depois dos treinos."
+        title="Nada por aqui ainda"
+        description="Suas questões respondidas, os erros e as marcadas aparecem aqui depois dos treinos."
         action={
           <Link
             href="/dashboard/praticar?tab=banco"
@@ -121,136 +178,19 @@ export function ReviewClient({
     );
   }
 
-  const tabCounts: Record<ReviewTab, number> = {
-    errors: activeReviewQuestions.length,
-    answered: answered.length,
-  };
-  const filterCounts = buildFilterCounts(sourceQuestions, attemptOutcomes);
-
-  function retry(question: QuestionRecord) {
-    const selected = selectedAnswers[question.id];
-    if (!selected) return;
-
-    startTransition(async () => {
-      const result = await submitQuestionAnswerAction({
-        questionId: question.id,
-        selectedOption: selected,
-        responseTimeSeconds: 0,
-        source: "review",
-      });
-      toast[result.ok ? "success" : "error"](result.message);
-      if (!result.ok) return;
-
-      const retryResult = {
-        selectedOption: selected,
-        isCorrect: Boolean(result.isCorrect),
-        explanation: result.explanation ?? "",
-        correctOption: result.correctOption ?? "",
-      };
-      setResults((current) => ({ ...current, [question.id]: retryResult }));
-      setAttemptOutcomes((current) => ({ ...current, [question.id]: retryResult }));
-      setAttemptedQuestionIds((current) => new Set(current).add(question.id));
-
-      if (isLocalQuestionId(question.id)) {
-        recordLocalQuestionAnswer({
-          questionId: question.id,
-          selectedOption: selected,
-          isCorrect: retryResult.isCorrect,
-          responseTimeSeconds: 0,
-          answeredAt: new Date().toISOString(),
-        });
-      }
-
-      if (retryResult.isCorrect) {
-        if (isLocalQuestionId(question.id)) {
-          setCompletedQuestionIds((current) => new Set(current).add(question.id));
-          return;
-        }
-
-        const mastered = await markReviewMasteredAction(question.id);
-        if (mastered.ok) {
-          setCompletedQuestionIds((current) => new Set(current).add(question.id));
-        } else {
-          toast.error(mastered.message);
-        }
-        return;
-      }
-
-      window.setTimeout(() => {
-        setResults((current) => {
-          const next = { ...current };
-          delete next[question.id];
-          return next;
-        });
-        setSelectedAnswers((current) => {
-          const next = { ...current };
-          delete next[question.id];
-          return next;
-        });
-      }, retryResetDelayMs);
-    });
-  }
-
   return (
     <div>
-      <section className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          label="Na revisão"
-          value={String(activeReviewQuestions.length)}
-          helper="erros e favoritas pendentes"
-          icon={ListChecks}
-        />
-        <StatCard
-          label="Erradas"
-          value={String(wrongCount)}
-          helper="com erro no histórico"
-          icon={XCircle}
-        />
-        <StatCard
-          label="Já respondidas"
-          value={String(answered.length)}
-          helper={`${answeredCorrectCount} com última resposta correta`}
-          icon={History}
-        />
-      </section>
-
-      <div className="mt-6 border-b border-slate-200" role="tablist" aria-label="Revisão">
-        <div className="flex flex-wrap gap-2">
-          {tabs.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              role="tab"
-              aria-selected={tab === item.id}
-              onClick={() => {
-                setTab(item.id);
-                setFilter("Todas");
-              }}
-              className={cn(
-                "-mb-px flex max-w-full flex-col items-start border-b-2 px-3 py-3 text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-w-64",
-                tab === item.id
-                  ? "border-blue-700 text-blue-950"
-                  : "border-transparent text-slate-500 hover:border-slate-300 hover:text-slate-900",
-              )}
-            >
-              <span className="inline-flex items-center gap-2 text-sm font-bold">
-                {item.label}
-                <span
-                  className={cn(
-                    "tnum rounded-md px-1.5 py-0.5 text-xs font-semibold",
-                    tab === item.id
-                      ? "bg-blue-50 text-blue-800"
-                      : "bg-slate-100 text-slate-500",
-                  )}
-                >
-                  {tabCounts[item.id]}
-                </span>
-              </span>
-              <span className="mt-1 text-xs leading-5 text-slate-500">
-                {item.description}
-              </span>
-            </button>
-          ))}
+      <div className="border-b border-slate-200">
+        <div className="-mb-px inline-flex max-w-full flex-col items-start border-b-2 border-blue-700 px-3 py-3 text-left">
+          <p className="inline-flex items-center gap-2 text-sm font-bold text-blue-950">
+            Já respondidas
+            <span className="tnum rounded-md bg-blue-50 px-1.5 py-0.5 text-xs font-semibold text-blue-800">
+              {history.length}
+            </span>
+          </p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">
+            Tudo que você já respondeu ou marcou no treino, uma questão por vez.
+          </p>
         </div>
       </div>
 
@@ -262,9 +202,9 @@ export function ReviewClient({
               key={option}
               type="button"
               aria-pressed={active}
-              onClick={() => setFilter(option)}
+              onClick={() => changeFilter(option)}
               className={cn(
-                "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+                "inline-flex min-h-11 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0",
                 active
                   ? "bg-blue-50 text-blue-900 ring-1 ring-inset ring-blue-200"
                   : "text-slate-600 hover:bg-slate-100 hover:text-slate-900",
@@ -279,42 +219,56 @@ export function ReviewClient({
         })}
       </div>
 
-      {!filtered.length ? (
+      {filter === "Para refazer" ? (
+        <p className="mt-3 text-xs leading-5 text-slate-500">
+          Reúne o que você errou e o que marcou para voltar depois.
+        </p>
+      ) : null}
+
+      {!question ? (
         <div className="mt-6">
           <EmptyState
             icon={Search}
-            title="Nada por aqui"
+            title="Nada neste filtro"
             description={
-              tab === "errors"
-                ? "Nenhum erro ou favorito corresponde a este filtro."
-                : "Nenhuma questão respondida corresponde a este filtro."
+              filter === "Para refazer"
+                ? "Você não tem questões erradas nem marcadas esperando por você."
+                : filter === "Acertadas"
+                  ? "Você ainda não acertou nenhuma questão no treino."
+                  : "Você ainda não marcou questões para voltar depois."
             }
             action={
-              <Button variant="outline" onClick={() => setFilter("Todas")}>
-                Ver todas
+              <Button
+                variant="outline"
+                onClick={() =>
+                  changeFilter(filter === "Acertadas" ? "Para refazer" : "Acertadas")
+                }
+              >
+                {filter === "Acertadas" ? "Ver para refazer" : "Ver acertadas"}
               </Button>
             }
           />
         </div>
       ) : (
-        <div className="mt-6 grid gap-5">
-          {filtered.map((question) => (
-            <QuestionReviewCard
-              key={question.id}
-              question={question}
-              mode={tab}
-              pending={pending}
-              selectedOption={selectedAnswers[question.id] ?? ""}
-              result={results[question.id]}
-              onSelect={(option) =>
-                setSelectedAnswers((current) => ({
-                  ...current,
-                  [question.id]: option,
-                }))
-              }
-              onRetry={() => retry(question)}
-            />
-          ))}
+        <div ref={questionCardRef} className="mt-6">
+          <QuestionReviewCard
+            key={question.id}
+            question={question}
+            position={currentIndex + 1}
+            total={queue.length}
+            pending={pending}
+            selectedOption={selectedOption}
+            result={result}
+            onSelect={(option) =>
+              setSelectedAnswers((current) => ({
+                ...current,
+                [question.id]: option,
+              }))
+            }
+            onRetry={retry}
+            onPrevious={() => move(currentIndex - 1)}
+            onNext={() => move(currentIndex + 1)}
+          />
         </div>
       )}
     </div>
@@ -323,53 +277,66 @@ export function ReviewClient({
 
 function QuestionReviewCard({
   question,
-  mode,
+  position,
+  total,
   pending,
   selectedOption,
   result,
   onSelect,
   onRetry,
+  onPrevious,
+  onNext,
 }: {
   question: QuestionRecord;
-  mode: ReviewTab;
+  position: number;
+  total: number;
   pending: boolean;
   selectedOption: string;
   result?: RetryResult;
   onSelect: (option: string) => void;
   onRetry: () => void;
+  onPrevious: () => void;
+  onNext: () => void;
 }) {
   const latest = latestAnswer(question);
-  const displayedSelected = selectedOption || result?.selectedOption || latest?.selected_option || "";
+  const displayedSelected =
+    selectedOption || result?.selectedOption || latest?.selected_option || "";
   const knownCorrectOption = Boolean(result?.correctOption);
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question.question_media ?? [];
   const answerCount = question.user_question_answers?.length ?? 0;
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
-            <CardTitle>{question.topics.name}</CardTitle>
-            <p className="mt-2 text-sm text-slate-500">{formatQuestionSource(question)}</p>
+    <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div className="min-w-0">
+              <CardTitle>
+                Questão {position} de {total}
+              </CardTitle>
+              <p className="mt-2 break-words text-sm text-slate-500">
+                {formatQuestionSource(question)}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Badge tone={question.is_official ? "green" : "amber"}>
+                {questionOrigin(question)}
+              </Badge>
+              <Badge tone="slate">
+                {questionBoard(question)} {question.year}
+              </Badge>
+              <Badge tone="blue">{question.subjects.area}</Badge>
+              <Badge tone="slate">{question.difficulty}</Badge>
+              {isMarked(question) ? <Badge tone="amber">Marcada</Badge> : null}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge tone={question.is_official ? "green" : "amber"}>
-              {questionOrigin(question)}
-            </Badge>
-            <Badge tone="slate">
-              {questionBoard(question)} {question.year}
-            </Badge>
-            <Badge tone="blue">{question.subjects.area}</Badge>
-            <Badge tone="slate">{question.difficulty}</Badge>
-            {hasActiveReview(question) ? <Badge tone="amber">Marcada</Badge> : null}
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-6 lg:grid-cols-[1fr_300px]">
-          <div>
-            <p className="text-base leading-7 text-slate-900">{question.statement}</p>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-rise min-w-0">
+            <p className="break-words text-base leading-7 text-slate-900">
+              {question.statement}
+            </p>
             {associatedMedia.length ? (
               <div className="mt-5 space-y-4">
                 {associatedMedia
@@ -453,35 +420,49 @@ function QuestionReviewCard({
                 })}
             </div>
 
-            <div className="mt-5 flex flex-col gap-3 border-t border-slate-100 pt-4 sm:flex-row sm:items-center sm:justify-between">
-              <div className="text-sm leading-6 text-slate-600">
-                {latest ? (
-                  <span>
-                    Última resposta:{" "}
-                    <strong className={latest.is_correct ? "text-emerald-700" : "text-rose-700"}>
-                      {latest.is_correct ? "correta" : "incorreta"}
-                    </strong>
-                    {latest.selected_option ? `, alternativa ${latest.selected_option}` : ""}.
-                  </span>
-                ) : (
-                  <span>Escolha uma alternativa para refazer.</span>
-                )}
-              </div>
-              <div className="flex flex-col gap-3 sm:flex-row">
+            <p className="mt-5 border-t border-slate-100 pt-4 text-sm leading-6 text-slate-600">
+              {latest ? (
+                <span>
+                  Última resposta:{" "}
+                  <strong className={latest.is_correct ? "text-emerald-700" : "text-rose-700"}>
+                    {latest.is_correct ? "correta" : "incorreta"}
+                  </strong>
+                  {latest.selected_option ? `, alternativa ${latest.selected_option}` : ""}.
+                </span>
+              ) : (
+                <span>Você marcou esta questão e ainda não respondeu.</span>
+              )}
+            </p>
+
+            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex gap-3">
                 <Button
-                  variant={mode === "errors" ? "primary" : "outline"}
-                  size="sm"
-                  onClick={onRetry}
-                  disabled={!selectedOption || pending || Boolean(result)}
+                  variant="outline"
+                  className="flex-1 sm:flex-none"
+                  onClick={onPrevious}
+                  disabled={position === 1}
                 >
-                  {mode === "errors" ? (
-                    <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <RotateCcw className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  {mode === "errors" ? "Acerte para dominar" : "Corrigir tentativa"}
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  className="flex-1 sm:flex-none"
+                  onClick={onNext}
+                  disabled={position === total}
+                >
+                  Próxima
+                  <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
+              <Button
+                className="w-full sm:w-auto"
+                onClick={onRetry}
+                disabled={!selectedOption || pending || Boolean(result)}
+              >
+                <RotateCcw className="h-4 w-4" aria-hidden="true" />
+                Responder de novo
+              </Button>
             </div>
 
             {result ? (
@@ -510,75 +491,48 @@ function QuestionReviewCard({
                   {result.explanation ||
                     "A explicação completa pode ser gerada pela IA depois da tentativa."}
                 </p>
-                {mode === "errors" ? (
-                  <p className="mt-2 text-sm leading-6 text-slate-600">
-                    {result.isCorrect
-                      ? "Essa questão saiu da lista para refazer e ficou no histórico de acertadas."
-                      : "A questão continua aqui e a tentativa libera de novo em alguns segundos."}
-                  </p>
-                ) : null}
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  {result.isCorrect
+                    ? "Esta questão sai da lista para refazer e fica entre as acertadas."
+                    : "A questão continua na lista e a tentativa libera de novo em alguns segundos."}
+                </p>
               </div>
             ) : null}
           </div>
+        </CardContent>
+      </Card>
 
-          <aside>
-            <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                Histórico
-              </p>
-              <dl className="mt-2 divide-y divide-slate-200">
-                <Detail label="Disciplina" value={question.subjects.name} />
-                <Detail label="Assunto" value={question.topics.name} />
-                <Detail label="Prova" value={formatExamDetail(question)} />
-                <Detail label="Respostas" value={`${answerCount} registro(s)`} />
-              </dl>
-              <QuestionExplanationCreditAction
-                questionId={question.id}
-                selectedOption={displayedSelected || undefined}
-                disabled={!result}
-              />
-            </div>
-          </aside>
+      <aside>
+        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Detalhes
+          </p>
+          <dl className="mt-2 divide-y divide-slate-200">
+            <Detail label="Disciplina" value={question.subjects.name} />
+            <Detail label="Assunto" value={question.topics.name} />
+            <Detail label="Prova" value={formatExamDetail(question)} />
+            <Detail label="Respostas" value={`${answerCount} registro(s)`} />
+          </dl>
+          <QuestionExplanationCreditAction
+            questionId={question.id}
+            selectedOption={displayedSelected || undefined}
+            disabled={!result}
+          />
         </div>
-      </CardContent>
-    </Card>
+      </aside>
+    </div>
   );
 }
 
-function buildFilterCounts(
-  questions: QuestionRecord[],
-  results: Record<string, RetryResult>,
-): Record<ReviewFilter, number> {
-  return {
-    Todas: questions.length,
-    Erradas: questions.filter((question) => matchesFilter(question, "Erradas", results))
-      .length,
-    Acertadas: questions.filter((question) => matchesFilter(question, "Acertadas", results))
-      .length,
-    Marcadas: questions.filter((question) => matchesFilter(question, "Marcadas", results))
-      .length,
-  };
-}
-
-function matchesFilter(
-  question: QuestionRecord,
-  filter: ReviewFilter,
-  results: Record<string, RetryResult>,
-) {
-  if (filter === "Todas") return true;
-  if (filter === "Marcadas") return hasActiveReview(question);
-  const result = results[question.id];
+function matchesFilter(question: QuestionRecord, filter: ReviewFilter) {
+  if (filter === "Marcadas") return isMarked(question);
   const latest = latestAnswer(question);
-  if (filter === "Acertadas") return result?.isCorrect ?? latest?.is_correct ?? false;
-  if (result) return !result.isCorrect;
-  return latest ? !latest.is_correct : false;
+  if (filter === "Acertadas") return Boolean(latest?.is_correct);
+  // "Para refazer" junta o que foi errado com o que o aluno marcou.
+  return isMarked(question) || (Boolean(latest) && !latest?.is_correct);
 }
 
-function hasWrongHistory(question: QuestionRecord) {
-  return Boolean(question.user_question_answers?.some((answer) => !answer.is_correct));
-}
-
-function hasActiveReview(question: QuestionRecord) {
+function isMarked(question: QuestionRecord) {
   return Boolean(question.user_question_reviews?.some((review) => !review.mastered));
 }
 
@@ -589,15 +543,6 @@ function latestAnswer(question: QuestionRecord) {
       (a, b) =>
         new Date(b.answered_at).getTime() - new Date(a.answered_at).getTime(),
     )[0];
-}
-
-function uniqueQuestions(questions: QuestionRecord[]) {
-  const seen = new Set<string>();
-  return questions.filter((question) => {
-    if (seen.has(question.id)) return false;
-    seen.add(question.id);
-    return Boolean(question.user_question_answers?.length);
-  });
 }
 
 function questionOrigin(question: QuestionRecord) {

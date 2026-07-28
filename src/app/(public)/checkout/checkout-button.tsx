@@ -53,9 +53,9 @@ export function CheckoutButton({
           type="checkbox"
           checked={legalAccepted}
           onChange={(event) => setLegalAccepted(event.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+          className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
         />
-        <span>
+        <span className="min-w-0">
           Li e concordo com os{" "}
           <CheckoutLegalLink href="/termos">Termos de Uso</CheckoutLegalLink> e com a{" "}
           <CheckoutLegalLink href="/reembolso">Política de Reembolso</CheckoutLegalLink> e
@@ -79,7 +79,7 @@ export function CheckoutButton({
         </p>
       ) : null}
       {message ? (
-        <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-900">
+        <p className="mt-3 break-words rounded-lg bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-900">
           {message}
         </p>
       ) : null}

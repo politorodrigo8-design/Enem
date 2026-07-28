@@ -101,6 +101,91 @@ export const weeklyEssayTopics: WeeklyEssayTopic[] = [
     endsAt: "2026-08-03",
     active: true,
   },
+  {
+    id: "2026-08-03-acesso-a-leitura",
+    title: "Caminhos para ampliar o acesso à leitura no Brasil",
+    shortDescription:
+      "Um tema de educação e cultura com repertório abundante — bom para treinar proposta de intervenção.",
+    command:
+      'A partir da leitura dos textos motivadores e com base nos conhecimentos construídos ao longo de sua formação, redija um texto dissertativo-argumentativo, em modalidade escrita formal da língua portuguesa, sobre o tema "Caminhos para ampliar o acesso à leitura no Brasil", apresentando uma proposta de intervenção que respeite os direitos humanos.',
+    motivatingTexts: [
+      {
+        title: "Texto I",
+        text:
+          "O hábito de leitura depende de condições concretas: tempo livre, mediação de alguém que leia junto e disponibilidade de livros por perto. Onde faltam bibliotecas abertas, acervo atualizado e transporte até elas, ler deixa de ser escolha e passa a ser privilégio.",
+      },
+      {
+        title: "Texto II",
+        text:
+          "A escola costuma ser o primeiro e, para muitos estudantes, o único espaço de contato sistemático com o texto literário. Quando a leitura aparece apenas como tarefa avaliativa, ela é associada à obrigação, e o vínculo com o livro se desfaz depois da última prova.",
+      },
+      {
+        title: "Texto III",
+        text:
+          "Formatos digitais, audiolivros e acervos públicos on-line ampliaram as formas de ler, mas exigem conexão estável e equipamento adequado. Sem isso, a tecnologia repõe a mesma desigualdade que promete resolver.",
+      },
+    ],
+    discussionAxes: [
+      "bibliotecas públicas e escolares",
+      "mediação de leitura na escola",
+      "preço e distribuição do livro",
+      "leitura digital e acesso à internet",
+      "leitura na primeira infância",
+      "formação de professores leitores",
+    ],
+    suggestedRepertoires: [
+      "A leitura como condição para o exercício pleno da cidadania e para a compreensão de direitos.",
+      "O papel das bibliotecas públicas como equipamento cultural de acesso gratuito.",
+      "Programas de distribuição de livros e formação de acervo nas escolas públicas.",
+      "A relação entre letramento, desempenho escolar e oportunidades de trabalho.",
+    ],
+    startsAt: "2026-08-03",
+    endsAt: "2026-08-10",
+    active: true,
+  },
+  {
+    id: "2026-08-10-inclusao-no-trabalho",
+    title:
+      "Desafios para a inclusão de pessoas com deficiência no mercado de trabalho brasileiro",
+    shortDescription:
+      "Treine um tema de direitos e trabalho, com dados de repertório legal fáceis de sustentar.",
+    command:
+      'A partir da leitura dos textos motivadores e com base nos conhecimentos construídos ao longo de sua formação, redija um texto dissertativo-argumentativo, em modalidade escrita formal da língua portuguesa, sobre o tema "Desafios para a inclusão de pessoas com deficiência no mercado de trabalho brasileiro", apresentando uma proposta de intervenção que respeite os direitos humanos.',
+    motivatingTexts: [
+      {
+        title: "Texto I",
+        text:
+          "Contratar não é o mesmo que incluir. Sem acessibilidade no trajeto, no prédio, nos sistemas internos e na comunicação da equipe, a pessoa contratada permanece isolada no posto de trabalho e tende a sair pouco tempo depois.",
+      },
+      {
+        title: "Texto II",
+        text:
+          "A legislação brasileira prevê reserva de vagas em empresas de médio e grande porte. A fiscalização, porém, alcança sobretudo o número de contratos, e menos a qualidade das funções oferecidas, da remuneração e das chances de crescimento.",
+      },
+      {
+        title: "Texto III",
+        text:
+          "A trajetória escolar antecede a profissional: sem acessibilidade e apoio pedagógico na educação básica e na formação técnica, uma parcela grande de candidatos chega ao processo seletivo sem a qualificação que as vagas exigem.",
+      },
+    ],
+    discussionAxes: [
+      "acessibilidade nos espaços de trabalho",
+      "cumprimento da reserva legal de vagas",
+      "qualificação profissional e educação inclusiva",
+      "capacitismo nos processos seletivos",
+      "tecnologia assistiva",
+      "permanência e crescimento na carreira",
+    ],
+    suggestedRepertoires: [
+      "A Lei Brasileira de Inclusão como marco de direitos e de acessibilidade obrigatória.",
+      "A reserva legal de vagas em empresas e o debate sobre fiscalização efetiva.",
+      "O conceito de capacitismo e seu efeito sobre expectativas de desempenho.",
+      "A Constituição Federal de 1988 e o valor social do trabalho como fundamento da República.",
+    ],
+    startsAt: "2026-08-10",
+    endsAt: "2026-08-17",
+    active: true,
+  },
 ];
 
 export function getActiveWeeklyEssayTopic(currentDate = todayInSaoPaulo()) {
@@ -110,6 +195,29 @@ export function getActiveWeeklyEssayTopic(currentDate = todayInSaoPaulo()) {
         topic.active && currentDate >= topic.startsAt && currentDate < topic.endsAt,
     ) ?? null
   );
+}
+
+export type WeeklyEssayTopicSuggestion = {
+  topic: WeeklyEssayTopic;
+  /** Falso quando a janela da semana já passou e a proposta é reaproveitada para treino. */
+  isCurrentWeek: boolean;
+};
+
+/**
+ * A tela de Redação nunca pode ficar sem proposta: quando nenhuma janela semanal
+ * está aberta, a mais recente já publicada volta como proposta de treino.
+ */
+export function getWeeklyEssayTopicSuggestion(
+  currentDate = todayInSaoPaulo(),
+): WeeklyEssayTopicSuggestion | null {
+  const current = getActiveWeeklyEssayTopic(currentDate);
+  if (current) return { topic: current, isCurrentWeek: true };
+
+  const published = weeklyEssayTopics
+    .filter((topic) => topic.active && topic.startsAt <= currentDate)
+    .sort((first, second) => second.startsAt.localeCompare(first.startsAt));
+
+  return published[0] ? { topic: published[0], isCurrentWeek: false } : null;
 }
 
 function todayInSaoPaulo() {

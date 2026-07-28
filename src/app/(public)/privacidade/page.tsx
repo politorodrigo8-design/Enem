@@ -1,5 +1,11 @@
 import { LegalList, LegalPage } from "@/components/marketing/legal-page";
-import { getLegalContactEmail, legalContacts, legalDocuments } from "@/lib/legal/config";
+import {
+  getLegalContactEmail,
+  getPrivacyOfficerLabel,
+  getSupplierIdentificationLines,
+  legalContacts,
+  legalDocuments,
+} from "@/lib/legal/config";
 
 const privacyDocument = legalDocuments.privacy_policy;
 const SUPPORT_EMAIL = legalContacts.supportEmail;
@@ -25,6 +31,21 @@ export default function PrivacyPage() {
                 públicas, cadastro, login, checkout, compras de créditos e áreas internas
                 da plataforma.
               </p>
+              <p>Controlador dos dados:</p>
+              <dl className="grid gap-1 rounded-lg bg-slate-50 p-4">
+                {getSupplierIdentificationLines().map((line) => (
+                  <div key={line.label} className="flex flex-wrap gap-x-1.5">
+                    <dt className="font-semibold text-slate-900">{line.label}:</dt>
+                    <dd className="min-w-0 break-words">{line.value}</dd>
+                  </div>
+                ))}
+                <div className="flex flex-wrap gap-x-1.5">
+                  <dt className="font-semibold text-slate-900">
+                    Encarregado pelo tratamento de dados:
+                  </dt>
+                  <dd className="min-w-0 break-words">{getPrivacyOfficerLabel()}</dd>
+                </div>
+              </dl>
               <p>
                 O canal operacional para solicitações de privacidade e suporte é{" "}
                 <a className="font-semibold text-blue-700 hover:text-blue-800" href={`mailto:${PRIVACY_EMAIL}`}>
@@ -58,7 +79,7 @@ export default function PrivacyPage() {
           heading: "Finalidades e bases legais",
           body: (
             <div className="overflow-x-auto">
-              <table className="min-w-full border-separate border-spacing-y-2 text-left">
+              <table className="w-full min-w-[30rem] border-separate border-spacing-y-2 text-left">
                 <thead className="text-xs uppercase tracking-wide text-slate-500">
                   <tr>
                     <th className="pr-4">Finalidade</th>

@@ -37,20 +37,32 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
 const user = await findOrCreateUser(args.email, Boolean(args.create));
 const expiresAt = args.expires || "2026-11-30T23:59:59-03:00";
 
-const { error } = await supabase.from("profiles").upsert(
-  {
-    id: user.id,
+// O trigger handle_new_user já cria o profile (com referral_code gerado) no
+// momento em que o usuário nasce em auth.users. Usar upsert aqui falharia: o
+// INSERT do upsert é validado antes do ON CONFLICT e profiles.referral_code é
+// NOT NULL desde a migração 025. Update é a operação correta.
+const { data: updated, error } = await supabase
+  .from("profiles")
+  .update({
     email: user.email || args.email,
     full_name: "Auditoria local Pontua Enem",
     access_level: role,
     beta_tester: role === "beta",
     access_expires_at: expiresAt,
-  },
-  { onConflict: "id" },
-);
+  })
+  .eq("id", user.id)
+  .select("id")
+  .maybeSingle();
 
 if (error) {
   console.error(error.message);
+  process.exit(1);
+}
+
+if (!updated) {
+  console.error(
+    "Perfil não encontrado para este usuário. Confirme se a migração 025 e o trigger handle_new_user estão aplicados no stack local.",
+  );
   process.exit(1);
 }
 

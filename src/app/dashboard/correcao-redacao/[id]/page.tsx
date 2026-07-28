@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, FileText } from "lucide-react";
+import { ArrowLeft, Clock3, FileText } from "lucide-react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,8 @@ import { EssayFilesViewer } from "@/components/dashboard/essay-files-viewer";
 import { EssayFeedbackView } from "@/components/dashboard/essay-feedback-view";
 import { getStudentEssayDetail } from "@/lib/db/queries";
 import { formatAppDateTime } from "@/lib/dates";
+import { legalContacts } from "@/lib/legal/config";
+import { ESSAY_TURNAROUND_LABEL, essayWaitStatus } from "@/lib/schemas/essay";
 
 export const dynamic = "force-dynamic";
 
@@ -40,6 +42,9 @@ export default async function StudentEssayDetailPage({
   const essay = await getStudentEssayDetail(id);
   if (!essay) notFound();
 
+  const waiting = essay.status === "pending" || essay.status === "in_review";
+  const wait = waiting ? essayWaitStatus(essay.submitted_at) : null;
+
   return (
     <div className="space-y-6">
       <Link
@@ -63,6 +68,42 @@ export default async function StudentEssayDetailPage({
           </Badge>
         }
       />
+
+      {wait?.deadline ? (
+        <Notice
+          tone={wait.overdue ? "warning" : "info"}
+          icon={Clock3}
+          title={
+            wait.overdue
+              ? "Esta correção passou do prazo"
+              : `Devolutiva prevista até ${formatDeadline(wait.deadline)}`
+          }
+        >
+          {wait.overdue ? (
+            <>
+              O prazo de {ESSAY_TURNAROUND_LABEL} venceu em{" "}
+              {formatDeadline(wait.deadline)}. Escreva para{" "}
+              <a
+                className="font-semibold underline decoration-amber-400 underline-offset-2"
+                href={`mailto:${legalContacts.supportEmail}?subject=${encodeURIComponent(
+                  "Redação fora do prazo de correção",
+                )}`}
+              >
+                {legalContacts.supportEmail}
+              </a>{" "}
+              com o tema desta redação: devolvemos os {essay.credit_cost} créditos se
+              a correção não for entregue.
+            </>
+          ) : (
+            <>
+              Enviada em {formatDate(essay.submitted_at)}. A correção é feita por
+              pessoas, competência por competência, e fica pronta em{" "}
+              {ESSAY_TURNAROUND_LABEL} — você não precisa reenviar nada. Quando
+              estiver pronta, ela aparece aqui e no histórico da página Redação.
+            </>
+          )}
+        </Notice>
+      ) : null}
 
       {essay.status === "cancelled" ? (
         <Notice tone="warning">
@@ -93,7 +134,7 @@ export default async function StudentEssayDetailPage({
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Observação enviada
               </p>
-              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 text-slate-700">
                 {essay.student_note}
               </p>
             </div>
@@ -103,7 +144,7 @@ export default async function StudentEssayDetailPage({
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                 Texto digitado
               </p>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-slate-800">
+              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-7 text-slate-800">
                 {essay.essay_text}
               </p>
             </div>
@@ -131,4 +172,8 @@ function formatDate(value: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+function formatDeadline(value: Date) {
+  return formatAppDateTime(value, { day: "2-digit", month: "2-digit", year: "numeric" });
 }

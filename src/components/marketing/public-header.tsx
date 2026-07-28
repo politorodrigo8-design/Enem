@@ -32,7 +32,10 @@ export function PublicHeader({ cta, viewer }: PublicHeaderProps) {
     <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 md:backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         <Logo />
-        <nav className="hidden items-center gap-7 md:flex" aria-label="Navegação principal">
+        <nav
+          className="hidden items-center gap-4 whitespace-nowrap md:flex lg:gap-7"
+          aria-label="Navegação principal"
+        >
           {links.map((link) => (
             <Link
               key={link.href}

@@ -1,15 +1,27 @@
 import { Badge } from "@/components/ui/badge";
 import type { ReferralHistoryItem } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
-import { referralStatusLabels, referralStatusTones } from "@/lib/referrals/constants";
+import {
+  REFERRAL_REFERRED_BONUS_CREDITS,
+  REFERRAL_REFERRER_REWARD_CREDITS,
+  referralStatusLabels,
+  referralStatusTones,
+} from "@/lib/referrals/constants";
 
 type BadgeTone = "blue" | "green" | "red" | "slate" | "amber";
 
 export function ReferralHistory({ items }: { items: ReferralHistoryItem[] }) {
   if (!items.length) {
     return (
-      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-500">
-        Nenhuma indicação registrada ainda.
+      <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm font-semibold text-slate-900">
+          Você ainda não indicou ninguém.
+        </p>
+        <p className="mt-1 text-sm leading-6 text-slate-600">
+          Mande o link acima para quem está estudando com você: quando seu amigo
+          compra o acesso, ele ganha {REFERRAL_REFERRED_BONUS_CREDITS} créditos
+          extras e você recebe {REFERRAL_REFERRER_REWARD_CREDITS}.
+        </p>
       </div>
     );
   }

@@ -11,7 +11,7 @@ import {
   generateSmartStudyPlanAction,
 } from "@/lib/actions/ai";
 import { AiConfirmationDialog } from "../ai-confirmation-dialog";
-import { AiCreditCost } from "../ai-credit-cost";
+import { AiCreditCost, AiCreditShortage } from "../ai-credit-cost";
 import { AiFeatureHeader } from "../ai-feature-header";
 import { AiGenerationError } from "../ai-generation-error";
 import { AiResponsivePanel } from "../ai-responsive-panel";
@@ -24,7 +24,13 @@ import { ImportedPriorities } from "./imported-priorities";
 import { IntelligentPlanContent } from "./intelligent-plan-content";
 import { IntelligentPlanSkeleton } from "./intelligent-plan-skeleton";
 
-export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean }) {
+export function SmartStudyPlanCreditAction({
+  disabled,
+  creditBalance,
+}: {
+  disabled?: boolean;
+  creditBalance?: number | null;
+}) {
   const router = useRouter();
   const openerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
@@ -89,10 +95,12 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
             descriptionClassName="mt-1 max-w-2xl text-sm leading-6 text-slate-700"
           />
           <AiCreditCost cost={AI_STUDY_PLAN_CREDIT_COST} />
+          <AiCreditShortage cost={AI_STUDY_PLAN_CREDIT_COST} balance={creditBalance} />
         </div>
         <Button
           ref={openerRef}
           type="button"
+          className="shrink-0"
           variant="outline"
           size="sm"
           onClick={() => setOpen(true)}
@@ -116,6 +124,7 @@ export function SmartStudyPlanCreditAction({ disabled }: { disabled?: boolean })
           <AiConfirmationDialog
             description="O plano será reorganizado respeitando sua rotina cadastrada, seu desempenho e as prioridades importadas."
             cost={AI_STUDY_PLAN_CREDIT_COST}
+            balance={creditBalance}
             buttonLabel="Confirmar otimização"
             onConfirm={() => generate()}
           >

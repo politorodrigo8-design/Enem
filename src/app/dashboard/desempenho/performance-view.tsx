@@ -7,6 +7,7 @@ import {
   ListChecks,
   Target,
   Timer,
+  TrendingDown,
   TrendingUp,
 } from "lucide-react";
 import { AreaBars } from "@/components/charts/area-bars";
@@ -22,6 +23,7 @@ import {
   mergeLocalProgressIntoQuestions,
   useLocalQuestionProgress,
 } from "@/lib/local-question-progress";
+import { buildWeeklyTrend } from "@/lib/study/weekly-trend.mjs";
 
 const statusStyles = {
   Dominado: "text-emerald-600",
@@ -37,12 +39,12 @@ const statusBadgeStyles = {
 
 export function PerformanceView({
   questions,
-  areaMetrics: _areaMetrics,
   access,
+  creditBalance,
 }: {
   questions: QuestionRecord[];
-  areaMetrics: React.ComponentProps<typeof AreaBars>["data"];
   access: AccessContext;
+  creditBalance: number;
 }) {
   const localProgress = useLocalQuestionProgress();
   const questionsWithLocalProgress = useMemo(
@@ -62,7 +64,8 @@ export function PerformanceView({
     : 0;
   const subjectRows = buildPerformanceRows(answers, "subject");
   const topicRows = buildPerformanceRows(answers, "topic");
-  const combinedAreaMetrics = answers.length ? buildAreaMetrics(answers) : _areaMetrics;
+  const areaMetrics = buildAreaMetrics(answers);
+  const weeklyTrend = buildWeeklyTrend(answers.map((item) => item.answer));
   const dominated = topicRows.filter((item) => item.status === "Dominado");
   const attention = topicRows.filter((item) => item.status === "Atenção");
   const critical = topicRows.filter((item) => item.status === "Crítico");
@@ -97,9 +100,9 @@ export function PerformanceView({
         <Reveal delay={180}>
           <StatCard
             label="Evolução semanal"
-            value={answers.length ? "Ativa" : "Sem dados"}
-            helper="com base no seu treino"
-            icon={TrendingUp}
+            value={weeklyTrend.value}
+            helper={weeklyTrend.helper}
+            icon={weeklyTrend.trend === "down" ? TrendingDown : TrendingUp}
           />
         </Reveal>
       </section>
@@ -107,6 +110,7 @@ export function PerformanceView({
       <Reveal delay={200}>
         <PerformanceAnalysisCreditAction
           disabled={!answers.length || !access.hasPlatformAccess}
+          creditBalance={creditBalance}
         />
       </Reveal>
 
@@ -131,7 +135,8 @@ export function PerformanceView({
         <>
           <Reveal delay={80}>
           <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <Card>
+            {/* min-w-0: sem isso o item de grid cresce até o min-content da tabela e o scroll interno nunca ativa. */}
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle>Taxa de acertos por disciplina</CardTitle>
               </CardHeader>
@@ -145,8 +150,8 @@ export function PerformanceView({
                 <CardTitle>Taxa de acertos por área</CardTitle>
               </CardHeader>
               <CardContent>
-                {combinedAreaMetrics.length ? (
-                  <AreaBars data={combinedAreaMetrics} />
+                {areaMetrics.length ? (
+                  <AreaBars data={areaMetrics} />
                 ) : (
                   <p className="text-sm leading-6 text-slate-500">
                     Sem respostas por área ainda.
@@ -159,7 +164,7 @@ export function PerformanceView({
 
           <Reveal delay={140}>
           <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <Card>
+            <Card className="min-w-0">
               <CardHeader>
                 <CardTitle>Desempenho por assunto</CardTitle>
               </CardHeader>
@@ -251,24 +256,26 @@ function PerformanceTable({
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full min-w-[420px] text-sm">
+      <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-            <th className="py-2 pr-4 font-semibold">{firstColumn}</th>
-            <th className="px-4 py-2 text-right font-semibold">Respostas</th>
-            <th className="py-2 pl-4 text-right font-semibold">Acerto</th>
+            <th className="py-2 pr-2 font-semibold sm:pr-4">{firstColumn}</th>
+            <th className="px-2 py-2 text-right font-semibold sm:px-4">Respostas</th>
+            <th className="py-2 pl-2 text-right font-semibold sm:pl-4">Acerto</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
           {sorted.map((item) => (
             <tr key={item.name}>
-              <td className="py-2.5 pr-4">
-                <span className="font-semibold text-slate-900">{item.name}</span>
+              <td className="py-2.5 pr-2 align-top sm:pr-4">
+                <span className="break-words font-semibold text-slate-900">
+                  {item.name}
+                </span>
               </td>
-              <td className="tnum px-4 py-2.5 text-right text-slate-600">
+              <td className="tnum px-2 py-2.5 text-right align-top text-slate-600 sm:px-4">
                 {item.answered}
               </td>
-              <td className="py-2.5 pl-4 text-right">
+              <td className="py-2.5 pl-2 text-right align-top sm:pl-4">
                 <span className={`tnum font-semibold ${statusStyles[item.status]}`}>
                   {item.accuracy}%
                 </span>
@@ -306,8 +313,12 @@ function StatusGroup({
         <ul className="mt-2 divide-y divide-slate-100">
           {items.map((item) => (
             <li key={item.name} className="flex items-center justify-between gap-4 py-2">
-              <span className="text-sm text-slate-700">{item.name}</span>
-              <span className={`tnum text-sm font-semibold ${statusStyles[status]}`}>
+              <span className="min-w-0 break-words text-sm text-slate-700">
+                {item.name}
+              </span>
+              <span
+                className={`tnum shrink-0 text-sm font-semibold ${statusStyles[status]}`}
+              >
                 {item.accuracy}%
               </span>
             </li>

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
-import { Check } from "lucide-react";
+import { Check, Clock } from "lucide-react";
+import { buttonClasses } from "@/components/ui/button";
+import { Notice } from "@/components/ui/notice";
 import { getAccessContext } from "@/lib/access";
 import { formatAppDateTime } from "@/lib/dates";
 import { formatCurrency, getCurrentProductPrice, getPublicProduct } from "@/lib/services/billing";
@@ -37,6 +39,21 @@ export default async function CheckoutPage() {
 
   if (access.hasPlatformAccess) redirect("/dashboard");
 
+  // Quem pagou por Pix ou boleto volta para cá enquanto o Mercado Pago não
+  // confirma. Sem este aviso a página repetia "Revise e confirme sua compra"
+  // com o botão de pagar ativo, ou seja, pedia o pagamento de novo a quem
+  // acabou de pagar.
+  const { data: pendingOrderRow } = await supabase
+    .from("orders")
+    .select("id, created_at")
+    .eq("user_id", user.id)
+    .eq("product_id", product.id)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const pendingOrder = pendingOrderRow ?? null;
+
   const price = getCurrentProductPrice(product);
   const accessValidUntil = formatAppDateTime(product.access_valid_until, {
     day: "2-digit",
@@ -52,12 +69,37 @@ export default async function CheckoutPage() {
             Pagamento seguro
           </p>
           <h1 className="mt-2 font-display text-4xl font-semibold tracking-tight text-slate-950">
-            Revise e confirme sua compra
+            {pendingOrder ? "Estamos aguardando seu pagamento" : "Revise e confirme sua compra"}
           </h1>
           <p className="mt-3 max-w-xl text-base leading-7 text-slate-600">
-            Você paga no ambiente do Mercado Pago e o acesso é liberado assim que
-            o pagamento for confirmado.
+            {pendingOrder
+              ? "Já recebemos seu pedido. Pagamentos em Pix costumam ser confirmados em minutos; boleto pode levar até 3 dias úteis. Seu acesso é liberado automaticamente na confirmação."
+              : "Você paga no ambiente do Mercado Pago e o acesso é liberado assim que o pagamento for confirmado."}
           </p>
+          {pendingOrder ? (
+            <Notice tone="info" icon={Clock} className="mt-5 max-w-xl" title="Pedido em análise">
+              <p className="leading-6">
+                Não precisa pagar de novo. Se você já concluiu o pagamento, use o botão abaixo
+                para conferir agora.
+              </p>
+              <a
+                href={`/pagamento/sucesso?order=${pendingOrder.id}`}
+                className={buttonClasses({ variant: "primary", size: "sm", className: "mt-3" })}
+              >
+                Verificar meu pagamento
+              </a>
+              <p className="mt-3 text-xs leading-5">
+                Continua sem liberar depois de confirmado? Escreva para{" "}
+                <a
+                  href="mailto:suporte@pontuaenem.com.br"
+                  className="font-semibold underline underline-offset-2"
+                >
+                  suporte@pontuaenem.com.br
+                </a>{" "}
+                com a data do pagamento.
+              </p>
+            </Notice>
+          ) : null}
         </header>
 
         <aside
@@ -67,12 +109,10 @@ export default async function CheckoutPage() {
           <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 lg:sticky lg:top-24">
             <div className="bg-slate-950 p-6 text-white">
               <p className="text-sm font-semibold text-blue-200">{product.product_name}</p>
-              <div className="mt-3 flex items-end gap-2.5">
+              <div className="mt-3 flex flex-wrap items-end gap-x-2.5 gap-y-1">
                 <p className="tnum text-5xl font-bold leading-none">{formatCurrency(price)}</p>
                 <p className="pb-1 text-sm font-semibold leading-5 text-slate-300">
-                  pagamento
-                  <br />
-                  único
+                  pagamento único
                 </p>
               </div>
             </div>
@@ -87,7 +127,7 @@ export default async function CheckoutPage() {
               <div className="mt-5 border-t border-slate-200 pt-5">
                 <CheckoutButton
                   disabled={!product.launch_ready}
-                  disabledMessage="O pagamento está temporariamente indisponível. Tente novamente em alguns minutos."
+                  disabledMessage="As vendas estão fechadas neste momento. Escreva para suporte@pontuaenem.com.br e avisamos você quando reabrirem."
                 />
               </div>
             </div>
@@ -133,9 +173,9 @@ export default async function CheckoutPage() {
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="text-right font-semibold text-slate-900">{value}</dd>
+    <div className="flex min-w-0 items-start justify-between gap-4">
+      <dt className="shrink-0 text-slate-500">{label}</dt>
+      <dd className="min-w-0 break-words text-right font-semibold text-slate-900">{value}</dd>
     </div>
   );
 }

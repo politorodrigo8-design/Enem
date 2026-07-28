@@ -11,8 +11,10 @@ export function DashboardPageHeader({
 }: DashboardPageHeaderProps) {
   return (
     <div className="mb-8 flex flex-col gap-4 border-b border-slate-200 pb-6 md:flex-row md:items-end md:justify-between">
-      <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-950">{title}</h1>
+      <div className="min-w-0 max-w-3xl">
+        <h1 className="break-words text-2xl font-bold tracking-tight text-slate-950">
+          {title}
+        </h1>
         {description ? (
           <p className="mt-1.5 text-sm leading-6 text-slate-600">{description}</p>
         ) : null}

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,7 @@ import {
   buildShortQuestionFeedback,
   getPracticeSessionStats,
 } from "@/lib/practice-session/rules.mjs";
+import { selectRecommendedQuestions } from "@/lib/questions/rules.mjs";
 import { cn } from "@/lib/utils";
 import {
   isLocalQuestionId,
@@ -41,23 +42,34 @@ import {
   useLocalQuestionProgress,
 } from "@/lib/local-question-progress";
 
+export type TopicPriority = Record<
+  string,
+  { score: number; reason: string; hasPerformance?: boolean }
+>;
+
 type Props = {
   questions: QuestionRecord[];
   access: AccessContext;
+  userId: string;
   answerSource?: "question_bank" | "high_priority";
   initialQuestionId?: string;
   initialTopic?: string;
+  initialGoal?: number | null;
+  topicPriority?: TopicPriority;
   activePracticeSession?: ActivePracticeSession | null;
 };
 
 export type FocusMode = "recommended" | "unanswered" | "review" | "all";
 
-const sessionSizes = ["10", "15", "20", "Todas"] as const;
-type SessionSize = (typeof sessionSizes)[number];
+const allQuestionsSize = "Todas";
+const sessionSizePresets = ["10", "15", "20"];
+// "Todas" ou a quantidade de questões da sessão — a meta do dia entra como
+// tamanho válido mesmo fora dos atalhos fixos.
+type SessionSize = string;
 
 const focusModes: Array<{ id: FocusMode; label: string }> = [
   { id: "recommended", label: "Recomendadas" },
-  { id: "unanswered", label: "Novas" },
+  { id: "unanswered", label: "Todas as não respondidas" },
   { id: "review", label: "Favoritas" },
   { id: "all", label: "Explorar banco" },
 ];
@@ -114,18 +126,27 @@ function sameFilters(a: Filters, b: Filters) {
 }
 
 function sliceForSize(questions: QuestionRecord[], size: SessionSize) {
-  return size === "Todas" ? questions : questions.slice(0, Number(size));
+  const limit = Number(size);
+  return size === allQuestionsSize || !Number.isFinite(limit) || limit < 1
+    ? questions
+    : questions.slice(0, Math.floor(limit));
 }
 
 export function QuestionBankClient({
   questions,
   access,
+  userId,
   answerSource = "question_bank",
   initialQuestionId,
   initialTopic,
+  initialGoal,
+  topicPriority,
   activePracticeSession,
 }: Props) {
   const router = useRouter();
+  // Em coluna única (abaixo de xl) os botões de navegação ficam no fim do card:
+  // sem reposicionar o scroll, o aluno cairia no meio da questão seguinte.
+  const questionCardRef = useRef<HTMLDivElement>(null);
   const initialTopicName = useMemo(() => {
     if (!initialTopic) return null;
     return (
@@ -136,20 +157,33 @@ export function QuestionBankClient({
       )?.topics.name ?? null
     );
   }, [initialTopic, questions]);
-  const restoredPracticeSession = !initialTopicName ? activePracticeSession : null;
+  // "Retomar estudo de hoje" abre o Praticar já com o assunto na URL: a sessão
+  // do servidor só é descartada quando o aluno escolhe OUTRO assunto — senão
+  // ele refaria as questões que já respondeu.
+  const restoredPracticeSession = useMemo(() => {
+    if (!activePracticeSession) return null;
+    if (!initialTopicName) return activePracticeSession;
+    return coerceFilters(activePracticeSession.filters)?.topic === initialTopicName
+      ? activePracticeSession
+      : null;
+  }, [activePracticeSession, initialTopicName]);
 
   const [focusMode, setFocusMode] = useState<FocusMode>(
-    initialTopicName
-      ? "all"
-      : coerceFocusMode(restoredPracticeSession?.focus_mode) ?? "recommended",
+    () =>
+      coerceFocusMode(restoredPracticeSession?.focus_mode) ??
+      (initialTopicName ? "all" : "recommended"),
   );
-  const [filters, setFilters] = useState(() =>
-    initialTopicName
-      ? { ...defaultFilters, topic: initialTopicName }
-      : coerceFilters(restoredPracticeSession?.filters) ?? defaultFilters,
+  const [filters, setFilters] = useState<Filters>(
+    () =>
+      coerceFilters(restoredPracticeSession?.filters) ??
+      (initialTopicName
+        ? { ...defaultFilters, topic: initialTopicName }
+        : defaultFilters),
   );
   const [sessionSize, setSessionSize] = useState<SessionSize>(
-    coerceSessionSize(restoredPracticeSession?.session_size) ?? "15",
+    () =>
+      coerceSessionSize(restoredPracticeSession?.session_size) ??
+      (initialGoal ? String(initialGoal) : "15"),
   );
   const [index, setIndex] = useState(
     Math.max(0, Math.floor(restoredPracticeSession?.current_index ?? 0) || 0),
@@ -209,8 +243,8 @@ export function QuestionBankClient({
   const [localSessionHydrated, setLocalSessionHydrated] = useState(false);
   const localQuestionProgress = useLocalQuestionProgress();
   const localSessionKey = useMemo(
-    () => practiceSessionStorageKey(answerSource),
-    [answerSource],
+    () => practiceSessionStorageKey(answerSource, userId),
+    [answerSource, userId],
   );
 
   const orderedQuestions = useMemo(() => {
@@ -233,8 +267,9 @@ export function QuestionBankClient({
         answerState,
         reviewState,
         filters,
+        topicPriority,
       }),
-    [answerState, filters, focusMode, orderedQuestions, reviewState],
+    [answerState, filters, focusMode, orderedQuestions, reviewState, topicPriority],
   );
 
   // A sessão ativa é um retrato congelado: responder questões não a embaralha,
@@ -248,6 +283,7 @@ export function QuestionBankClient({
       filters,
       answerState,
       reviewState,
+      topicPriority,
     }),
   );
 
@@ -269,10 +305,9 @@ export function QuestionBankClient({
     (focusMode === "all" && !sameFilters(filters, session.filters));
 
   function startNewSession() {
-    if (!sessionFinished && answeredInSession > 0) {
-      toast.error("Finalize a sessão atual antes de iniciar outra.");
-      return;
-    }
+    // Cada resposta já está gravada; a sessão anterior só precisa ser fechada
+    // para registrar o resumo — nunca é motivo para barrar o aluno.
+    const closesCurrentSession = !sessionFinished && sessionSubmittedCount > 0;
 
     setSession({
       focusMode,
@@ -285,6 +320,13 @@ export function QuestionBankClient({
     setSessionAnswerState({});
     setSessionFinished(false);
     move(0, false);
+
+    if (!closesCurrentSession) return;
+    startTransition(async () => {
+      const response = await closeSessionOnServer();
+      if (!response.ok) toast.error(response.message);
+      router.refresh();
+    });
   }
 
   function discardSelectionChange() {
@@ -330,16 +372,23 @@ export function QuestionBankClient({
     () => buildFilterOptions(orderedQuestions, filters),
     [filters, orderedQuestions],
   );
+  // A meta do dia entra como atalho de tamanho quando não é um dos fixos.
+  const sessionSizeOptions = useMemo(() => {
+    const goal = initialGoal ? String(initialGoal) : null;
+    const numeric =
+      goal && !sessionSizePresets.includes(goal)
+        ? [...sessionSizePresets, goal].sort((a, b) => Number(a) - Number(b))
+        : sessionSizePresets;
+    return [...numeric, allQuestionsSize];
+  }, [initialGoal]);
 
   /* eslint-disable react-hooks/set-state-in-effect -- Restores browser-only session state after hydration. */
   useEffect(() => {
-    if (initialTopicName) {
-      setLocalSessionHydrated(true);
-      return;
-    }
-
     const stored = readStoredPracticeSession(localSessionKey, answerSource);
-    if (!stored) {
+    // Sessão guardada de outro assunto não serve para o assunto pedido na URL.
+    const storedTopicMatches =
+      !initialTopicName || stored?.session.filters.topic === initialTopicName;
+    if (!stored || !storedTopicMatches) {
       setLocalSessionHydrated(true);
       return;
     }
@@ -419,7 +468,7 @@ export function QuestionBankClient({
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
-    if (!localSessionHydrated || initialTopicName) return;
+    if (!localSessionHydrated) return;
 
     writeStoredPracticeSession(localSessionKey, {
       version: 1,
@@ -434,7 +483,6 @@ export function QuestionBankClient({
   }, [
     answerSource,
     currentIndex,
-    initialTopicName,
     localSessionHydrated,
     localSessionKey,
     practiceSessionId,
@@ -448,6 +496,7 @@ export function QuestionBankClient({
     setIndex(safeIndex);
     setSelected("");
     setResult(null);
+    questionCardRef.current?.scrollIntoView({ block: "start" });
     if (persistProgress && practiceSessionId) {
       startTransition(async () => {
         await updatePracticeSessionProgressAction({
@@ -490,6 +539,7 @@ export function QuestionBankClient({
           answerState,
           reviewState,
           filters: defaultFilters,
+          topicPriority,
         }),
         sessionSize,
       ).map((item) => item.id),
@@ -561,6 +611,23 @@ export function QuestionBankClient({
     });
   }
 
+  function closeSessionOnServer() {
+    return finishPracticeSessionAction({
+      practiceSessionId: practiceSessionId || undefined,
+      questionIds: sessionSubmittedQuestions.map((item) => item.id),
+      startedAt: session.startedAt,
+      source: answerSource,
+      localSummary: sessionUsesLocalQuestions
+        ? {
+            questionCount: sessionQuestions.length,
+            answered: sessionSubmittedCount,
+            correct: sessionSubmittedCorrect,
+            wrong: sessionSubmittedWrong,
+          }
+        : undefined,
+    });
+  }
+
   function finishSession() {
     if (!sessionSubmittedCount) {
       toast.error("Responda pelo menos uma questão desta sessão antes de finalizar.");
@@ -568,20 +635,7 @@ export function QuestionBankClient({
     }
 
     startTransition(async () => {
-      const response = await finishPracticeSessionAction({
-        practiceSessionId: practiceSessionId || undefined,
-        questionIds: sessionSubmittedQuestions.map((item) => item.id),
-        startedAt: session.startedAt,
-        source: answerSource,
-        localSummary: sessionUsesLocalQuestions
-          ? {
-              questionCount: sessionQuestions.length,
-              answered: sessionSubmittedCount,
-              correct: sessionSubmittedCorrect,
-              wrong: sessionSubmittedWrong,
-            }
-          : undefined,
-      });
+      const response = await closeSessionOnServer();
       toast[response.ok ? "success" : "error"](response.message);
       if (response.ok) {
         setSessionFinished(true);
@@ -613,7 +667,9 @@ export function QuestionBankClient({
           <p className="text-sm font-semibold text-blue-950">
             Estudando: {initialTopicName}
             <span className="ml-2 font-normal text-blue-800">
-              — questões deste assunto contam para sua meta de hoje.
+              {initialGoal
+                ? `— meta de hoje: ${initialGoal} questões deste assunto.`
+                : "— questões deste assunto contam para sua meta de hoje."}
             </span>
           </p>
           <Button variant="outline" size="sm" onClick={clearTopicFocus}>
@@ -638,7 +694,7 @@ export function QuestionBankClient({
                 aria-selected={focusMode === mode.id}
                 onClick={() => changeFocus(mode.id)}
                 className={cn(
-                  "rounded-lg border px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+                  "min-h-11 rounded-lg border px-3.5 py-2 text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0",
                   focusMode === mode.id
                     ? "border-blue-300 bg-blue-50 text-blue-900"
                     : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:bg-slate-50",
@@ -651,13 +707,13 @@ export function QuestionBankClient({
 
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex gap-1.5" aria-label="Tamanho da sessão">
-              {sessionSizes.map((size) => (
+              {sessionSizeOptions.map((size) => (
                 <button
                   key={size}
                   type="button"
                   onClick={() => setSessionSize(size)}
                   className={cn(
-                    "tnum rounded-lg border px-2.5 py-1.5 text-xs font-semibold transition-colors",
+                    "tnum inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border px-3 text-sm font-semibold transition-colors sm:min-h-0 sm:min-w-0 sm:px-2.5 sm:py-1.5 sm:text-xs",
                     sessionSize === size
                       ? "border-blue-300 bg-blue-50 text-blue-900"
                       : "border-slate-200 bg-white text-slate-500 hover:border-slate-300",
@@ -674,9 +730,16 @@ export function QuestionBankClient({
           </div>
         </div>
 
+        {focusMode === "recommended" ? (
+          <RecommendationCriteria
+            questions={filtered}
+            topicPriority={topicPriority}
+          />
+        ) : null}
+
         {focusMode === "all" ? (
           <div className="mt-4 border-t border-slate-100 pt-4">
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               <Select
                 label="Área"
                 value={filters.area}
@@ -719,7 +782,7 @@ export function QuestionBankClient({
       </section>
 
       {selectionChanged ? (
-        <div className="animate-rise mb-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="animate-rise mb-4 flex flex-col gap-3 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 md:flex-row md:items-center md:justify-between">
           <p className="text-sm font-semibold text-blue-950">
             Seleção alterada —{" "}
             <span className="tnum">
@@ -730,20 +793,14 @@ export function QuestionBankClient({
               : "questões prontas"}{" "}
             para a nova sessão.
           </p>
-          <div className="flex shrink-0 flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 md:shrink-0">
             <Button variant="outline" size="sm" onClick={discardSelectionChange}>
               Voltar à sessão atual
             </Button>
-            {hasUnfinishedSubmissions ? (
-              <Button size="sm" onClick={finishSession} disabled={pending}>
-                <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                Finalizar sessão
-              </Button>
-            ) : null}
             <Button
               size="sm"
               onClick={startNewSession}
-              disabled={!filtered.length || hasUnfinishedSubmissions}
+              disabled={!filtered.length || pending}
             >
               <PlayCircle className="h-4 w-4" aria-hidden="true" />
               Iniciar nova sessão
@@ -762,21 +819,21 @@ export function QuestionBankClient({
               : "border-slate-200 bg-white",
         )}
       >
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div>
             <p className="text-sm font-bold text-slate-950">
               {sessionFinished
                 ? "Sessão finalizada"
                 : hasUnfinishedSubmissions
-                  ? "Sessão aguardando finalização"
-                  : "Sessão em andamento"}
+                  ? "Sessão em andamento"
+                  : "Sessão pronta para começar"}
             </p>
             <p className="mt-1 text-sm leading-6 text-slate-600">
-              As respostas novas entram no desempenho e na revisão de erros
-              quando você finaliza.
+              Cada resposta é salva na hora e já conta no seu desempenho.
+              Finalizar fecha o bloco e registra o resumo da sessão.
             </p>
           </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex shrink-0 flex-col gap-3 md:flex-row md:items-center">
             <div className="grid grid-cols-3 gap-2 text-center">
               <SessionMetric
                 label="Progresso"
@@ -789,12 +846,17 @@ export function QuestionBankClient({
               <SessionMetric label="Erros" value={String(sessionSubmittedWrong)} />
             </div>
             {sessionFinished ? (
-              <Button onClick={startNewSession} disabled={!filtered.length}>
+              <Button
+                className="whitespace-nowrap"
+                onClick={startNewSession}
+                disabled={!filtered.length}
+              >
                 <PlayCircle className="h-4 w-4" aria-hidden="true" />
                 Iniciar nova sessão
               </Button>
             ) : (
               <Button
+                className="whitespace-nowrap"
                 onClick={finishSession}
                 disabled={!sessionSubmittedCount || pending}
               >
@@ -815,13 +877,19 @@ export function QuestionBankClient({
               ? "Você ainda não salvou questões como favoritas. Use o marcador na lateral de qualquer questão."
               : focusMode === "unanswered"
                 ? "Você já respondeu todas as questões deste foco. Explore o banco ou revise seus erros."
-                : "Nenhuma questão corresponde aos filtros escolhidos."
+                : focusMode === "recommended"
+                  ? "Você já respondeu as questões recomendadas para os seus assuntos prioritários. Explore o banco para escolher outro assunto."
+                  : "Nenhuma questão corresponde aos filtros escolhidos."
           }
           action={
             selectionChanged && filtered.length ? (
               <Button onClick={startNewSession}>
                 <PlayCircle className="h-4 w-4" aria-hidden="true" />
                 Iniciar nova sessão
+              </Button>
+            ) : focusMode === "recommended" ? (
+              <Button variant="outline" onClick={() => changeFocus("all")}>
+                Explorar banco
               </Button>
             ) : (
               <Button variant="outline" onClick={() => changeFocus("recommended")}>
@@ -832,6 +900,7 @@ export function QuestionBankClient({
         />
       ) : (
         <div
+          ref={questionCardRef}
           className={cn(
             "grid gap-6 xl:grid-cols-[1fr_360px]",
             selectionChanged &&
@@ -864,7 +933,7 @@ export function QuestionBankClient({
             </CardHeader>
             <CardContent>
               <div key={question.id} className="animate-rise">
-                <p className="text-lg leading-8 text-slate-900">
+                <p className="break-words text-base leading-7 text-slate-900 sm:text-lg sm:leading-8">
                   {question.statement}
                 </p>
                 {associatedMedia.length ? (
@@ -975,6 +1044,7 @@ export function QuestionBankClient({
                 <div className="flex gap-3">
                   <Button
                     variant="outline"
+                    className="flex-1 sm:flex-none"
                     onClick={() => move(Math.max(0, currentIndex - 1))}
                     disabled={currentIndex === 0}
                   >
@@ -983,6 +1053,7 @@ export function QuestionBankClient({
                   </Button>
                   <Button
                     variant="outline"
+                    className="flex-1 sm:flex-none"
                     onClick={() =>
                       move(Math.min(sessionQuestions.length - 1, currentIndex + 1))
                     }
@@ -993,6 +1064,7 @@ export function QuestionBankClient({
                   </Button>
                 </div>
                 <Button
+                  className="w-full sm:w-auto"
                   onClick={submitAnswer}
                   disabled={
                     !selected || pending || Boolean(currentResult) || accessBlocked
@@ -1013,7 +1085,7 @@ export function QuestionBankClient({
               {currentResult ? (
                 <div
                   className={cn(
-                    "mt-6 rounded-lg border p-5",
+                    "mt-6 rounded-lg border p-4 sm:p-5",
                     currentResult.isCorrect
                       ? "border-emerald-200 bg-emerald-50"
                       : "border-rose-200 bg-rose-50",
@@ -1033,21 +1105,21 @@ export function QuestionBankClient({
                   </div>
                   <p className="mt-3 text-sm leading-6 text-slate-700">
                     {currentResult.explanation ||
-                      "A explicação completa aparece depois de uma nova tentativa nesta sessão."}
+                      "Resolução ainda não disponível para esta questão."}
                   </p>
                 </div>
               ) : null}
 
               {currentResult && currentIndex === sessionQuestions.length - 1 ? (
-                <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-5">
+                <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 sm:p-5">
                   <p className="font-bold text-blue-950">
                     Sessão concluída — {answeredInSession} de{" "}
                     {sessionQuestions.length} respondidas
                   </p>
                   <p className="mt-2 text-sm leading-6 text-slate-700">
-                    Suas respostas ficam no histórico e alimentam seu desempenho.
-                    Em Novas, as questões respondidas saem da fila; monte outra
-                    sessão quando quiser.
+                    Suas respostas já estão no histórico e no seu desempenho. As
+                    questões respondidas saem da fila das não respondidas; monte
+                    outra sessão quando quiser.
                   </p>
                 </div>
               ) : null}
@@ -1075,7 +1147,10 @@ export function QuestionBankClient({
                     )} resposta(s)`}
                   />
                 </dl>
-                <WhyThisQuestion question={question} />
+                <WhyThisQuestion
+                  question={question}
+                  topicReason={topicPriority?.[question.topics.name]?.reason}
+                />
                 <QuestionExplanationCreditAction
                   questionId={question.id}
                   selectedOption={displayedSelected || undefined}
@@ -1115,17 +1190,77 @@ export function QuestionBankClient({
 
 function SessionMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="min-w-20 rounded-lg border border-white/70 bg-white/75 px-3 py-2">
+    <div className="min-w-0 rounded-lg border border-white/70 bg-white/75 px-1.5 py-2 sm:px-3">
       <p className="tnum text-base font-bold text-slate-950">{value}</p>
-      <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+      {/* Caixa alta só a partir de sm: em 320px a célula oferece ~65px e
+          "PROGRESSO" em 12px mede 75px — não cabe sem furar o piso de 12px. */}
+      <p className="mt-0.5 text-xs font-semibold text-slate-500 sm:uppercase sm:tracking-wide">
         {label}
       </p>
     </div>
   );
 }
 
-function WhyThisQuestion({ question }: { question: QuestionRecord }) {
-  const reason = question.priority_reason?.trim();
+/**
+ * O critério da recomendação fica na tela: o aluno paga para saber o que
+ * estudar, então precisa ler por que aquelas questões estão na frente dele.
+ */
+function RecommendationCriteria({
+  questions,
+  topicPriority,
+}: {
+  questions: QuestionRecord[];
+  topicPriority?: TopicPriority;
+}) {
+  const topicNames = Array.from(
+    new Set(questions.map((question) => question.topics.name)),
+  );
+  // Sem prioridade calculada não há critério a declarar — melhor não afirmar
+  // nada do que prometer uma curadoria que não existe.
+  if (!topicNames.some((name) => Number(topicPriority?.[name]?.score) > 0)) {
+    return null;
+  }
+
+  const hasPerformance = topicNames.some(
+    (name) => topicPriority?.[name]?.hasPerformance,
+  );
+
+  return (
+    <div className="mt-4 border-t border-slate-100 pt-4">
+      <p className="text-sm leading-6 text-slate-700">
+        Selecionadas{" "}
+        {topicNames.length === 1
+          ? "em 1 assunto prioritário"
+          : `nos ${topicNames.length} assuntos mais prioritários para você`}
+        :{" "}
+        <span className="font-semibold text-slate-900">
+          {formatTopicList(topicNames)}
+        </span>
+        .
+      </p>
+      <p className="mt-1 text-xs leading-5 text-slate-500">
+        {hasPerformance
+          ? "Critério: assuntos que mais caem no ENEM cruzados com a sua taxa de acerto mais baixa neles."
+          : "Critério: assuntos que mais caem no ENEM e pesam mais na prova. Você ainda não tem acertos registrados — responda algumas questões e a lista passa a seguir o seu desempenho."}
+      </p>
+    </div>
+  );
+}
+
+function formatTopicList(names: string[]) {
+  if (names.length < 2) return names.join("");
+  return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
+}
+
+function WhyThisQuestion({
+  question,
+  topicReason,
+}: {
+  question: QuestionRecord;
+  topicReason?: string;
+}) {
+  // A razão do assunto vem do mesmo motor de prioridades da tela Hoje.
+  const reason = topicReason?.trim() || question.priority_reason?.trim();
   const recurrenceLabel = recurrenceDisplay(question);
   if (!reason && !recurrenceLabel) return null;
 
@@ -1198,14 +1333,16 @@ function filterQuestions({
   answerState,
   reviewState,
   filters,
+  topicPriority,
 }: {
   questions: QuestionRecord[];
   focusMode: FocusMode;
   answerState: Record<string, unknown>;
   reviewState: Record<string, unknown>;
   filters: typeof defaultFilters;
+  topicPriority?: TopicPriority;
 }) {
-  return questions.filter((question) => {
+  const selected = questions.filter((question) => {
     const answered = Boolean(answerState[question.id]);
     const reviewed = Boolean(reviewState[question.id]);
 
@@ -1228,6 +1365,15 @@ function filterQuestions({
 
     return matchesFocus && matchesFilters;
   });
+
+  // "Recomendadas" é uma seleção curta dos assuntos mais prioritários do aluno —
+  // não o acervo inteiro reordenado (era o que fazia o modo prometer curadoria
+  // e devolver mais de mil questões).
+  if (focusMode !== "recommended") return selected;
+  return selectRecommendedQuestions({
+    questions: selected,
+    topicPriority,
+  }) as QuestionRecord[];
 }
 
 function questionOrigin(question: QuestionRecord) {
@@ -1292,7 +1438,7 @@ function Select({
       <select
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1.5 h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+        className="mt-1.5 h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 outline-none transition-colors hover:border-slate-300 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 sm:h-10"
       >
         {options.map((option) => (
           <option key={option}>{option}</option>
@@ -1340,7 +1486,8 @@ function coerceFocusMode(value?: string | null): FocusMode | null {
 }
 
 function coerceSessionSize(value?: string | null): SessionSize | null {
-  return sessionSizes.includes(value as SessionSize) ? (value as SessionSize) : null;
+  if (value === allQuestionsSize) return value;
+  return value && /^\d{1,3}$/.test(value) && Number(value) > 0 ? value : null;
 }
 
 function coerceFilters(value: unknown): Filters | null {
@@ -1370,6 +1517,7 @@ function buildInitialSessionSnapshot({
   filters,
   answerState,
   reviewState,
+  topicPriority,
 }: {
   restoredPracticeSession?: ActivePracticeSession | null;
   orderedQuestions: QuestionRecord[];
@@ -1378,6 +1526,7 @@ function buildInitialSessionSnapshot({
   filters: Filters;
   answerState: AnswerState;
   reviewState: Record<string, boolean>;
+  topicPriority?: TopicPriority;
 }): SessionSnapshot {
   const availableQuestionIds = new Set(orderedQuestions.map((question) => question.id));
   const restoredQuestionIds = (restoredPracticeSession?.question_ids ?? []).filter((id) =>
@@ -1405,6 +1554,7 @@ function buildInitialSessionSnapshot({
         answerState,
         reviewState,
         filters,
+        topicPriority,
       }),
       sessionSize,
     ).map((item) => item.id),
@@ -1442,8 +1592,13 @@ function hasLocalPracticeQuestions(questionIds: string[]) {
   return questionIds.some((questionId) => isLocalQuestionId(questionId));
 }
 
-function practiceSessionStorageKey(source: "question_bank" | "high_priority") {
-  return `pontua-enem:practice-session:${source}`;
+// A chave inclui o aluno: em navegador compartilhado (irmão, laboratório da
+// escola) a sessão de um não pode aparecer para o outro.
+function practiceSessionStorageKey(
+  source: "question_bank" | "high_priority",
+  userId: string,
+) {
+  return `pontua-enem:practice-session:${source}:${userId || "sem-conta"}`;
 }
 
 function readStoredPracticeSession(
@@ -1459,6 +1614,7 @@ function readStoredPracticeSession(
       parsed.source !== source ||
       !parsed.session ||
       !Array.isArray(parsed.session.questionIds) ||
+      !coerceFilters(parsed.session.filters) ||
       !parsed.answers ||
       typeof parsed.answers !== "object"
     ) {
