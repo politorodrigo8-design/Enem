@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, LogIn, Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { type MouseEvent, useEffect, useState } from "react";
 import { AccountMenu } from "@/components/ui/account-menu";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,30 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
+  function handleSectionLinkClick(
+    event: MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) {
+    const hash = href.startsWith("/#") ? href.slice(2) : null;
+    if (!hash || window.location.pathname !== "/") {
+      setOpen(false);
+      return;
+    }
+
+    const target = document.getElementById(hash);
+    if (!target) return;
+
+    event.preventDefault();
+    setOpen(false);
+    window.history.pushState(null, "", `#${hash}`);
+    target.scrollIntoView({
+      block: "start",
+      behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? "auto"
+        : "smooth",
+    });
+  }
+
   return (
     <header
       className={cn(
@@ -47,6 +71,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
             <Link
               key={link.href}
               href={link.href}
+              onClick={(event) => handleSectionLinkClick(event, link.href)}
               className="inline-flex min-h-10 items-center rounded-[14px] px-3 text-sm font-bold text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
             >
               {link.label}
@@ -102,7 +127,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
                 key={link.href}
                 href={link.href}
                 className="inline-flex min-h-12 items-center rounded-[16px] px-4 text-base font-bold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                onClick={() => setOpen(false)}
+                onClick={(event) => handleSectionLinkClick(event, link.href)}
               >
                 {link.label}
               </Link>
