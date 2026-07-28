@@ -3,6 +3,7 @@
 import { MessageSquare, Send, X } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 import { toast } from "sonner";
 import { submitFeedbackAction } from "@/lib/actions/beta";
 import { Button } from "@/components/ui/button";
@@ -88,7 +89,9 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
         </Button>
       )}
 
-      {open ? (
+      {/* Portal: a sidebar tem transform (translate-x), que vira containing
+          block de position:fixed — sem portal o modal fica preso nela. */}
+      {open ? createPortal(
         <div
           className="fixed inset-0 z-[70] flex items-center justify-center overflow-x-hidden overflow-y-auto overscroll-contain bg-white/75 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-[1px] sm:px-5 sm:pb-6 sm:pt-6"
           role="dialog"
@@ -229,7 +232,8 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
               </Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </>
   );

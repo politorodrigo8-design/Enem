@@ -6,7 +6,6 @@ import {
   BookmarkCheck,
   BookmarkPlus,
   CheckCircle2,
-  ChevronDown,
   ImageIcon,
   PlayCircle,
   Search,
@@ -18,6 +17,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { AccordionCard, Detail } from "@/components/ui/accordion-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -247,7 +247,6 @@ export function QuestionBankClient({
   const [practiceFocusActive, setPracticeFocusActive] = useState(
     () => Boolean(restoredPracticeSession || initialQuestionId || initialTopicName),
   );
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [localSessionHydrated, setLocalSessionHydrated] = useState(false);
   const localQuestionProgress = useLocalQuestionProgress();
   const localSessionKey = useMemo(
@@ -402,7 +401,6 @@ export function QuestionBankClient({
   const sessionSubmittedWrong = sessionStats.wrong;
   const hasUnfinishedSubmissions = sessionSubmittedCount > 0 && !sessionFinished;
   const sessionUsesLocalQuestions = hasLocalPracticeQuestions(session.questionIds);
-  const detailsPanelId = question ? `question-details-${question.id}` : "question-details";
 
   const filterOptions = useMemo(
     () => buildFilterOptions(orderedQuestions, filters),
@@ -491,12 +489,6 @@ export function QuestionBankClient({
     orderedQuestions,
     restoredPracticeSession,
   ]);
-  /* eslint-enable react-hooks/set-state-in-effect */
-
-  /* eslint-disable react-hooks/set-state-in-effect -- Keeps per-question disclosure collapsed when navigating. */
-  useEffect(() => {
-    setDetailsOpen(false);
-  }, [question?.id]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => {
@@ -1240,60 +1232,36 @@ export function QuestionBankClient({
           </Card>
 
           <aside>
-            <Card>
-              <CardHeader className="p-0">
-                <button
-                  type="button"
-                  className="flex w-full items-center justify-between gap-3 rounded-t-lg px-5 py-4 text-left transition-colors hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
-                  aria-expanded={detailsOpen}
-                  aria-controls={detailsPanelId}
-                  onClick={() => setDetailsOpen((current) => !current)}
-                >
-                  <CardTitle>Detalhes</CardTitle>
-                  <ChevronDown
-                    className={cn("h-4 w-4 text-slate-500 transition-transform duration-150", detailsOpen && "rotate-180")}
-                    aria-hidden="true"
-                  />
-                </button>
-              </CardHeader>
-              <div
-                id={detailsPanelId}
-                className={cn(
-                  "grid transition-[grid-template-rows] duration-150 ease-out",
-                  detailsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
-                )}
-              >
-                <div className="overflow-hidden">
-                  <CardContent className="border-t border-slate-100">
-                    <dl className="divide-y divide-slate-100">
-                      <Detail label="Disciplina" value={question.subjects.name} />
-                      <Detail label="Assunto" value={question.topics.name} />
-                      <Detail label="Dificuldade" value={question.difficulty} />
-                      <Detail label="Origem" value={questionOrigin(question)} />
-                      <Detail label="Prova" value={formatExamDetail(question)} />
-                      <Detail label="Fonte" value={question.source} />
-                      <Detail
-                        label="Histórico"
-                        value={`${Math.max(
-                          question.user_question_answers?.length ?? 0,
-                          answerState[question.id] ? 1 : 0,
-                        )} resposta(s)`}
-                      />
-                    </dl>
-                  </CardContent>
-                </div>
-              </div>
-            </Card>
-            <div className="mt-4 space-y-3">
-              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                  Por que esta questão
-                </summary>
-                <WhyThisQuestion
-                  question={question}
-                  topicReason={topicPriority?.[question.topics.name]?.reason}
+            {/* key: recolhe os acordeões ao navegar entre questões. */}
+            <AccordionCard key={question.id} title="Detalhes">
+              <dl className="divide-y divide-slate-100">
+                <Detail label="Disciplina" value={question.subjects.name} />
+                <Detail label="Assunto" value={question.topics.name} />
+                <Detail label="Dificuldade" value={question.difficulty} />
+                <Detail label="Origem" value={questionOrigin(question)} />
+                <Detail label="Prova" value={formatExamDetail(question)} />
+                <Detail label="Fonte" value={question.source} />
+                <Detail
+                  label="Histórico"
+                  value={`${Math.max(
+                    question.user_question_answers?.length ?? 0,
+                    answerState[question.id] ? 1 : 0,
+                  )} resposta(s)`}
                 />
-              </details>
+              </dl>
+            </AccordionCard>
+            <div className="mt-4 space-y-3">
+              {hasWhyThisQuestion(
+                question,
+                topicPriority?.[question.topics.name]?.reason,
+              ) ? (
+                <AccordionCard key={question.id} title="Por que esta questão">
+                  <WhyThisQuestion
+                    question={question}
+                    topicReason={topicPriority?.[question.topics.name]?.reason}
+                  />
+                </AccordionCard>
+              ) : null}
               <QuestionExplanationCreditAction
                 key={question.id}
                 questionId={question.id}
@@ -1447,6 +1415,15 @@ function formatTopicList(names: string[]) {
   return `${names.slice(0, -1).join(", ")} e ${names[names.length - 1]}`;
 }
 
+// A razão do assunto vem do mesmo motor de prioridades da tela Hoje.
+function hasWhyThisQuestion(question: QuestionRecord, topicReason?: string) {
+  return Boolean(
+    topicReason?.trim() ||
+      question.priority_reason?.trim() ||
+      recurrenceDisplay(question),
+  );
+}
+
 function WhyThisQuestion({
   question,
   topicReason,
@@ -1454,19 +1431,17 @@ function WhyThisQuestion({
   question: QuestionRecord;
   topicReason?: string;
 }) {
-  // A razão do assunto vem do mesmo motor de prioridades da tela Hoje.
   const reason = topicReason?.trim() || question.priority_reason?.trim();
   const recurrenceLabel = recurrenceDisplay(question);
-  if (!reason && !recurrenceLabel) return null;
 
   return (
-    <div className="mt-2">
-      <p className="mt-1.5 text-xs leading-5 text-slate-600">
+    <div>
+      <p className="text-sm leading-6 text-slate-600">
         {reason ||
           "O assunto desta questão aparece com frequência nas últimas provas do ENEM."}
       </p>
       {recurrenceLabel ? (
-        <p className="mt-1.5 text-xs font-semibold text-blue-800">
+        <p className="mt-1.5 text-sm font-semibold text-blue-800">
           {recurrenceLabel}
         </p>
       ) : null}
@@ -1637,19 +1612,6 @@ function Select({
         ))}
       </select>
     </label>
-  );
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-      <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </dt>
-      <dd className="text-right text-sm font-medium leading-5 text-slate-800">
-        {value}
-      </dd>
-    </div>
   );
 }
 

@@ -162,7 +162,9 @@ test("simulado ativo preserva foco, nao exibe explicacao e bloqueia finalizacao 
 test("estado local nao sobrescreve sessao persistida e avisos tecnicos nao aparecem", () => {
   assert.match(questionBankClientSource, /some\(\(questionId\) => !isLocalQuestionId\(questionId\)\)/);
   assert.match(questionBankClientSource, /window\.addEventListener\("focus", revalidateFromServer\)/);
-  assert.match(questionBankClientSource, /aria-controls=\{detailsPanelId\}/);
+  // Acordeões da lateral usam o componente único (details/summary nativo).
+  assert.match(questionBankClientSource, /<AccordionCard key=\{question\.id\} title="Detalhes">/);
+  assert.doesNotMatch(questionBankClientSource, /<details/);
   assert.doesNotMatch(simulationsClientSource, /O servidor não trouxe simulados salvos agora/);
   assert.match(simulationsClientSource, /\.filter\(\(\{ attempt \}\) => Boolean\(attempt\)\)/);
 });

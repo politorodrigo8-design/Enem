@@ -15,6 +15,7 @@ import Link from "next/link";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { QuestionExplanationCreditAction } from "@/components/dashboard/ai-credit-actions";
+import { AccordionCard, Detail } from "@/components/ui/accordion-card";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -485,22 +486,19 @@ function QuestionReviewCard({
       </Card>
 
       <aside>
-        <div className="rounded-lg border border-slate-200 bg-slate-50/70 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Detalhes
-          </p>
-          <dl className="mt-2 divide-y divide-slate-200">
+        <AccordionCard title="Detalhes" defaultOpen>
+          <dl className="divide-y divide-slate-100">
             <Detail label="Disciplina" value={question.subjects.name} />
             <Detail label="Assunto" value={question.topics.name} />
             <Detail label="Prova" value={formatExamDetail(question)} />
             <Detail label="Respostas" value={`${answerCount} registro(s)`} />
           </dl>
-          <QuestionExplanationCreditAction
-            questionId={question.id}
-            selectedOption={displayedSelected || undefined}
-            disabled={!result}
-          />
-        </div>
+        </AccordionCard>
+        <QuestionExplanationCreditAction
+          questionId={question.id}
+          selectedOption={displayedSelected || undefined}
+          disabled={!result}
+        />
       </aside>
     </div>
   );
@@ -567,19 +565,6 @@ function formatExamDetail(question: QuestionRecord) {
   ].filter(Boolean);
 
   return parts.join(" · ");
-}
-
-function Detail({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-      <dt className="shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-500">
-        {label}
-      </dt>
-      <dd className="text-right text-sm font-medium leading-5 text-slate-800">
-        {value}
-      </dd>
-    </div>
-  );
 }
 
 function getQuestionMedia(question?: QuestionRecord) {
