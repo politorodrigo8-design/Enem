@@ -181,8 +181,13 @@ export default async function DashboardPage() {
 function StreakChip({ streak, activeToday }: { streak: number; activeToday: boolean }) {
   if (!streak) {
     return (
-      <span className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold text-slate-600">
-        <Flame className="h-4 w-4 text-slate-400" aria-hidden="true" />
+      <span
+        className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-sm"
+        title="Responda questões hoje para iniciar sua sequência."
+      >
+        <span className="grid h-7 w-7 place-items-center rounded-md bg-slate-950 text-white shadow-[2px_0_0_#06b6d4,-2px_0_0_#f43f5e]">
+          <Flame className="h-4 w-4" aria-hidden="true" />
+        </span>
         Comece sua sequência hoje
       </span>
     );
@@ -190,20 +195,32 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
 
   return (
     <span
-      className={`tnum inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold ${
-        activeToday ? "bg-amber-50 text-amber-800" : "bg-slate-100 text-slate-600"
+      className={`tnum relative isolate inline-flex min-h-11 items-center gap-2 overflow-hidden rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset before:absolute before:inset-y-1.5 before:left-1 before:w-1 before:rounded-full before:bg-cyan-400 after:absolute after:inset-y-1.5 after:right-1 after:w-1 after:rounded-full after:bg-rose-500 ${
+        activeToday
+          ? "bg-slate-950 text-white ring-slate-900"
+          : "bg-white text-slate-700 ring-slate-200 before:bg-slate-300 after:bg-slate-300"
       }`}
       title={
         activeToday
-          ? "Sequência ativa — você já estudou hoje."
+          ? "Sequência ativa: você já estudou hoje."
           : "Estude hoje para manter a sequência."
       }
     >
-      <Flame
-        className={`h-4 w-4 ${activeToday ? "text-amber-600" : "text-slate-400"}`}
-        aria-hidden="true"
-      />
-      {streak} {streak === 1 ? "dia seguido" : "dias seguidos"}
+      <span
+        className={`relative grid h-7 w-7 place-items-center rounded-md ${
+          activeToday
+            ? "bg-white text-slate-950 shadow-[2px_0_0_#06b6d4,-2px_0_0_#f43f5e]"
+            : "bg-slate-100 text-slate-500"
+        }`}
+      >
+        <Flame className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <span className="relative flex items-baseline gap-1.5 pr-1">
+        <strong className="text-base leading-none">{streak}</strong>
+        <span className={activeToday ? "text-white/85" : "text-slate-600"}>
+          {streak === 1 ? "dia seguido" : "dias seguidos"}
+        </span>
+      </span>
     </span>
   );
 }
