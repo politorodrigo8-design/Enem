@@ -90,7 +90,7 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[70] flex items-center justify-center overflow-y-auto overscroll-contain bg-white/75 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-[1px] sm:pb-6 sm:pt-6"
+          className="fixed inset-0 z-[70] flex items-center justify-center overflow-x-hidden overflow-y-auto overscroll-contain bg-white/75 px-3 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur-[1px] sm:px-5 sm:pb-6 sm:pt-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="feedback-title"
@@ -98,7 +98,7 @@ export function FeedbackButton({ minimal = false }: { minimal?: boolean }) {
             if (event.target === event.currentTarget) setOpen(false);
           }}
         >
-          <div className="animate-pop max-h-full w-full max-w-lg overflow-y-auto overscroll-contain rounded-xl bg-white p-5 shadow-lg shadow-slate-900/15 sm:p-6">
+          <div className="animate-pop max-h-full w-full max-w-[calc(100vw-1.5rem)] overflow-x-hidden overflow-y-auto overscroll-contain rounded-xl bg-white p-5 shadow-lg shadow-slate-900/15 sm:max-w-xl sm:p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <h2 id="feedback-title" className="text-lg font-bold text-slate-950">

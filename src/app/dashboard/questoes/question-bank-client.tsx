@@ -345,6 +345,10 @@ export function QuestionBankClient({
   }
 
   function enterFocusSession() {
+    if (selectionChanged) {
+      startNewSession();
+      return;
+    }
     if (!sessionQuestions.length) {
       toast.error("Nenhuma questão encontrada para esta sessão.");
       return;
@@ -1014,12 +1018,7 @@ export function QuestionBankClient({
       ) : (
         <div
           ref={questionCardRef}
-          className={cn(
-            "grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]",
-            selectionChanged &&
-              "pointer-events-none select-none opacity-40 transition-opacity",
-          )}
-          aria-hidden={selectionChanged || undefined}
+          className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]"
         >
           <Card>
             <CardHeader>
@@ -1281,48 +1280,45 @@ export function QuestionBankClient({
                         )} resposta(s)`}
                       />
                     </dl>
-                    <details className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                      <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
-                        Por que esta questão
-                      </summary>
-                      <WhyThisQuestion
-                        question={question}
-                        topicReason={topicPriority?.[question.topics.name]?.reason}
-                      />
-                    </details>
-                    <QuestionExplanationCreditAction
-                      key={question.id}
-                      questionId={question.id}
-                      selectedOption={displayedSelected || undefined}
-                      disabled={accessBlocked || !currentResult}
-                    />
-                    <Button
-                      variant="outline"
-                      full
-                      className="mt-4"
-                      onClick={toggleFavorite}
-                      disabled={pending || accessBlocked}
-                    >
-                      {favoriteState[question.id] ? (
-                        <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
-                      ) : (
-                        <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
-                      )}
-                      {favoriteState[question.id]
-                        ? "Remover das favoritas"
-                        : "Salvar nas favoritas"}
-                    </Button>
-                    {accessBlocked ? (
-                      <PremiumGate
-                        compact
-                        className="mt-4"
-                        feature="A revisão de erros completa"
-                      />
-                    ) : null}
                   </CardContent>
                 </div>
               </div>
             </Card>
+            <div className="mt-4 space-y-3">
+              <details className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+                  Por que esta questão
+                </summary>
+                <WhyThisQuestion
+                  question={question}
+                  topicReason={topicPriority?.[question.topics.name]?.reason}
+                />
+              </details>
+              <QuestionExplanationCreditAction
+                key={question.id}
+                questionId={question.id}
+                selectedOption={displayedSelected || undefined}
+                disabled={accessBlocked || !currentResult}
+              />
+              <Button
+                variant="outline"
+                full
+                onClick={toggleFavorite}
+                disabled={pending || accessBlocked}
+              >
+                {favoriteState[question.id] ? (
+                  <BookmarkCheck className="h-4 w-4" aria-hidden="true" />
+                ) : (
+                  <BookmarkPlus className="h-4 w-4" aria-hidden="true" />
+                )}
+                {favoriteState[question.id]
+                  ? "Remover das favoritas"
+                  : "Salvar nas favoritas"}
+              </Button>
+              {accessBlocked ? (
+                <PremiumGate compact feature="A revisão de erros completa" />
+              ) : null}
+            </div>
           </aside>
         </div>
       )}
