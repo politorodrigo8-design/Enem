@@ -18,7 +18,7 @@ export default async function EssayCorrectionPage() {
     <div>
       <DashboardPageHeader
         title="Redação"
-        description="Envie sua redação e acompanhe a correção por competência."
+        description="Envie e acompanhe a correção por competência."
         action={
           <Link
             href="/dashboard/creditos"
@@ -33,8 +33,8 @@ export default async function EssayCorrectionPage() {
       />
 
       <Notice tone="info" icon={Info} className="mb-6">
-        Cada envio consome {ESSAY_CREDIT_COST_LABEL}. A devolutiva fica pronta
-        em {ESSAY_TURNAROUND_LABEL} e aparece no histórico.
+        {ESSAY_CREDIT_COST_LABEL} por envio. Correção em {ESSAY_TURNAROUND_LABEL} no
+        histórico.
       </Notice>
 
       <EssayCorrectionClient

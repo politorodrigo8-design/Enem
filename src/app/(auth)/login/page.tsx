@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Eye, EyeOff, Loader2 } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
 import { Suspense, useState, useTransition } from "react";
 import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import { Logo } from "@/components/ui/logo";
 import { Notice } from "@/components/ui/notice";
 import { safeInternalPath } from "@/lib/utils";
 import {
+  resendEmailVerificationAction,
   resetPasswordAction,
   signInAction,
   signUpAction,
@@ -26,7 +27,7 @@ import {
 } from "@/lib/schemas/auth";
 import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
 
-type Mode = "login" | "signup" | "reset";
+type Mode = "login" | "signup" | "reset" | "verify";
 
 type ToastCopy = {
   successTitle: string;
@@ -48,7 +49,16 @@ const headline: Record<Mode, { title: string; description: string }> = {
     description:
       "Digite o e-mail da sua conta e enviaremos um link para criar uma nova senha.",
   },
+  verify: {
+    title: "Confirme seu e-mail",
+    description: "Enviamos um link para validar o endereço usado no cadastro.",
+  },
 };
+
+function initialModeFromSearchParam(value: string | null): Mode {
+  if (value === "signup" || value === "verify") return value;
+  return "login";
+}
 
 export default function LoginPage() {
   return (
@@ -63,9 +73,7 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const redirectedFrom = safeInternalPath(searchParams.get("redirectedFrom"));
   const setupMissing = searchParams.get("setup") === "supabase";
-  const [mode, setMode] = useState<Mode>(() =>
-    searchParams.get("mode") === "signup" ? "signup" : "login",
-  );
+  const [mode, setMode] = useState<Mode>(() => initialModeFromSearchParam(searchParams.get("mode")));
   const [pending, startTransition] = useTransition();
   const legalVersions = currentLegalAcceptanceVersions();
 
@@ -93,9 +101,17 @@ function LoginPageContent() {
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email: "" },
   });
+  const verificationForm = useForm<ResetPasswordInput>({
+    resolver: zodResolver(resetPasswordSchema),
+    defaultValues: { email: searchParams.get("email") ?? "" },
+  });
   const signupLegalAcceptance = useWatch({
     control: signUpForm.control,
     name: "legalAcceptance",
+  });
+  const verificationEmail = useWatch({
+    control: verificationForm.control,
+    name: "email",
   });
 
   function handleSignIn(values: SignInInput) {
@@ -109,6 +125,11 @@ function LoginPageContent() {
       if (result.ok) {
         router.push(redirectedFrom || "/dashboard");
         router.refresh();
+        return;
+      }
+      if (result.requiresEmailVerification) {
+        verificationForm.setValue("email", result.email ?? values.email, { shouldValidate: true });
+        setMode("verify");
       }
     });
   }
@@ -116,9 +137,18 @@ function LoginPageContent() {
   function handleSignUp(values: SignUpInput) {
     startTransition(async () => {
       const result = await signUpAction(values);
+      if (result.ok && result.requiresEmailVerification) {
+        verificationForm.setValue("email", result.email ?? values.email, { shouldValidate: true });
+        toast.success("Confira seu e-mail", {
+          description: result.message,
+        });
+        setMode("verify");
+        return;
+      }
+
       showAuthToast(result, {
         successTitle: "Conta criada com sucesso",
-        successDescription: "Tudo certo. Vamos continuar para o próximo passo.",
+        successDescription: result.message,
         errorTitle: "Não foi possível criar a conta",
       });
       if (result.ok) {
@@ -139,6 +169,17 @@ function LoginPageContent() {
       if (result.ok) {
         setMode("login");
       }
+    });
+  }
+
+  function handleResendVerification(values: ResetPasswordInput) {
+    startTransition(async () => {
+      const result = await resendEmailVerificationAction(values);
+      showAuthToast(result, {
+        successTitle: "E-mail reenviado",
+        successDescription: result.message,
+        errorTitle: "Não foi possível reenviar",
+      });
     });
   }
 
@@ -358,6 +399,45 @@ function LoginPageContent() {
                 </button>
               </p>
             </form>
+          ) : null}
+
+          {mode === "verify" ? (
+            <div className="mt-8 space-y-5">
+              <Notice tone="success" icon={MailCheck} title="Link de confirmação enviado">
+                <p>
+                  Abra o e-mail que enviamos para
+                  {verificationEmail ? <strong> {verificationEmail}</strong> : " sua caixa de entrada"}
+                  {" "}e clique no link para ativar sua conta. Depois disso você será levado ao checkout.
+                </p>
+              </Notice>
+              <form
+                className="space-y-5"
+                onSubmit={verificationForm.handleSubmit(handleResendVerification)}
+              >
+                <Field
+                  label="Reenviar para"
+                  type="email"
+                  autoComplete="username"
+                  placeholder="voce@exemplo.com"
+                  error={verificationForm.formState.errors.email?.message}
+                  registration={verificationForm.register("email")}
+                />
+                <Button type="submit" full size="lg" disabled={pending}>
+                  {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                  Reenviar e-mail
+                </Button>
+              </form>
+              <p className="pt-2 text-center text-sm text-slate-600">
+                Já confirmou?{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-blue-700 transition-colors hover:text-blue-800"
+                  onClick={() => setMode("login")}
+                >
+                  Entrar na conta
+                </button>
+              </p>
+            </div>
           ) : null}
         </div>
 

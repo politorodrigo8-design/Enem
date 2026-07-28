@@ -27,6 +27,8 @@ npm run build
 4. Aplique as migrations em ordem.
 5. Rode o seed de `supabase/seed.sql` se precisar dos dados demonstrativos.
 6. Em Auth, configure o redirect URL para `http://localhost:3000/auth/callback`.
+7. Em Auth > Email, mantenha a confirmação de e-mail ligada. No Supabase local,
+   os e-mails aparecem no Inbucket em `http://localhost:54324`.
 
 ## Produto e acesso
 

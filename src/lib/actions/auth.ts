@@ -39,6 +39,8 @@ import { attachReferralFromCurrentCookie } from "@/lib/referrals/server";
 export type ActionResult = {
   ok: boolean;
   message: string;
+  requiresEmailVerification?: boolean;
+  email?: string;
 };
 
 function supabaseMissing(): ActionResult {
@@ -73,6 +75,11 @@ function authErrorMessage(error: unknown) {
   }
 
   return "Não conseguimos concluir sua entrada agora. Revise os dados e tente novamente.";
+}
+
+function isEmailNotConfirmedError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return message.includes("Email not confirmed");
 }
 
 function logAuthError(context: string, error: unknown) {
@@ -110,6 +117,14 @@ export async function signInAction(input: SignInInput): Promise<ActionResult> {
 
     if (error) {
       logAuthError("signInWithPassword returned error", error);
+      if (isEmailNotConfirmedError(error)) {
+        return {
+          ok: false,
+          message: authErrorMessage(error),
+          requiresEmailVerification: true,
+          email: parsed.data.email,
+        };
+      }
       return { ok: false, message: authErrorMessage(error) };
     }
 
@@ -153,7 +168,7 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
       password: parsed.data.password,
       options: {
         data: { full_name: parsed.data.fullName },
-        emailRedirectTo: `${getSiteUrl()}/auth/callback?next=/checkout`,
+        emailRedirectTo: emailConfirmationRedirectTo(),
       },
     });
 
@@ -197,16 +212,65 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
 
     if (data.session) {
       setSessionStartedCookie(await cookies());
+      revalidatePath("/dashboard", "layout");
+      return { ok: true, message: "Conta criada. Vamos continuar para o checkout." };
     }
 
     revalidatePath("/dashboard", "layout");
     return {
       ok: true,
+      requiresEmailVerification: true,
+      email: parsed.data.email,
       message:
-        "Conta criada. Se pedirmos confirmação, confira seu e-mail antes de entrar.",
+        "Conta criada. Enviamos um link de confirmação para o e-mail informado.",
     };
   } catch (error) {
     logAuthError("signUp threw", error);
+    return { ok: false, message: authErrorMessage(error) };
+  }
+}
+
+export async function resendEmailVerificationAction(
+  input: ResetPasswordInput,
+): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) {
+    return supabaseMissing();
+  }
+
+  const parsed = resetPasswordSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Dados inválidos." };
+  }
+
+  const rateLimit = await checkRateLimit({
+    operation: "auth.resend_email_verification",
+    identifier: emailRateLimitIdentifier(parsed.data.email),
+    limit: 3,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
+
+  try {
+    const supabase = await createClient();
+    const { error } = await supabase.auth.resend({
+      type: "signup",
+      email: parsed.data.email,
+      options: {
+        emailRedirectTo: emailConfirmationRedirectTo(),
+      },
+    });
+
+    if (error) {
+      logAuthError("resendEmailVerification returned error", error);
+      return { ok: false, message: authErrorMessage(error) };
+    }
+
+    return {
+      ok: true,
+      message: "Se este e-mail tiver um cadastro pendente, enviaremos um novo link de confirmação.",
+    };
+  } catch (error) {
+    logAuthError("resendEmailVerification threw", error);
     return { ok: false, message: authErrorMessage(error) };
   }
 }
@@ -289,4 +353,8 @@ export async function signOutAction() {
   clearSessionStartedCookie(await cookies());
   revalidatePath("/", "layout");
   redirect("/login");
+}
+
+function emailConfirmationRedirectTo() {
+  return `${getSiteUrl()}/auth/callback?next=/checkout`;
 }

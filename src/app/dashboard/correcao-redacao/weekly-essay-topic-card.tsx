@@ -95,9 +95,8 @@ export function WeeklyEssayTopicCard({
             </p>
             <p className="mt-2 text-xs leading-5 text-slate-500">
               Novo tema a cada {ESSAY_TOPIC_ROTATION_DAYS}{" "}
-              {ESSAY_TOPIC_ROTATION_DAYS === 1 ? "dia" : "dias"} · disponível até{" "}
-              {formatTopicDate(addDaysISO(topic.endsAt, -1))}. Tema sugerido para
-              prática; não representa previsão do ENEM.
+              {ESSAY_TOPIC_ROTATION_DAYS === 1 ? "dia" : "dias"} · até{" "}
+              {formatTopicDate(addDaysISO(topic.endsAt, -1))} · não representa previsão do ENEM.
             </p>
           </div>
 
@@ -152,7 +151,7 @@ export function WeeklyEssayTopicCard({
 
         {!unlocked && !unlockPending ? (
           <AiConfirmationDialog
-            description="A proposta completa traz comando, textos motivadores, eixos e repertórios para treino. A liberação consome 1 crédito uma única vez para este tema semanal."
+            description="Comando, textos, eixos e repertórios. Liberação única de 1 crédito para este tema."
             cost={WEEKLY_ESSAY_TOPIC_UNLOCK_COST}
             buttonLabel="Liberar proposta completa"
             onConfirm={unlockProposal}

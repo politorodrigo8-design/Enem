@@ -93,10 +93,10 @@ const MAX_IMAGE_EDGE_PX = 1600;
 const IMAGE_JPEG_QUALITY = 0.8;
 
 const photoGuidance = [
-  "Folha inteira no enquadramento, sem cortar linhas nas bordas.",
-  "Luz uniforme, sem sombra da mão ou do celular sobre o texto.",
-  "Letra legível ao dar zoom na foto antes de enviar.",
-  "Uma foto por página, na ordem em que você escreveu.",
+  "Folha inteira, sem cortar linhas.",
+  "Luz uniforme, sem sombras.",
+  "Letra legível no zoom.",
+  "Uma foto por página, em ordem.",
 ];
 
 const weeklyTopicSuggestion = getActiveWeeklyEssayTopic();
@@ -500,8 +500,7 @@ export function EssayCorrectionClient({
                             {ESSAY_ACCEPTED_FILE_LABEL}
                           </p>
                           <p className="mt-1 text-xs leading-5 text-slate-500">
-                            {ESSAY_UPLOAD_LIMIT_LABEL}. PDF conta como arquivo único.
-                            As fotos são reduzidas aqui no navegador antes de subir.
+                            {ESSAY_UPLOAD_LIMIT_LABEL}. PDF único; fotos são reduzidas antes do envio.
                           </p>
                         </div>
                       </div>
@@ -532,8 +531,7 @@ export function EssayCorrectionClient({
                       ))}
                     </ul>
                     <p className="mt-3 text-xs leading-5 text-slate-500">
-                      Foto ilegível pode ser recusada na correção, e o crédito só
-                      volta se você pedir pelo suporte — confira o zoom antes de enviar.
+                      Confira o zoom: foto ilegível pode ser recusada.
                     </p>
                   </div>
 
@@ -630,10 +628,8 @@ export function EssayCorrectionClient({
               ) : null}
 
               <div className="rounded-lg border border-blue-100 bg-blue-50 p-3 text-sm leading-6 text-blue-950">
-                Evite inserir informações pessoais ou dados sensíveis desnecessários seus
-                ou de terceiros. O texto e os arquivos enviados serão utilizados para
-                processar e entregar a correção da redação, conforme a Política de
-                Privacidade.
+                Evite dados pessoais desnecessários. Usamos texto e arquivos apenas para
+                entregar a correção, conforme a Política de Privacidade.
               </div>
 
               {!hasCredits ? (
@@ -691,9 +687,9 @@ export function EssayCorrectionClient({
                     <span className="font-semibold text-slate-950">
                       {ESSAY_CREDIT_COST_LABEL}
                     </span>{" "}
-                    do seu saldo de{" "}
-                    <span className="font-semibold text-slate-950">{availableCreditBalance}</span>{" "}
-                    e a correção volta em {ESSAY_TURNAROUND_LABEL}.
+                    do saldo de{" "}
+                    <span className="font-semibold text-slate-950">{availableCreditBalance}</span>.
+                    Correção em {ESSAY_TURNAROUND_LABEL}.
                   </p>
                   <Button
                     type="button"
@@ -743,15 +739,13 @@ export function EssayCorrectionClient({
                   Como funciona
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  A correção é feita por pessoas, competência por competência, e a
-                  devolutiva completa fica pronta em {ESSAY_TURNAROUND_LABEL} a partir do
-                  envio. Você acompanha o status nesta página.
+                  Correção humana por competência, pronta em {ESSAY_TURNAROUND_LABEL}.
                 </p>
                 <ol className="mt-3 space-y-2.5">
                   {[
-                    "Envie o texto digitado ou as fotos da folha.",
-                    `A redação entra na fila de correção (${ESSAY_TURNAROUND_LABEL}).`,
-                    "A nota das 5 competências e os comentários aparecem no histórico.",
+                    "Envie texto, fotos ou PDF.",
+                    "Acompanhe o status aqui.",
+                    "Veja nota e comentários no histórico.",
                   ].map((step, index) => (
                     <li key={step} className="flex gap-2.5 text-sm leading-6 text-slate-600">
                       <span className="tnum mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white text-xs font-bold text-blue-700 ring-1 ring-inset ring-slate-200">
@@ -873,7 +867,7 @@ export function EssayCorrectionClient({
               <EmptyState
                 icon={PenLine}
                 title="Nenhuma redação enviada"
-                description="Seus envios aparecem aqui com status, prazo de resposta, nota das competências e créditos utilizados."
+                description="Seus envios aparecem aqui com status, nota e créditos usados."
               />
             )}
           </CardContent>
