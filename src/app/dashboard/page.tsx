@@ -185,7 +185,7 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
         className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 py-2 text-sm font-bold text-slate-700 shadow-sm"
         title="Responda questões hoje para iniciar sua sequência."
       >
-        <span className="grid h-7 w-7 place-items-center rounded-md bg-slate-950 text-white shadow-[2px_0_0_#06b6d4,-2px_0_0_#f43f5e]">
+        <span className="grid h-7 w-7 place-items-center rounded-md bg-amber-100 text-amber-700 ring-1 ring-inset ring-amber-200">
           <Flame className="h-4 w-4" aria-hidden="true" />
         </span>
         Comece sua sequência hoje
@@ -195,10 +195,10 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
 
   return (
     <span
-      className={`tnum relative isolate inline-flex min-h-11 items-center gap-2 overflow-hidden rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset before:absolute before:inset-y-1.5 before:left-1 before:w-1 before:rounded-full before:bg-cyan-400 after:absolute after:inset-y-1.5 after:right-1 after:w-1 after:rounded-full after:bg-rose-500 ${
+      className={`tnum relative isolate inline-flex min-h-11 items-center gap-2 overflow-hidden rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset before:absolute before:inset-y-1.5 before:left-1 before:w-1 before:rounded-full ${
         activeToday
-          ? "bg-slate-950 text-white ring-slate-900"
-          : "bg-white text-slate-700 ring-slate-200 before:bg-slate-300 after:bg-slate-300"
+          ? "bg-slate-950 text-white ring-slate-900 before:bg-amber-500"
+          : "bg-white text-slate-700 ring-slate-200 before:bg-slate-300"
       }`}
       title={
         activeToday
@@ -209,7 +209,7 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
       <span
         className={`relative grid h-7 w-7 place-items-center rounded-md ${
           activeToday
-            ? "bg-white text-slate-950 shadow-[2px_0_0_#06b6d4,-2px_0_0_#f43f5e]"
+            ? "bg-amber-400 text-slate-950 ring-1 ring-inset ring-amber-300"
             : "bg-slate-100 text-slate-500"
         }`}
       >
