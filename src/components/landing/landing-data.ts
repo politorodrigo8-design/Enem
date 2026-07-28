@@ -192,7 +192,7 @@ export const faqs = [
   {
     question: "O pagamento é mensal?",
     answer:
-      "Não. O valor de R$ 99,90 é pago uma única vez e libera o acesso até 01/12/2026. Não existe renovação automática.",
+      "Não. O pagamento de R$ 99,90 libera o acesso até 01/12/2026, sem mensalidade e sem renovação automática.",
   },
   {
     question: "O que está incluído no acesso?",

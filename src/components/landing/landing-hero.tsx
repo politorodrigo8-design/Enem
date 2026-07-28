@@ -14,7 +14,7 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
         className="pointer-events-none absolute inset-x-0 top-20 mx-auto h-56 max-w-4xl rounded-full bg-blue-100/55 blur-3xl"
         aria-hidden="true"
       />
-      <div className="relative mx-auto grid max-w-7xl items-center gap-3 px-4 pb-4 pt-6 sm:gap-7 sm:px-6 sm:pb-10 sm:pt-10 lg:min-h-[calc(88svh-4rem)] lg:grid-cols-[1fr_0.82fr] lg:gap-14 lg:px-8 lg:py-12">
+      <div className="relative mx-auto grid max-w-7xl items-center gap-3 px-4 pb-4 pt-6 sm:gap-7 sm:px-6 sm:pb-10 sm:pt-10 lg:min-h-[calc(88svh-4rem)] lg:grid-cols-[0.9fr_1.1fr] lg:gap-8 lg:px-8 lg:py-12">
         <div className="max-w-2xl">
           <h1
             className="animate-rise text-[2.15rem] font-extrabold leading-[1.05] text-slate-950 sm:text-5xl lg:text-6xl"
@@ -52,22 +52,22 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
             className="animate-rise mt-4 space-y-1.5 text-sm font-bold leading-6 text-slate-600 sm:mt-5"
             style={{ "--rise-delay": "240ms" } as React.CSSProperties}
           >
-            <p>Pagamento único de R$ 99,90. Acesso até {accessUntilLabel}.</p>
+            <p>Pagamento único de R$ 99,90 para acesso até {accessUntilLabel}.</p>
             <p>{initialCreditsLabel}. Sem mensalidade.</p>
           </div>
         </div>
         <div
-          className="animate-rise flex justify-center lg:justify-end"
+          className="animate-rise flex justify-center lg:-mr-12 lg:justify-end xl:-mr-20"
           style={{ "--rise-delay": "160ms" } as React.CSSProperties}
         >
           <Image
-            src="/images/landing/estudante-pontua-enem.png"
-            alt="Estudante usando o Pontua Enem no notebook enquanto faz anotações"
-            width={666}
-            height={375}
+            src="/images/landing/aluno-pontua-enem-app.png"
+            alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
+            width={1448}
+            height={1086}
             priority
-            sizes="(max-width: 768px) 92vw, (max-width: 1280px) 45vw, 540px"
-            className="h-auto w-full max-w-[260px] object-contain sm:max-w-[480px] md:max-w-[520px] lg:max-w-[540px]"
+            sizes="(max-width: 768px) 92vw, (max-width: 1280px) 54vw, 760px"
+            className="h-auto w-full max-w-[360px] object-contain sm:max-w-[560px] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[790px]"
           />
         </div>
       </div>
