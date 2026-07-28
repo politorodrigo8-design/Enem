@@ -188,9 +188,9 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
         <Image
           src="/streak-mascot.png"
           alt=""
-          width={28}
-          height={28}
-          className="h-7 w-7 object-contain"
+          width={24}
+          height={24}
+          className="h-6 w-6 object-contain"
           aria-hidden="true"
         />
         Comece sua sequência hoje
@@ -214,9 +214,9 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
       <Image
         src="/streak-mascot.png"
         alt=""
-        width={28}
-        height={28}
-        className={`h-7 w-7 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
+        width={24}
+        height={24}
+        className={`h-6 w-6 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
         aria-hidden="true"
       />
       <span className="flex items-baseline gap-1.5">
