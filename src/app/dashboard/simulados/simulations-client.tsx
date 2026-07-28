@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   BarChart3,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Flag,
   Gauge,
@@ -727,6 +728,14 @@ export function SimulationsClient({
         </section>
       ) : null}
 
+      {fallbackCatalog ? (
+        <Notice tone="info">
+          O servidor não trouxe simulados salvos agora. Os botões de geração ainda
+          tentam montar uma prova nova pelo acervo disponível; os simulados locais
+          continuam listados abaixo como caminho rápido para começar.
+        </Notice>
+      ) : null}
+
       <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
@@ -784,7 +793,7 @@ export function SimulationsClient({
                   </div>
                   <Button
                     full
-                    disabled={pending || locked || fallbackCatalog}
+                    disabled={pending || locked}
                     onClick={() =>
                       generateAndStart({
                         title: preset.title,
@@ -825,7 +834,7 @@ export function SimulationsClient({
                   <Button
                     full
                     variant="outline"
-                    disabled={pending || locked || fallbackCatalog}
+                    disabled={pending || locked}
                     onClick={() =>
                       generateAndStart({
                         title: preset.title,
@@ -846,7 +855,7 @@ export function SimulationsClient({
       </section>
 
       <SimulationBuilder
-        locked={locked || fallbackCatalog}
+        locked={locked}
         pending={pending}
         onGeneratedSimulation={(simulation) => {
           start(simulation);
@@ -1059,16 +1068,24 @@ function SimulationBuilder({
 
   return (
     <Card>
-      <CardContent>
-        <details>
-          <summary className="cursor-pointer list-none">
-            <span className="flex items-center gap-2 text-base font-bold tracking-tight text-slate-950">
-              <SlidersHorizontal className="h-4 w-4 text-blue-700" aria-hidden="true" />
-              Montar simulado do seu jeito
+      <CardContent className="p-4 sm:p-5">
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-lg border border-blue-200 bg-blue-50 px-4 py-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700">
+            <span className="min-w-0">
+              <span className="flex items-center gap-2 text-base font-bold tracking-tight text-blue-950">
+                <SlidersHorizontal className="h-4 w-4 text-blue-700" aria-hidden="true" />
+                Montar simulado do seu jeito
+              </span>
+              <span className="mt-1 block text-sm leading-6 text-slate-700">
+                Escolha áreas, quantidade e dificuldade. O tempo segue o ritmo
+                oficial do ENEM: 90 questões em 300 minutos.
+              </span>
             </span>
-            <span className="mt-1 block text-sm leading-6 text-slate-600">
-              Escolha áreas, quantidade e dificuldade — o tempo segue o ritmo
-              oficial do ENEM (90 questões em 300 minutos).
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white text-blue-700 ring-1 ring-inset ring-blue-200">
+              <ChevronDown
+                className="h-4 w-4 transition-transform group-open:rotate-180"
+                aria-hidden="true"
+              />
             </span>
           </summary>
           <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">

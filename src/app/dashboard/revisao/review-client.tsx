@@ -221,7 +221,9 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
 
       {filter === "Para refazer" ? (
         <p className="mt-3 text-xs leading-5 text-slate-500">
-          Reúne o que você errou e o que marcou para voltar depois.
+          Responda até acertar: esta fila reúne o que você errou e o que marcou
+          para voltar depois. Quando acertar, a questão sai daqui e fica entre
+          as acertadas.
         </p>
       ) : null}
 
@@ -494,7 +496,7 @@ function QuestionReviewCard({
                 <p className="mt-2 text-sm leading-6 text-slate-600">
                   {result.isCorrect
                     ? "Esta questão sai da lista para refazer e fica entre as acertadas."
-                    : "A questão continua na lista e a tentativa libera de novo em alguns segundos."}
+                    : "A ideia é responder até acertar: a questão continua na lista e libera de novo em alguns segundos."}
                 </p>
               </div>
             ) : null}

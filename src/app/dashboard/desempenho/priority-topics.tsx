@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { AlertTriangle, PlayCircle, Search, TrendingUp } from "lucide-react";
+import { AlertTriangle, ChevronDown, PlayCircle, Search, TrendingUp } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn, priorityTone } from "@/lib/utils";
@@ -112,13 +112,14 @@ export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
 export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
   const [query, setQuery] = useState("");
   const [area, setArea] = useState("Todas");
+  const [expanded, setExpanded] = useState(false);
 
   const areas = useMemo(
     () => ["Todas", ...Array.from(new Set(items.map((item) => item.area)))],
     [items],
   );
 
-  const visible = useMemo(() => {
+  const filtered = useMemo(() => {
     const normalizedQuery = normalize(query);
     return items.filter((item) => {
       if (area !== "Todas" && item.area !== area) return false;
@@ -128,6 +129,13 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       );
     });
   }, [area, items, query]);
+  const hasActiveSearch = Boolean(query.trim());
+  const priorityCutoffIndex = useMemo(() => {
+    const lastMediumOrHigher = filtered.findLastIndex(isMediumOrHigherPriority);
+    return lastMediumOrHigher >= 0 ? lastMediumOrHigher + 1 : Math.min(filtered.length, 8);
+  }, [filtered]);
+  const visible = expanded || hasActiveSearch ? filtered : filtered.slice(0, priorityCutoffIndex);
+  const collapsedCount = Math.max(0, filtered.length - priorityCutoffIndex);
 
   return (
     <Card>
@@ -135,8 +143,8 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
         <div>
           <CardTitle>Todos os assuntos</CardTitle>
           <p className="mt-1 text-sm leading-6 text-slate-600">
-            O mapa completo do que o ENEM cobra: {items.length} assuntos com
-            recorrência histórica, desempenho e ação direta.
+            O mapa completo do que o ENEM cobra: primeiro aparecem as prioridades
+            até a média; o restante fica recolhido para a lista não virar parede.
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row xl:shrink-0">
@@ -167,43 +175,61 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
       </CardHeader>
       <CardContent>
         {visible.length ? (
-          <ul className="divide-y divide-slate-100">
-            {visible.map((item) => (
-              <li
-                key={item.id}
-                className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+          <>
+            <ul className="divide-y divide-slate-100">
+              {visible.map((item) => (
+                <li
+                  key={item.id}
+                  className="flex flex-col gap-2 py-2.5 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+                >
+                  <div className="min-w-0">
+                    <p className="break-words text-sm font-medium text-slate-800 sm:truncate">
+                      {item.discipline}: {item.name}
+                    </p>
+                    <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
+                  </div>
+                  <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:justify-end">
+                    <span className="tnum hidden w-16 text-right text-xs font-semibold text-slate-600 sm:inline-block">
+                      {item.recurrence}%
+                    </span>
+                    <span
+                      className={cn(
+                        "hidden rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset md:inline-flex",
+                        priorityTone(item.label),
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                    <span className="tnum w-12 text-right text-xs text-slate-500">
+                      {item.answered ? `${item.accuracy ?? 0}%` : "-"}
+                    </span>
+                    <Link
+                      href={`/dashboard/praticar?topic=${item.id}`}
+                      className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:mx-0 sm:min-h-0 sm:px-0 sm:hover:bg-transparent"
+                    >
+                      Treinar
+                    </Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            {!hasActiveSearch && collapsedCount ? (
+              <button
+                type="button"
+                onClick={() => setExpanded((current) => !current)}
+                className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-10"
+                aria-expanded={expanded}
               >
-                <div className="min-w-0">
-                  <p className="break-words text-sm font-medium text-slate-800 sm:truncate">
-                    {item.discipline}: {item.name}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500">{item.area}</p>
-                </div>
-                <div className="flex w-full items-center justify-between gap-3 sm:w-auto sm:shrink-0 sm:justify-end">
-                  <span className="tnum hidden w-16 text-right text-xs font-semibold text-slate-600 sm:inline-block">
-                    {item.recurrence}%
-                  </span>
-                  <span
-                    className={cn(
-                      "hidden rounded-md px-2 py-0.5 text-xs font-semibold ring-1 ring-inset md:inline-flex",
-                      priorityTone(item.label),
-                    )}
-                  >
-                    {item.label}
-                  </span>
-                  <span className="tnum w-12 text-right text-xs text-slate-500">
-                    {item.answered ? `${item.accuracy ?? 0}%` : "-"}
-                  </span>
-                  <Link
-                    href={`/dashboard/praticar?topic=${item.id}`}
-                    className="-mx-2 inline-flex min-h-11 items-center rounded-lg px-2 text-sm font-semibold text-blue-700 hover:bg-blue-50 hover:text-blue-800 sm:mx-0 sm:min-h-0 sm:px-0 sm:hover:bg-transparent"
-                  >
-                    Treinar
-                  </Link>
-                </div>
-              </li>
-            ))}
-          </ul>
+                <ChevronDown
+                  className={cn("h-4 w-4 transition-transform", expanded && "rotate-180")}
+                  aria-hidden="true"
+                />
+                {expanded
+                  ? "Mostrar só até prioridade média"
+                  : `Mostrar mais ${collapsedCount} assuntos`}
+              </button>
+            ) : null}
+          </>
         ) : (
           <p className="py-6 text-center text-sm leading-6 text-slate-500">
             Nenhum assunto corresponde à busca. Tente outro termo ou limpe o
@@ -212,6 +238,15 @@ export function AllTopics({ items }: { items: PriorityTopicItem[] }) {
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function isMediumOrHigherPriority(item: PriorityTopicItem) {
+  const label = normalize(item.label);
+  return (
+    label.includes("maxima") ||
+    label.includes("alta") ||
+    label.includes("media")
   );
 }
 
