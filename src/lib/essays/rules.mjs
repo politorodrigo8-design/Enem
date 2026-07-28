@@ -5,7 +5,7 @@ export const MAX_ESSAY_UPLOAD_FILES = 2;
 export const MAX_ESSAY_UPLOAD_SIZE_BYTES = 3 * 1024 * 1024;
 export const MAX_ESSAY_TOTAL_UPLOAD_SIZE_BYTES = 3 * 1024 * 1024;
 // Prazo de devolutiva prometido ao aluno, em dias úteis.
-export const ESSAY_TURNAROUND_BUSINESS_DAYS = 5;
+export const ESSAY_TURNAROUND_BUSINESS_DAYS = 2;
 export const ACCEPTED_ESSAY_UPLOAD_TYPES = new Set([
   "application/pdf",
   "image/png",

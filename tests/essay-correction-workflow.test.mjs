@@ -13,6 +13,10 @@ const studentDetailSource = readFileSync(
   new URL("../src/app/dashboard/correcao-redacao/[id]/page.tsx", import.meta.url),
   "utf8",
 );
+const studentListSource = readFileSync(
+  new URL("../src/app/dashboard/correcao-redacao/essay-correction-client.tsx", import.meta.url),
+  "utf8",
+);
 const feedbackViewSource = readFileSync(
   new URL("../src/components/dashboard/essay-feedback-view.tsx", import.meta.url),
   "utf8",
@@ -44,4 +48,12 @@ test("aluno ve resultado sem perder suporte a texto online e anexos", () => {
   assert.match(feedbackViewSource, /Comentário geral/);
   assert.match(feedbackViewSource, /\/1000/);
   assert.match(feedbackViewSource, /\/200/);
+});
+
+test("aviso de correcao pronta e temporario", () => {
+  assert.match(studentListSource, /READY_CORRECTION_NOTICE_DURATION_MS/);
+  assert.match(studentListSource, /setTimeout/);
+  assert.match(studentListSource, /rememberDismissedReadyCorrection/);
+  assert.match(studentListSource, /localStorage/);
+  assert.match(studentListSource, /readyCorrection && readyCorrectionVisible/);
 });

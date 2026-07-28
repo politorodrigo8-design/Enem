@@ -308,7 +308,7 @@ export default async function HomePage() {
               className="animate-rise mt-5 max-w-xl font-display text-4xl font-semibold leading-[1.08] tracking-tight text-slate-950 sm:text-5xl md:text-6xl"
               style={{ "--rise-delay": "70ms" } as React.CSSProperties}
             >
-              Pare de estudar no escuro. Descubra{" "}
+              Um novo jeito de estudar. Descubra{" "}
               <span className="highlight">o que priorizar</span>.
             </h1>
             <p

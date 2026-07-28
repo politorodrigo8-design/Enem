@@ -163,16 +163,13 @@ test("checkout e Mercado Pago carregam metadados internos da indicacao", () => {
 });
 
 test("UI de indicacao tem link, compartilhamento, indicadores, historico e layout responsivo", () => {
-  // O programa completo mora na rota dedicada; a página de créditos leva até lá
-  // com a versão curta, sem duplicar estatísticas e histórico.
+  // O programa completo mora na rota dedicada; a página de créditos não mistura
+  // indicação com compra e histórico de créditos.
   assert.match(referralsPage, /ReferralProgramSection/);
   assert.match(referralsPage, /getReferralPageData/);
-  assert.match(creditsPage, /ReferralHomeCard/);
+  assert.match(creditsPage, /Precisa de mais créditos?/);
+  assert.doesNotMatch(creditsPage, /ReferralHomeCard/);
   assert.doesNotMatch(creditsPage, /ReferralProgramSection/);
-  assert.ok(
-    creditsPage.indexOf("Precisa de mais créditos?") < creditsPage.indexOf("<ReferralHomeCard"),
-  );
-  assert.ok(creditsPage.indexOf("<ReferralHomeCard") < creditsPage.indexOf("Histórico recente"));
   assert.match(referralUi, /Copiar link/);
   assert.match(referralUi, /Gerar link/);
   assert.match(referralUi, /Link de indicação/);
@@ -186,7 +183,7 @@ test("UI de indicacao tem link, compartilhamento, indicadores, historico e layou
   assert.match(referralUi, /Histórico de indicações/);
 });
 
-test("todo aluno encontra o programa sem procurar: menu, home e perfil", () => {
+test("todo aluno encontra o programa sem procurar: menu, home e pagina dedicada", () => {
   assert.match(dashboardShell, /Indique e ganhe/);
   // Rota própria, não âncora dentro de Créditos: com hash o item do menu nunca
   // ficava destacado (a marcação compara pathname, que não carrega hash).
@@ -194,10 +191,8 @@ test("todo aluno encontra o programa sem procurar: menu, home e perfil", () => {
   assert.doesNotMatch(dashboardShell, /#indicacoes/);
   assert.match(dashboardHome, /ReferralHomeCard/);
   assert.match(dashboardHome, /getReferralAccountSummary\(\)/);
-  assert.match(settingsClient, /ReferralShareLink/);
-  // O perfil não pode ter um caminho sem saída: o próprio componente de link
-  // oferece "Gerar link" quando o código não veio.
-  assert.doesNotMatch(settingsClient, /Link indisponível agora/);
+  assert.match(referralsPage, /ReferralProgramSection/);
+  assert.doesNotMatch(settingsClient, /ReferralShareLink/);
 });
 
 test("copy da campanha sai das constantes, nunca escrita na mao", () => {
@@ -215,9 +210,8 @@ test("ganho dos dois lados, carencia e condicao de compra ficam na primeira tela
   assert.match(referralUi, /Seu amigo ganha/);
   assert.match(referralUi, /referralProgramCopy\.holdNotice/);
   assert.match(referralUi, /referralProgramCopy\.purchaseCondition/);
-  // Crédito só significa algo traduzido em uso: 30 créditos = 3 correções.
-  assert.match(referralUi, /ESSAY_CREDIT_COST/);
-  assert.match(referralUi, /correções.*de redação|de redação/);
+  assert.doesNotMatch(referralUi, /Dá para/);
+  assert.doesNotMatch(referralUi, /Entram na conta dele/);
 });
 
 test("copia do link sobrevive a mobile sem clipboard e informa falha", () => {

@@ -2,15 +2,11 @@ import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Notice } from "@/components/ui/notice";
 import { getAccessContext } from "@/lib/access";
 import { formatAppDateTime } from "@/lib/dates";
-import { getProfile, getReferralAccountSummary } from "@/lib/db/queries";
-import { getSiteUrl } from "@/lib/supabase/config";
+import { getProfile } from "@/lib/db/queries";
 import { SettingsClient } from "./settings-client";
 
 export default async function SettingsPage() {
-  const [profile, referral] = await Promise.all([
-    getProfile(),
-    getReferralAccountSummary(),
-  ]);
+  const profile = await getProfile();
   const access = getAccessContext(profile);
 
   return (
@@ -30,12 +26,7 @@ export default async function SettingsPage() {
           : "Aqui você ajusta seus dados, sua rotina e sua segurança. O acesso à plataforma vem da sua compra e não é alterado nesta tela."}
       </Notice>
 
-      <SettingsClient
-        profile={profile}
-        access={access}
-        referralCode={referral.referralCode}
-        siteUrl={getSiteUrl()}
-      />
+      <SettingsClient profile={profile} access={access} />
     </div>
   );
 }

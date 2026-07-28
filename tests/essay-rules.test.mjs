@@ -70,9 +70,9 @@ test("limite de envio cabe em uma requisicao e a mensagem diz o que fazer", () =
 });
 
 test("prazo de devolutiva conta apenas dias uteis", () => {
-  assert.equal(ESSAY_TURNAROUND_BUSINESS_DAYS, 5);
-  // Segunda 27/07/2026 + 5 dias úteis = segunda 03/08/2026.
-  assert.equal(essayResponseDeadlineDate("2026-07-27"), "2026-08-03");
+  assert.equal(ESSAY_TURNAROUND_BUSINESS_DAYS, 2);
+  // Segunda 27/07/2026 + 2 dias uteis = quarta 29/07/2026.
+  assert.equal(essayResponseDeadlineDate("2026-07-27"), "2026-07-29");
   // Sexta + 1 dia útil pula o fim de semana.
   assert.equal(addBusinessDays("2026-07-31", 1), "2026-08-03");
   assert.equal(addBusinessDays("2026-07-31", 0), "2026-07-31");

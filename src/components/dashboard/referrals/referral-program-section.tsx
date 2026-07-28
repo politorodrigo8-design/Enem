@@ -8,9 +8,7 @@ import {
   REFERRAL_REFERRED_BONUS_CREDITS,
   REFERRAL_REFERRER_REWARD_CREDITS,
   referralProgramCopy,
-  referralRewardInEssayCorrections,
 } from "@/lib/referrals/constants";
-import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { ReferralHistory } from "./referral-history";
 import { ReferralHowItWorks } from "./referral-how-it-works";
 import { ReferralShareLink } from "./referral-share-link";
@@ -115,8 +113,6 @@ export function ReferralHomeCard({
 }
 
 export function ReferralRewardHighlights() {
-  const essayCorrections = referralRewardInEssayCorrections(ESSAY_CREDIT_COST);
-
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
@@ -124,19 +120,11 @@ export function ReferralRewardHighlights() {
           icon={Gift}
           label="Você ganha"
           credits={REFERRAL_REFERRER_REWARD_CREDITS}
-          detail={
-            essayCorrections > 0
-              ? `Dá para ${essayCorrections} ${
-                  essayCorrections === 1 ? "correção" : "correções"
-                } de redação (${ESSAY_CREDIT_COST} créditos cada).`
-              : "Créditos para usar em correções, análises e explicações."
-          }
         />
         <RewardBox
           icon={UserPlus}
           label="Seu amigo ganha"
           credits={REFERRAL_REFERRED_BONUS_CREDITS}
-          detail={referralProgramCopy.friendNotice}
         />
       </div>
       <p className="flex items-start gap-2 text-sm leading-6 text-slate-600">
@@ -156,7 +144,7 @@ function RewardBox({
   icon: LucideIcon;
   label: string;
   credits: number;
-  detail: string;
+  detail?: string;
 }) {
   return (
     <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
@@ -170,7 +158,7 @@ function RewardBox({
         {credits}
         <span className="ml-1.5 text-sm font-semibold text-slate-500">créditos</span>
       </p>
-      <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p>
+      {detail ? <p className="mt-1 text-sm leading-6 text-slate-600">{detail}</p> : null}
     </div>
   );
 }

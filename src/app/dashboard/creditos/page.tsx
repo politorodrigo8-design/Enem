@@ -12,7 +12,6 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { CreditPackageCheckoutButton } from "@/components/dashboard/credit-package-checkout-button";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
-import { ReferralHomeCard } from "@/components/dashboard/referrals/referral-program-section";
 import { Badge } from "@/components/ui/badge";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,7 +22,6 @@ import type { CreditLedgerEntry, EssaySubmission } from "@/lib/db/types";
 import { getCreditsData, getDashboardIdentity } from "@/lib/db/queries";
 import { ESSAY_CREDIT_COST } from "@/lib/schemas/essay";
 import { formatAppDateTime } from "@/lib/dates";
-import { getSiteUrl } from "@/lib/supabase/config";
 import { WEEKLY_ESSAY_TOPIC_UNLOCK_COST } from "@/data/weekly-essay-topics";
 
 export const dynamic = "force-dynamic";
@@ -308,15 +306,6 @@ export default async function CreditsPage({
             pagamento. Consulte as regras de consumo e reembolso antes de comprar.
           </p>
         </section>
-      </Reveal>
-
-      {/* Versão curta: o programa inteiro (estatísticas e histórico) mora em
-          /dashboard/indicacoes, para onde o card leva. */}
-      <Reveal delay={160} className="mt-10 block">
-        <ReferralHomeCard
-          referralCode={data.referrals.referralCode}
-          siteUrl={getSiteUrl()}
-        />
       </Reveal>
 
       <div className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">

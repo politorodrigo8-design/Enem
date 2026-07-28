@@ -188,9 +188,9 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
         <Image
           src="/streak-mascot.png"
           alt=""
-          width={32}
-          height={32}
-          className="h-8 w-8 object-contain"
+          width={40}
+          height={40}
+          className="h-10 w-10 object-contain"
           aria-hidden="true"
         />
         Comece sua sequência hoje
@@ -200,7 +200,7 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
 
   return (
     <span
-      className={`tnum inline-flex min-h-11 items-center gap-2 rounded-lg px-3.5 py-2 text-sm font-bold shadow-sm ring-1 ring-inset ${
+      className={`tnum inline-flex min-h-12 items-center gap-2.5 rounded-lg px-3.5 py-1.5 text-sm font-bold shadow-sm ring-1 ring-inset ${
         activeToday
           ? "bg-white text-slate-800 ring-slate-200"
           : "bg-white text-slate-700 ring-slate-200"
@@ -214,9 +214,9 @@ function StreakChip({ streak, activeToday }: { streak: number; activeToday: bool
       <Image
         src="/streak-mascot.png"
         alt=""
-        width={32}
-        height={32}
-        className={`h-8 w-8 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
+        width={40}
+        height={40}
+        className={`h-10 w-10 object-contain ${activeToday ? "" : "opacity-70 grayscale"}`}
         aria-hidden="true"
       />
       <span className="flex items-baseline gap-1.5">

@@ -150,10 +150,37 @@ export function EssayCorrectionClient({
   const selectedHasPdf = files.some((item) => item.file.type === "application/pdf");
   const progress = useMemo(() => buildEssayProgress(submissions), [submissions]);
   const readyCorrection = useMemo(() => findRecentCompleted(submissions), [submissions]);
+  const [readyCorrectionVisible, setReadyCorrectionVisible] = useState(false);
 
   useEffect(() => {
     filesRef.current = files;
   }, [files]);
+
+  useEffect(() => {
+    const visibilityTimeoutId = window.setTimeout(() => {
+      setReadyCorrectionVisible(
+        Boolean(readyCorrection && !hasDismissedReadyCorrection(readyCorrection.id)),
+      );
+    }, 0);
+
+    if (!readyCorrection) {
+      return () => window.clearTimeout(visibilityTimeoutId);
+    }
+
+    if (hasDismissedReadyCorrection(readyCorrection.id)) {
+      return () => window.clearTimeout(visibilityTimeoutId);
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      rememberDismissedReadyCorrection(readyCorrection.id);
+      setReadyCorrectionVisible(false);
+    }, READY_CORRECTION_NOTICE_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(visibilityTimeoutId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [readyCorrection]);
 
   useEffect(() => {
     return () => {
@@ -341,7 +368,7 @@ export function EssayCorrectionClient({
 
   return (
     <div className="space-y-6">
-      {readyCorrection ? (
+      {readyCorrection && readyCorrectionVisible ? (
         <Notice tone="success" icon={CheckCircle2}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>
@@ -350,6 +377,7 @@ export function EssayCorrectionClient({
             </span>
             <Link
               href={`/dashboard/correcao-redacao/${readyCorrection.id}`}
+              onClick={() => rememberDismissedReadyCorrection(readyCorrection.id)}
               className={buttonClasses({ variant: "outline", size: "sm", className: "shrink-0" })}
             >
               Ver correção
@@ -998,6 +1026,8 @@ function buildEssayProgress(submissions: EssayWithFiles[]): EssayProgress | null
 }
 
 const READY_CORRECTION_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+const READY_CORRECTION_NOTICE_DURATION_MS = 12 * 1000;
+const READY_CORRECTION_NOTICE_STORAGE_PREFIX = "essay-ready-notice-dismissed:";
 
 /** Correção concluída nos últimos dias: é o aviso de "ficou pronta". */
 function findRecentCompleted(submissions: EssayWithFiles[]) {
@@ -1009,6 +1039,26 @@ function findRecentCompleted(submissions: EssayWithFiles[]) {
         Date.now() - new Date(submission.completed_at).getTime() < READY_CORRECTION_WINDOW_MS,
     ) ?? null
   );
+}
+
+function readyCorrectionStorageKey(submissionId: string) {
+  return `${READY_CORRECTION_NOTICE_STORAGE_PREFIX}${submissionId}`;
+}
+
+function hasDismissedReadyCorrection(submissionId: string) {
+  try {
+    return window.localStorage.getItem(readyCorrectionStorageKey(submissionId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function rememberDismissedReadyCorrection(submissionId: string) {
+  try {
+    window.localStorage.setItem(readyCorrectionStorageKey(submissionId), "1");
+  } catch {
+    // Storage can be unavailable in private or restricted browser contexts.
+  }
 }
 
 function formatDelta(delta: number) {

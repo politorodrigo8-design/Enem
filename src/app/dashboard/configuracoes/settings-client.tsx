@@ -1,8 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
-import { Check, Gift, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
+import { Check, ImagePlus, KeyRound, Loader2, LogOut, Save, ShieldCheck, Trash2, UserCog } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -12,8 +11,6 @@ import { accessLevelLabel, type AccessContext } from "@/lib/access";
 import type { Profile } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
 import { isProfilePhotoDataUrl, PROFILE_PHOTO_UPDATED_EVENT } from "@/lib/profile-photo";
-import { referralProgramCopy } from "@/lib/referrals/constants";
-import { ReferralShareLink } from "@/components/dashboard/referrals/referral-share-link";
 import type { OnboardingInput } from "@/lib/schemas/beta";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,13 +39,9 @@ type SettingsFormState = Omit<
 export function SettingsClient({
   profile,
   access,
-  referralCode,
-  siteUrl,
 }: {
   profile: Profile | null;
   access: AccessContext;
-  referralCode: string;
-  siteUrl: string;
 }) {
   const router = useRouter();
   const formId = useId();
@@ -431,34 +424,6 @@ export function SettingsClient({
                 </p>
               </div>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>{referralProgramCopy.title}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700">
-                <Gift className="h-5 w-5" aria-hidden="true" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-sm leading-6 text-slate-600">
-                  {referralProgramCopy.dashboardDescription}
-                </p>
-                <p className="mt-1 text-xs leading-5 text-slate-500">
-                  {referralProgramCopy.holdNotice} {referralProgramCopy.purchaseCondition}
-                </p>
-              </div>
-            </div>
-            <ReferralShareLink referralCode={referralCode} siteUrl={siteUrl} />
-            <Link
-              href="/dashboard/indicacoes"
-              className={buttonClasses({ variant: "ghost", size: "sm" })}
-            >
-              Ver minhas indicações
-            </Link>
           </CardContent>
         </Card>
 
