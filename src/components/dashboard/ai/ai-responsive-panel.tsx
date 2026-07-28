@@ -2,6 +2,7 @@
 
 import type { ReactNode, RefObject } from "react";
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useLockPageScroll } from "@/lib/use-lock-page-scroll";
@@ -35,7 +36,7 @@ export function AiResponsivePanel({
   useEffect(() => {
     if (!open) return;
     const opener = openerRef.current;
-    const timer = window.setTimeout(() => panelRef.current?.focus(), 0);
+    const timer = window.setTimeout(() => focusWithoutScrolling(panelRef.current), 0);
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape" && !busy) onClose();
@@ -59,7 +60,7 @@ export function AiResponsivePanel({
     return () => {
       window.clearTimeout(timer);
       document.removeEventListener("keydown", onKeyDown);
-      opener?.focus();
+      focusWithoutScrolling(opener);
     };
   }, [busy, onClose, open, openerRef]);
 
@@ -73,9 +74,9 @@ export function AiResponsivePanel({
     return () => window.cancelAnimationFrame(frame);
   }, [busy, open, title]);
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50">
       <button
         type="button"
@@ -131,6 +132,17 @@ export function AiResponsivePanel({
           {children}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
+}
+
+function focusWithoutScrolling(element: HTMLElement | null | undefined) {
+  if (!element) return;
+
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    element.focus();
+  }
 }

@@ -8,7 +8,7 @@ import {
 const steps = [
   "Envie seu link para quem ainda não usa o Pontua ENEM.",
   "Seu amigo cria a conta pelo link e compra o acesso à plataforma.",
-  `Ele recebe ${REFERRAL_REFERRED_BONUS_CREDITS} créditos na confirmação do pagamento e você recebe ${REFERRAL_REFERRER_REWARD_CREDITS} em ${REFERRAL_REWARD_HOLD_DAYS} dias.`,
+  `Ele recebe ${REFERRAL_REFERRED_BONUS_CREDITS} créditos e você recebe ${REFERRAL_REFERRER_REWARD_CREDITS} créditos ${REFERRAL_REWARD_HOLD_DAYS} dias após a confirmação da compra.`,
 ];
 
 export function ReferralHowItWorks() {

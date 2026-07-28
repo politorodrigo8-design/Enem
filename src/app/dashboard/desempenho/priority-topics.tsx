@@ -66,7 +66,21 @@ export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
           ENEM. Isso orienta a revisão, mas não garante quais assuntos cairão.
         </p>
       </CardHeader>
-      <CardContent className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
+      <CardContent className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <section>
+          <div className="mb-3 flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-amber-600" aria-hidden="true" />
+            <h3 className="text-sm font-bold text-slate-950">
+              Mais recorrentes no ENEM
+            </h3>
+          </div>
+          <ul className="divide-y divide-slate-100">
+            {recurringTopics.map((item) => (
+              <PriorityTopicRow key={item.id} item={item} mode="recurrence" />
+            ))}
+          </ul>
+        </section>
+
         <section>
           <div className="mb-3 flex items-center gap-2">
             <AlertTriangle className="h-4 w-4 text-rose-600" aria-hidden="true" />
@@ -88,20 +102,6 @@ export function PriorityTopics({ items }: { items: PriorityTopicItem[] }) {
               </p>
             </div>
           )}
-        </section>
-
-        <section>
-          <div className="mb-3 flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-amber-600" aria-hidden="true" />
-            <h3 className="text-sm font-bold text-slate-950">
-              Mais recorrentes no ENEM
-            </h3>
-          </div>
-          <ul className="divide-y divide-slate-100">
-            {recurringTopics.map((item) => (
-              <PriorityTopicRow key={item.id} item={item} mode="recurrence" />
-            ))}
-          </ul>
         </section>
       </CardContent>
     </Card>

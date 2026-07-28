@@ -20,7 +20,8 @@ export function ReferralHistory({ items }: { items: ReferralHistoryItem[] }) {
         <p className="mt-1 text-sm leading-6 text-slate-600">
           Mande o link acima para quem está estudando com você: quando seu amigo
           compra o acesso, ele ganha {REFERRAL_REFERRED_BONUS_CREDITS} créditos
-          extras e você recebe {REFERRAL_REFERRER_REWARD_CREDITS}.
+          extras e você recebe {REFERRAL_REFERRER_REWARD_CREDITS} após o prazo de
+          segurança.
         </p>
       </div>
     );

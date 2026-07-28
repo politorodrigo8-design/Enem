@@ -59,8 +59,8 @@ export default async function PracticePage({
   return (
     <div>
       <DashboardPageHeader
-        title="Praticar"
-        description="Resolva questões do banco verificado — a sessão já vem montada para você."
+        title="Questões"
+        description="Banco de questões verificado, com recomendadas, filtros e revisão das já respondidas."
       />
       <PracticeTabs
         initialTab={initialTab}

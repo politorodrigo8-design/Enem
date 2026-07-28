@@ -6,6 +6,10 @@ const migration = readFileSync(
   new URL("../supabase/migrations/025_referral_program.sql", import.meta.url),
   "utf8",
 );
+const referralHoldMigration = readFileSync(
+  new URL("../supabase/migrations/031_hold_all_referral_rewards.sql", import.meta.url),
+  "utf8",
+);
 const middleware = readFileSync(
   new URL("../src/lib/supabase/middleware.ts", import.meta.url),
   "utf8",
@@ -101,20 +105,24 @@ test("codigo invalido, usuario antigo e autoindicacao nao geram vinculo", () => 
   assert.match(migration, /lower\(referrer\.email\) = lower\(referred\.email\)/);
 });
 
-test("primeira compra aprovada concede bonus do indicado e pendencia do indicador", () => {
+test("primeira compra aprovada agenda bonus dos dois lados", () => {
   assert.match(constants, /REFERRAL_REFERRED_BONUS_CREDITS = 20/);
   assert.match(constants, /REFERRAL_REFERRER_REWARD_CREDITS = 30/);
   assert.match(migration, /'referral_referred_bonus'/);
   assert.match(migration, /referred_bonus_credits integer not null default 20/);
-  assert.match(migration, /status = 'pending_release'/);
-  assert.match(migration, /reward_available_at = coalesce\(reward_available_at, now\(\) \+ interval '7 days'\)/);
+  assert.match(referralHoldMigration, /status = case[\s\S]*else 'pending_release'/);
+  assert.match(referralHoldMigration, /reward_available_at = coalesce\(reward_available_at, now\(\) \+ interval '7 days'\)/);
+  assert.doesNotMatch(referralHoldMigration, /referred_reward_granted_at = now\(\)/);
 });
 
-test("recompensa do indicador e liberada apos o prazo por rotina idempotente", () => {
-  assert.match(migration, /create or replace function public\.process_pending_referral_rewards/);
-  assert.match(migration, /reward_available_at <= now\(\)/);
-  assert.match(migration, /for update skip locked/);
-  assert.match(migration, /'referral_referrer_bonus'/);
+test("recompensas dos dois lados sao liberadas apos o prazo por rotina idempotente", () => {
+  assert.match(referralHoldMigration, /create or replace function public\.process_pending_referral_rewards/);
+  assert.match(referralHoldMigration, /reward_available_at <= now\(\)/);
+  assert.match(referralHoldMigration, /for update skip locked/);
+  assert.match(referralHoldMigration, /'referral_referred_bonus'/);
+  assert.match(referralHoldMigration, /'referral_referrer_bonus'/);
+  assert.match(referralHoldMigration, /referred_reward_granted_at = coalesce/);
+  assert.match(referralHoldMigration, /referrer_reward_granted_at = coalesce/);
   assert.match(migration, /credit_ledger_one_referral_referrer_bonus_unique/);
   assert.match(queries, /processPendingReferralRewardsForUser\(user\.id\)/);
 });

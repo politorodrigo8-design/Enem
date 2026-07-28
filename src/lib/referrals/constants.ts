@@ -9,11 +9,11 @@ export const REFERRAL_CAMPAIGN_SLUG = "indique-e-ganhe-2026";
 // interface muda junto e nenhum número fica desatualizado na tela.
 export const referralProgramCopy = {
   title: "Indique e ganhe",
-  dashboardDescription: `Seu amigo ganha ${REFERRAL_REFERRED_BONUS_CREDITS} créditos extras e você ganha ${REFERRAL_REFERRER_REWARD_CREDITS} quando ele compra o acesso.`,
+  dashboardDescription: `Seu amigo ganha ${REFERRAL_REFERRED_BONUS_CREDITS} créditos extras e você ganha ${REFERRAL_REFERRER_REWARD_CREDITS}, liberados ${REFERRAL_REWARD_HOLD_DAYS} dias após a compra dele ser confirmada.`,
   purchaseCondition:
     "Vale para amigo com conta nova, criada pelo seu link, na primeira compra do acesso à plataforma. Cadastro sem compra não gera crédito.",
-  holdNotice: `Seus ${REFERRAL_REFERRER_REWARD_CREDITS} créditos entram na conta ${REFERRAL_REWARD_HOLD_DAYS} dias depois de a compra do seu amigo ser confirmada.`,
-  friendNotice: `Caem na conta dele assim que o pagamento da compra é confirmado.`,
+  holdNotice: `Os créditos são liberados ${REFERRAL_REWARD_HOLD_DAYS} dias após a confirmação da compra, desde que não haja reembolso ou cancelamento.`,
+  friendNotice: `Entram na conta dele ${REFERRAL_REWARD_HOLD_DAYS} dias depois de a compra ser confirmada.`,
   linkNotice: `Seu link vale por ${REFERRAL_ATTRIBUTION_COOKIE_DAYS} dias: se o amigo abrir hoje e comprar depois, a indicação continua sua.`,
   terms:
     "Os créditos valem para compras válidas e podem ser cancelados em caso de reembolso, fraude ou violação das regras do programa.",
@@ -25,7 +25,7 @@ export const referralProgramCopy = {
  * créditos" seria promessa que o programa não cumpre no cadastro.
  */
 export function buildReferralInviteMessage(referralUrl: string) {
-  return `Estou usando o Pontua ENEM para treinar para o ENEM e recomendo. Criando sua conta pelo meu link, você ganha ${REFERRAL_REFERRED_BONUS_CREDITS} créditos extras quando comprar o acesso. Meu link: ${referralUrl}`;
+  return `Estou usando o Pontua ENEM para treinar para o ENEM e recomendo. Criando sua conta pelo meu link, você ganha ${REFERRAL_REFERRED_BONUS_CREDITS} créditos extras ${REFERRAL_REWARD_HOLD_DAYS} dias após comprar o acesso. Meu link: ${referralUrl}`;
 }
 
 /**

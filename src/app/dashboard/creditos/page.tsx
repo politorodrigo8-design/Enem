@@ -1,7 +1,6 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  BarChart3,
   BookOpen,
   CalendarCheck,
   ChevronLeft,
@@ -87,13 +86,6 @@ const creditUses: CreditUse[] = [
     cost: ESSAY_CREDIT_COST,
     href: "/dashboard/correcao-redacao",
     icon: PenLine,
-  },
-  {
-    title: "Análise de desempenho",
-    description: "Padrões dos seus erros e o que priorizar em seguida.",
-    cost: 2,
-    href: "/dashboard/desempenho",
-    icon: BarChart3,
   },
   {
     title: "Plano inteligente",

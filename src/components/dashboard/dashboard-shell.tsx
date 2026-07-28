@@ -31,7 +31,7 @@ const navigation = [
     group: null,
     items: [
       { label: "Hoje", href: "/dashboard", icon: LayoutDashboard },
-      { label: "Praticar", href: "/dashboard/praticar", icon: BookOpen },
+      { label: "Questões", href: "/dashboard/questoes", icon: BookOpen },
       { label: "Simulados", href: "/dashboard/simulados", icon: Target },
       { label: "Redação", href: "/dashboard/correcao-redacao", icon: PenLine },
       { label: "Desempenho", href: "/dashboard/desempenho", icon: BarChart3 },
@@ -133,9 +133,14 @@ export function DashboardShell({
                 ) : null}
                 <div className="space-y-0.5">
                   {items.map((item) => {
+                    const itemPath = item.href.split("?")[0];
+                    const activePath =
+                      itemPath === "/dashboard/questoes" ? "/dashboard/praticar" : itemPath;
                     const active =
-                      pathname === item.href ||
-                      (item.href !== "/dashboard" && pathname.startsWith(item.href));
+                      pathname === itemPath ||
+                      pathname === activePath ||
+                      (itemPath !== "/dashboard" && pathname.startsWith(itemPath)) ||
+                      (activePath !== "/dashboard" && pathname.startsWith(activePath));
                     const Icon = item.icon;
 
                     return (

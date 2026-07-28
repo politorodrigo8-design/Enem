@@ -639,59 +639,91 @@ export function SimulationsClient({
     <div className="space-y-8">
       {openSimulations.length ? (
         <section>
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
-            Simulados em aberto
-          </h2>
-          <p className="mb-3 mt-1 text-sm leading-6 text-slate-600">
-            Suas respostas ficam salvas: você volta de onde parou e a nota sai quando
-            finalizar.
-          </p>
-          <Card>
-            <CardContent className="p-0">
-              <ul className="divide-y divide-slate-100">
-                {openSimulations.map(({ simulation, attempt }) => {
-                  const questionCount = simulation.simulation_questions.length;
-                  const answeredCount = attempt
-                    ? Object.keys(answersFromSimulationAttempt(attempt)).length
-                    : 0;
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+                Simulados em aberto
+              </h2>
+              <p className="mt-1 text-sm leading-6 text-slate-600">
+                Suas respostas ficam salvas: você volta de onde parou e a nota sai
+                quando finalizar.
+              </p>
+            </div>
+            <Badge tone="blue" className="shrink-0">
+              {openSimulations.length} em progresso
+            </Badge>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {openSimulations.map(({ simulation, attempt }) => {
+              const questionCount = simulation.simulation_questions.length;
+              const answeredCount = attempt
+                ? Object.keys(answersFromSimulationAttempt(attempt)).length
+                : 0;
+              const progressPercentage = questionCount
+                ? Math.round((answeredCount / questionCount) * 100)
+                : 0;
+              const startedAt = attempt
+                ? formatAppDateTime(attempt.started_at, {
+                    day: "2-digit",
+                    month: "2-digit",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : null;
 
-                  return (
-                    <li
-                      key={attempt?.id ?? simulation.id}
-                      className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between"
-                    >
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-slate-950">
-                          {simulation.title}
-                        </p>
-                        <p className="tnum mt-0.5 text-xs text-slate-500">
-                          {attempt
-                            ? `${answeredCount} de ${questionCount} questões respondidas • iniciado em ${formatAppDateTime(
-                                attempt.started_at,
-                                {
-                                  day: "2-digit",
-                                  month: "2-digit",
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                },
-                              )}`
-                            : `${questionCount} questões • ainda não iniciado`}
-                        </p>
+              return (
+                <Card
+                  key={attempt?.id ?? simulation.id}
+                  className="overflow-hidden border-slate-200 bg-white shadow-md shadow-slate-900/6"
+                >
+                  <CardContent className="grid gap-4 p-4 sm:grid-cols-[1fr_auto] sm:items-center sm:p-5">
+                    <div className="min-w-0">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-700 ring-1 ring-inset ring-blue-100">
+                          <Target className="h-4 w-4" aria-hidden="true" />
+                        </span>
+                        <Badge tone={attempt ? "amber" : "slate"}>
+                          {attempt ? "Em andamento" : "Pronto para iniciar"}
+                        </Badge>
                       </div>
-                      <Button
-                        className="w-full sm:w-auto"
-                        disabled={pending || locked}
-                        onClick={() => start(simulation)}
-                      >
-                        <PlayCircle className="h-4 w-4" aria-hidden="true" />
-                        {attempt ? "Continuar de onde parei" : "Iniciar simulado"}
-                      </Button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </CardContent>
-          </Card>
+                      <h3 className="truncate text-sm font-bold text-slate-950">
+                        {simulation.title}
+                      </h3>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-medium text-slate-500">
+                        <span className="tnum inline-flex items-center gap-1.5">
+                          <BarChart3
+                            className="h-3.5 w-3.5 text-slate-400"
+                            aria-hidden="true"
+                          />
+                          {answeredCount} de {questionCount} questões
+                        </span>
+                        <span className="tnum inline-flex items-center gap-1.5">
+                          <Clock
+                            className="h-3.5 w-3.5 text-slate-400"
+                            aria-hidden="true"
+                          />
+                          {startedAt ? `Iniciado em ${startedAt}` : "Ainda não iniciado"}
+                        </span>
+                      </div>
+                      <Progress
+                        value={progressPercentage}
+                        label="Progresso"
+                        className="mt-4 max-w-xl"
+                      />
+                    </div>
+                    <Button
+                      className="w-full sm:w-auto"
+                      disabled={pending || locked}
+                      onClick={() => start(simulation)}
+                    >
+                      <PlayCircle className="h-4 w-4" aria-hidden="true" />
+                      {attempt ? "Continuar" : "Iniciar"}
+                    </Button>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </section>
       ) : null}
 
