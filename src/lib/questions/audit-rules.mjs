@@ -11,7 +11,7 @@ export function auditQuestionRecord(question) {
   const issues = [];
   const options = normalizeOptions(question.question_options ?? []);
   const media = question.question_media ?? [];
-  const hasMedia = Boolean(question.media_url || media.some((item) => item?.url));
+  const hasMedia = media.some((item) => item?.url);
   const statement = cleanQuestionStatement(question.statement ?? "");
 
   if (!statement.trim()) {
@@ -138,7 +138,10 @@ function duplicatedTexts(values) {
 }
 
 function hasBrokenCharacters(value) {
-  return /\uFFFD|Ã.|Â.|â€|â€™|â€œ|â€/.test(String(value ?? ""));
+  // Mojibake de UTF-8 lido como Latin-1: "Ã"/"Â" seguidos de simbolo do bloco
+  // U+0080-00BF ("Ã£", "Ã©"). "Ã"/"Â" antes de letra ASCII e legitimo em caixa
+  // alta ("NÃO", "CÂMARA") e nao pode ser sinalizado como corrompido.
+  return /\uFFFD|â€|[ÃÂ][\u0080-\u00BF]/.test(String(value ?? ""));
 }
 
 function isValidMediaUrl(value) {

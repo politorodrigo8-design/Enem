@@ -32,7 +32,6 @@ export function ThemeBadge({
         borderColor: "var(--subject-border)",
         boxShadow: "inset 0 0 0 1px var(--subject-border)",
       }}
-      title={theme.unmapped ? `Materia sem tema mapeado: ${name}` : undefined}
       {...props}
     >
       <span

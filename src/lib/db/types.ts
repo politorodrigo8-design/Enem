@@ -24,26 +24,10 @@ export type EssaySubmissionEvent =
 export type EssayCorrectionResult =
   Database["public"]["Tables"]["essay_correction_results"]["Row"];
 
-export type FeedbackStatus = "novo" | "em_analise" | "resolvido" | "ignorado";
-export type FeedbackType = "elogio" | "sugestao" | "duvida" | "problema";
-export type FeedbackInboxItem = {
-  id: string;
-  user_id: string;
-  email: string | null;
-  feedback_type: FeedbackType;
-  message: string;
-  rating: number | null;
-  route: string;
-  context: Record<string, unknown> | null;
-  user_agent_summary: string | null;
-  source: string;
-  related_id: string | null;
-  status: FeedbackStatus;
-  internal_note: string | null;
-  read_at: string | null;
-  assigned_admin_id: string | null;
-  created_at: string;
-  updated_at: string;
+export type Feedback = Database["public"]["Tables"]["feedbacks"]["Row"];
+export type FeedbackStatus = Feedback["status"];
+export type FeedbackType = Feedback["feedback_type"];
+export type FeedbackInboxItem = Feedback & {
   profiles?: Pick<Profile, "full_name" | "email"> | null;
 };
 

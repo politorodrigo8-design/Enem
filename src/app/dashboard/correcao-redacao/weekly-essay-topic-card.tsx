@@ -22,17 +22,16 @@ import {
   type WeeklyEssayTopic,
 } from "@/data/weekly-essay-topics";
 import { unlockWeeklyEssayTopicAction } from "@/lib/actions/credits";
+import { addDaysISO } from "@/lib/db/scoring";
 
 export function WeeklyEssayTopicCard({
   topic,
-  isCurrentWeek,
   creditBalance,
   initiallyUnlocked,
   onUseTopic,
   onBalanceChange,
 }: {
   topic: WeeklyEssayTopic;
-  isCurrentWeek: boolean;
   creditBalance: number;
   initiallyUnlocked: boolean;
   onUseTopic: () => void;
@@ -84,7 +83,7 @@ export function WeeklyEssayTopicCard({
               </span>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                  {isCurrentWeek ? "Tema de hoje" : "Proposta de treino"}
+                  Tema de hoje
                 </p>
                 <h2 className="mt-1 text-base font-bold leading-6 text-slate-950 sm:text-lg">
                   {topic.title}
@@ -97,8 +96,8 @@ export function WeeklyEssayTopicCard({
             <p className="mt-2 text-xs leading-5 text-slate-500">
               Novo tema a cada {ESSAY_TOPIC_ROTATION_DAYS}{" "}
               {ESSAY_TOPIC_ROTATION_DAYS === 1 ? "dia" : "dias"} · disponível até{" "}
-              {formatTopicDate(topic.endsAt)}. Tema sugerido para prática; não
-              representa previsão do ENEM.
+              {formatTopicDate(addDaysISO(topic.endsAt, -1))}. Tema sugerido para
+              prática; não representa previsão do ENEM.
             </p>
           </div>
 
@@ -126,12 +125,6 @@ export function WeeklyEssayTopicCard({
           </div>
         </div>
 
-        {isCurrentWeek ? null : (
-          <p className="mt-3 text-xs leading-5 text-slate-500">
-            A proposta desta semana ainda não foi publicada. Esta continua valendo
-            para treino — ou escreva sobre o tema que você quiser e envie abaixo.
-          </p>
-        )}
       </div>
 
       <AiResponsivePanel

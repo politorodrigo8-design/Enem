@@ -24,7 +24,10 @@ import {
   getTopicsWithPerformance,
 } from "@/lib/db/queries";
 import { getSiteUrl } from "@/lib/supabase/config";
-import { prioritizeTopics } from "@/lib/study/priorities";
+import {
+  perceivedDifficultiesFromProfile,
+  prioritizeTopics,
+} from "@/lib/study/priorities";
 import type { EssaySubmission } from "@/lib/db/types";
 import { formatAppDateTime } from "@/lib/dates";
 import { StudyPlanSection } from "./study-plan-section";
@@ -39,7 +42,7 @@ export default async function DashboardPage() {
   ]);
   const today = await getTodayStudy(plan, profile);
   const access = getAccessContext(profile);
-  const priorities = prioritizeTopics(topics);
+  const priorities = prioritizeTopics(topics, perceivedDifficultiesFromProfile(profile));
 
   const todayTopic = today.todayItem?.topics ?? null;
   const focusPriority = todayTopic

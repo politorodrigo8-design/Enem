@@ -46,3 +46,19 @@ test("auditoria detecta imagem necessaria ausente e duplicidade exata", () => {
   assert.ok(issues.some((issue) => issue.problem === "imagem_necessaria_ausente"));
   assert.equal(issues.filter((issue) => issue.problem === "duplicidade_exata").length, 2);
 });
+
+test("caixa alta legitima nao e sinalizada como texto corrompido, mojibake sim", () => {
+  const legit = auditQuestionRecord({
+    ...baseQuestion,
+    statement:
+      "SÃO PAULO NÃO PODE PARAR: a CÂMARA aprovou o projeto que trata da mobilidade urbana na capital.",
+  });
+  assert.ok(!legit.some((issue) => issue.problem === "caracteres_corrompidos"));
+
+  const broken = auditQuestionRecord({
+    ...baseQuestion,
+    statement:
+      "A migraÃ§Ã£o interna brasileira intensificou-se no perÃ­odo industrial, alterando a ocupaÃ§Ã£o do territÃ³rio.",
+  });
+  assert.ok(broken.some((issue) => issue.problem === "caracteres_corrompidos"));
+});

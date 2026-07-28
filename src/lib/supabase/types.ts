@@ -897,7 +897,7 @@ export type Database = {
           route: string;
           message: string;
           message_hash: string;
-          rating: number;
+          rating: number | null;
           easy_to_understand: boolean | null;
           client_created_at: string | null;
           created_at: string;
@@ -908,11 +908,50 @@ export type Database = {
           feedback_type: "erro" | "sugestao" | "duvida" | "elogio";
           route: string;
           message: string;
-          rating: number;
+          rating?: number | null;
           easy_to_understand?: boolean | null;
           client_created_at?: string | null;
         };
         Update: Partial<Database["public"]["Tables"]["beta_feedback"]["Insert"]>;
+      };
+      feedbacks: {
+        Row: {
+          id: string;
+          user_id: string;
+          email: string | null;
+          feedback_type: "elogio" | "sugestao" | "duvida" | "problema";
+          message: string;
+          rating: number | null;
+          route: string;
+          context: Json;
+          user_agent_summary: string | null;
+          source: string;
+          related_id: string | null;
+          status: "novo" | "em_analise" | "resolvido" | "ignorado";
+          internal_note: string | null;
+          read_at: string | null;
+          assigned_admin_id: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          email?: string | null;
+          feedback_type: "elogio" | "sugestao" | "duvida" | "problema";
+          message: string;
+          rating?: number | null;
+          route: string;
+          context?: Json;
+          user_agent_summary?: string | null;
+          source?: string;
+          related_id?: string | null;
+          status?: "novo" | "em_analise" | "resolvido" | "ignorado";
+          internal_note?: string | null;
+          read_at?: string | null;
+          assigned_admin_id?: string | null;
+        };
+        Update: Partial<Database["public"]["Tables"]["feedbacks"]["Insert"]>;
       };
       product_events: {
         Row: {

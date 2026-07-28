@@ -54,7 +54,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Notice } from "@/components/ui/notice";
 import { Reveal } from "@/components/ui/reveal";
-import { getWeeklyEssayTopicSuggestion } from "@/data/weekly-essay-topics";
+import { getActiveWeeklyEssayTopic } from "@/data/weekly-essay-topics";
 import { WeeklyEssayTopicCard } from "./weekly-essay-topic-card";
 
 type EssayWithFiles = EssaySubmission & {
@@ -99,7 +99,7 @@ const photoGuidance = [
   "Uma foto por página, na ordem em que você escreveu.",
 ];
 
-const weeklyTopicSuggestion = getWeeklyEssayTopicSuggestion();
+const weeklyTopicSuggestion = getActiveWeeklyEssayTopic();
 
 function newIdempotencyKey() {
   return crypto.randomUUID();
@@ -352,7 +352,7 @@ export function EssayCorrectionClient({
   function useSuggestedTopic() {
     if (!weeklyTopicSuggestion) return;
 
-    const suggestedTheme = weeklyTopicSuggestion.topic.title;
+    const suggestedTheme = weeklyTopicSuggestion.title;
     const currentTheme = theme.trim();
     if (currentTheme && currentTheme !== suggestedTheme) {
       const confirmed = window.confirm(
@@ -389,11 +389,10 @@ export function EssayCorrectionClient({
       {weeklyTopicSuggestion ? (
         <Reveal delay={0}>
           <WeeklyEssayTopicCard
-            key={weeklyTopicSuggestion.topic.id}
-            topic={weeklyTopicSuggestion.topic}
-            isCurrentWeek={weeklyTopicSuggestion.isCurrentWeek}
+            key={weeklyTopicSuggestion.id}
+            topic={weeklyTopicSuggestion}
             creditBalance={availableCreditBalance}
-            initiallyUnlocked={weeklyTopicUnlocks.includes(weeklyTopicSuggestion.topic.id)}
+            initiallyUnlocked={weeklyTopicUnlocks.includes(weeklyTopicSuggestion.id)}
             onUseTopic={useSuggestedTopic}
             onBalanceChange={setAvailableCreditBalance}
           />

@@ -10,7 +10,10 @@ import {
   getQuestionRecords,
   getTopicsWithPerformance,
 } from "@/lib/db/queries";
-import { prioritizeTopics } from "@/lib/study/priorities";
+import {
+  perceivedDifficultiesFromProfile,
+  prioritizeTopics,
+} from "@/lib/study/priorities";
 import { PerformanceView } from "./performance-view";
 import {
   AllTopics,
@@ -27,7 +30,10 @@ export default async function PerformancePage() {
   ]);
   const access = getAccessContext(profile);
 
-  const priorityItems: PriorityTopicItem[] = prioritizeTopics(topics).map(
+  const priorityItems: PriorityTopicItem[] = prioritizeTopics(
+    topics,
+    perceivedDifficultiesFromProfile(profile),
+  ).map(
     ({ topic, performance, score, label, reason, hasPersonalPerformance }) => ({
       id: topic.id,
       area: topic.subjects.area,

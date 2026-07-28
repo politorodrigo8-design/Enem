@@ -9,7 +9,7 @@ import {
 const levels = [1, 2, 3, 4, 5] as const;
 const levelLabels = SELF_ASSESSMENT_LABELS as Record<number, string>;
 
-/** Seletor de autopercepcao: 1 = mais dificuldade, 5 = mais facilidade. */
+/** Seletor de autopercepção: 1 = mais dificuldade, 5 = mais facilidade. */
 export function DifficultyScale({
   value,
   onChange,
@@ -33,7 +33,7 @@ export function DifficultyScale({
       <div
         className="grid grid-cols-5 gap-1 sm:gap-1.5"
         role="radiogroup"
-        aria-label={`Autopercepcao em ${label}: ${SELF_ASSESSMENT_LEGEND}`}
+        aria-label={`Autopercepção em ${label}: ${SELF_ASSESSMENT_LEGEND}`}
       >
         {levels.map((level) => (
           <button
@@ -41,7 +41,7 @@ export function DifficultyScale({
             type="button"
             role="radio"
             aria-checked={value === level}
-            aria-label={`${level} de 5 - ${levelLabels[level]}`}
+            aria-label={`${level} de 5 — ${levelLabels[level]}`}
             onClick={() => onChange(level)}
             className={cn(
               "tnum h-11 rounded-lg border text-sm font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 lg:h-9",
@@ -58,7 +58,7 @@ export function DifficultyScale({
   );
 }
 
-/** Versao de leitura da escala: barras preenchidas ate o nivel informado. */
+/** Versão de leitura da escala: barras preenchidas até o nível informado. */
 export function DifficultyMeter({ value, label }: { value: number; label: string }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 py-2.5">
@@ -76,7 +76,7 @@ export function DifficultyMeter({ value, label }: { value: number; label: string
           ))}
         </div>
         <span className="sr-only">
-          {value} de 5 - {levelLabels[value] ?? ""}
+          {value} de 5 — {levelLabels[value] ?? ""}
         </span>
         <span className="tnum w-7 text-right text-sm font-semibold text-slate-950">
           {value}/5

@@ -22,9 +22,11 @@ const questions = [];
 const pageSize = 500;
 
 for (let from = 0; ; from += pageSize) {
+  // Sem media_url: questions nao tem essa coluna (42703); midia vive em question_media.
   const { data, error } = await supabase
     .from("questions")
-    .select("id, statement, correct_option, media_required, media_url, source, year, subjects(area,name), topics(name), question_options(option_key, option_text), question_media(url)")
+    .select("id, statement, correct_option, media_required, source, year, subjects(area,name), topics(name), question_options(option_key, option_text), question_media(url)")
+    .order("id")
     .range(from, from + pageSize - 1);
   if (error) {
     console.error("Falha ao ler questoes:", error.message);

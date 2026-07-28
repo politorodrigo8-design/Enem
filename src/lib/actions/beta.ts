@@ -322,7 +322,7 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
   const feedbackType =
     parsed.data.feedback_type === "erro" ? "problema" : parsed.data.feedback_type;
 
-  const { error: inboxError } = await supabase.from("feedbacks" as never).insert({
+  const { error: inboxError } = await supabase.from("feedbacks").insert({
     user_id: user.id,
     email: user.email ?? null,
     feedback_type: feedbackType,
@@ -337,9 +337,13 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
       client_created_at: parsed.data.client_created_at ?? null,
       legacy_feedback_type: parsed.data.feedback_type,
     },
-  } as never);
+  });
 
-  if (inboxError && inboxError.code !== "42P01") {
+  // 23505 (feedbacks_duplicate_guard): reenvio do mesmo texto — já registrado,
+  // segue como sucesso para não travar retries após falha parcial abaixo.
+  // 42P01: migration 033 ainda não aplicada — a tabela legada cobre o envio.
+  const inboxSaved = !inboxError || inboxError.code === "23505";
+  if (inboxError && inboxError.code !== "42P01" && inboxError.code !== "23505") {
     logServerError("beta.submitFeedback.inbox", inboxError, { userId: user.id });
     return { ok: false, message: publicDbErrorMessage(inboxError.message) };
   }
@@ -349,14 +353,19 @@ export async function submitFeedbackAction(input: FeedbackInput): Promise<Action
     feedback_type: parsed.data.feedback_type,
     route: parsed.data.route,
     message: parsed.data.message,
-    rating: parsed.data.rating ?? 5,
+    rating: parsed.data.rating ?? null,
     easy_to_understand: parsed.data.easy_to_understand ?? null,
     client_created_at: parsed.data.client_created_at ?? new Date().toISOString(),
   });
 
-  if (error) {
+  // Com o feedback já na caixa nova, a tabela legada é best-effort: um erro
+  // aqui (ex.: NOT NULL de rating antes da migration 035) não invalida o envio.
+  if (error && !inboxSaved) {
     logServerError("beta.submitFeedback", error, { userId: user.id });
     return { ok: false, message: publicDbErrorMessage(error.message) };
+  }
+  if (error) {
+    logServerError("beta.submitFeedback.legacy", error, { userId: user.id });
   }
 
   await recordProductEvent({

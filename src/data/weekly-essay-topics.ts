@@ -1,3 +1,5 @@
+import { addDaysISO } from "@/lib/db/scoring";
+
 export type WeeklyEssayTopic = {
   id: string;
   title: string;
@@ -210,29 +212,6 @@ export function getActiveWeeklyEssayTopic(currentDate = todayInSaoPaulo()) {
   };
 }
 
-export type WeeklyEssayTopicSuggestion = {
-  topic: WeeklyEssayTopic;
-  /** Falso quando a janela da semana já passou e a proposta é reaproveitada para treino. */
-  isCurrentWeek: boolean;
-};
-
-/**
- * A tela de Redação nunca pode ficar sem proposta: quando nenhuma janela semanal
- * está aberta, a mais recente já publicada volta como proposta de treino.
- */
-export function getWeeklyEssayTopicSuggestion(
-  currentDate = todayInSaoPaulo(),
-): WeeklyEssayTopicSuggestion | null {
-  const current = getActiveWeeklyEssayTopic(currentDate);
-  if (current) return { topic: current, isCurrentWeek: true };
-
-  const published = weeklyEssayTopics
-    .filter((topic) => topic.active && topic.startsAt <= currentDate)
-    .sort((first, second) => second.startsAt.localeCompare(first.startsAt));
-
-  return published[0] ? { topic: published[0], isCurrentWeek: false } : null;
-}
-
 function daysBetween(start: string, end: string) {
   const [startYear, startMonth, startDay] = start.split("-").map(Number);
   const [endYear, endMonth, endDay] = end.split("-").map(Number);
@@ -241,10 +220,6 @@ function daysBetween(start: string, end: string) {
   return Math.max(0, Math.floor((endUtc - startUtc) / 86_400_000));
 }
 
-function addDaysISO(value: string, days: number) {
-  const [year, month, day] = value.split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day + days)).toISOString().slice(0, 10);
-}
 
 function todayInSaoPaulo() {
   const parts = new Intl.DateTimeFormat("en-CA", {

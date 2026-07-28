@@ -934,6 +934,7 @@ export function QuestionBankClient({
       </section>
       ) : (
         <PracticeFocusBar
+          topicName={initialTopicName ?? undefined}
           currentIndex={currentIndex}
           total={sessionQuestions.length}
           answered={answeredInSession}
@@ -1273,6 +1274,7 @@ export function QuestionBankClient({
 }
 
 function PracticeFocusBar({
+  topicName,
   currentIndex,
   total,
   answered,
@@ -1282,6 +1284,7 @@ function PracticeFocusBar({
   onAdjust,
   onFinish,
 }: {
+  topicName?: string;
   currentIndex: number;
   total: number;
   answered: number;
@@ -1294,13 +1297,18 @@ function PracticeFocusBar({
   return (
     <div className="sticky top-16 z-20 -mx-4 mb-6 flex flex-col gap-3 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6 xl:-mx-8 xl:px-8">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span className="tnum rounded-lg border border-blue-100 bg-blue-50 px-3 py-1.5 text-sm font-bold text-blue-950">
             Questão {currentIndex + 1} de {total}
           </span>
           <span className="text-sm font-semibold text-slate-600">
             {answered}/{total} respondidas
           </span>
+          {topicName ? (
+            <span className="min-w-0 truncate text-sm font-medium text-slate-500">
+              Estudando: {topicName}
+            </span>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button variant="outline" size="sm" onClick={onAdjust}>

@@ -22,6 +22,7 @@ Estética nomeada: **"caderno de prova"** — editorial, papel claro, tinta escu
 - **Accent único (~10%):** azul-caneta `blue-700` (#1d4ed8). Hover `blue-800`. Tints `blue-50/100` para fundos de destaque.
 - **Proibido:** violet/purple como cor de marca ou decoração; gradientes; neon.
 - **Semânticas (só quando carregam informação):** sucesso `emerald-600`, erro `rose-600`, atenção `amber-600`. Prioridade no Radar: escala do próprio azul + âmbar/rosa por criticidade, nunca arco-íris.
+- **Cores funcionais por área/matéria (2026-07):** `src/lib/subjects/subject-theme.mjs` é a fonte única de cor por área e matéria do ENEM (badges, gráficos, desempenho). É codificação de dado, não decoração: tons ~700 para texto, tints ~50/100 para fundo, sempre da paleta Tailwind. A proibição de violet/purple segue valendo também aqui; repetição de matiz entre áreas diferentes é aceitável (o badge de área dá o contexto). Matéria sem tema mapeado cai no neutro `slate`.
 - Contraste: corpo sempre ≥ AA (slate-600 é o cinza mais claro permitido para texto sobre branco).
 
 ## Superfícies

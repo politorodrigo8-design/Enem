@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getAccessContext } from "@/lib/access";
 import { createClient } from "@/lib/supabase/server";
@@ -11,7 +12,10 @@ const adminFeedbackUpdateSchema = z.object({
   id: z.string().uuid(),
   status: z.enum(["novo", "em_analise", "resolvido", "ignorado"]),
   internal_note: z.string().trim().max(2000).optional().or(z.literal("")),
+  return_query: z.string().max(500).optional().or(z.literal("")),
 });
+
+const allowedReturnParams = ["status", "type", "rating", "from", "to", "search"];
 
 type AdminFeedbackContext =
   | { error: string }
@@ -28,37 +32,60 @@ export async function updateFeedbackStatusAction(formData: FormData): Promise<vo
     id: formData.get("id"),
     status: formData.get("status"),
     internal_note: formData.get("internal_note"),
+    return_query: formData.get("return_query"),
   });
   if (!parsed.success) {
-    return;
+    redirect(feedbacksPath("", "0"));
   }
 
+  // Preserva quem já assumiu o feedback; só atribui quando ninguém assumiu.
+  const { data: current } = await context.supabase
+    .from("feedbacks")
+    .select("assigned_admin_id")
+    .eq("id", parsed.data.id)
+    .maybeSingle();
+
   const now = new Date().toISOString();
-  const { error } = await context.supabase.from("feedbacks" as never).update({
-    status: parsed.data.status,
-    internal_note: parsed.data.internal_note || null,
-    read_at: parsed.data.status === "novo" ? null : now,
-    assigned_admin_id: context.userId,
-  } as never).eq("id" as never, parsed.data.id as never);
+  const { error } = await context.supabase
+    .from("feedbacks")
+    .update({
+      status: parsed.data.status,
+      internal_note: parsed.data.internal_note || null,
+      read_at: parsed.data.status === "novo" ? null : now,
+      assigned_admin_id: current?.assigned_admin_id ?? context.userId,
+    })
+    .eq("id", parsed.data.id);
 
   if (error) {
     logServerError("feedback.updateStatus", error, { feedbackId: parsed.data.id });
-    return;
+    redirect(feedbacksPath(parsed.data.return_query, "0"));
   }
 
   revalidatePath("/dashboard/feedbacks");
+  redirect(feedbacksPath(parsed.data.return_query, "1"));
+}
+
+function feedbacksPath(returnQuery: string | undefined, saved: "0" | "1") {
+  const params = new URLSearchParams();
+  const incoming = new URLSearchParams(returnQuery ?? "");
+  for (const key of allowedReturnParams) {
+    const value = incoming.get(key);
+    if (value) params.set(key, value);
+  }
+  params.set("salvo", saved);
+  return `/dashboard/feedbacks?${params.toString()}`;
 }
 
 async function getAdminContext(): Promise<AdminFeedbackContext> {
   if (!isSupabaseConfigured()) {
-    return { error: "Supabase nao configurado." };
+    return { error: "Supabase não configurado." };
   }
 
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Sessao expirada." };
+  if (!user) return { error: "Sessão expirada." };
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -67,7 +94,7 @@ async function getAdminContext(): Promise<AdminFeedbackContext> {
     .maybeSingle();
   const access = getAccessContext(profile);
   if (access.level !== "admin") {
-    return { error: "Acesso administrativo necessario." };
+    return { error: "Acesso administrativo necessário." };
   }
 
   return { supabase, userId: user.id };

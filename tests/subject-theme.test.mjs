@@ -39,3 +39,14 @@ test("temas usam tokens completos em vez de classes tailwind dinamicas", () => {
   }
   assert.notEqual(getSubjectTheme("Física").color, getSubjectTheme("Matemática").color);
 });
+
+test("nenhum tema usa violet/purple, proibidos pelo DESIGN.md", () => {
+  // Escalas violet e purple do Tailwind (400-800), banidas como cor no produto.
+  const banned =
+    /#(?:a78bfa|8b5cf6|7c3aed|6d28d9|5b21b6|c084fc|a855f7|9333ea|7e22ce|6b21a8)/i;
+  for (const theme of Object.values(subjectThemes)) {
+    for (const token of [theme.color, theme.background, theme.text, theme.border, theme.accent]) {
+      assert.doesNotMatch(String(token), banned);
+    }
+  }
+});

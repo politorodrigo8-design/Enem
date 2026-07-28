@@ -26,7 +26,7 @@ export function AreaBars({ data }: AreaBarsProps) {
                   />
                   {item.area}
                 </p>
-                <p className="text-xs text-slate-500">{item.answered} questoes</p>
+                <p className="text-xs text-slate-500">{item.answered} questões</p>
               </div>
               <span className="tnum shrink-0 text-sm font-bold text-slate-950">
                 {item.accuracy}%

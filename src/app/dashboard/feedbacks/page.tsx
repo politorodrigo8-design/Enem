@@ -1,10 +1,11 @@
-import { MessageSquare, Search } from "lucide-react";
+import { AlertTriangle, CheckCircle2, MessageSquare, Search } from "lucide-react";
 import { updateFeedbackStatusAction } from "@/lib/actions/feedback";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Notice } from "@/components/ui/notice";
 import { formatDateTime } from "@/lib/db/scoring";
 import {
   getAdminFeedbackInbox,
@@ -49,6 +50,8 @@ export default async function FeedbacksPage({
   };
   const feedbacks = await getAdminFeedbackInbox(filters);
   const newCount = feedbacks.filter((item) => item.status === "novo").length;
+  const saved = firstParam(params.salvo);
+  const returnQuery = buildReturnQuery(filters);
 
   return (
     <div>
@@ -56,6 +59,16 @@ export default async function FeedbacksPage({
         title="Feedbacks"
         description={`${newCount} ${newCount === 1 ? "feedback novo" : "feedbacks novos"} nos filtros atuais.`}
       />
+
+      {saved === "1" ? (
+        <Notice tone="success" icon={CheckCircle2} className="mb-6">
+          Feedback atualizado.
+        </Notice>
+      ) : saved === "0" ? (
+        <Notice tone="warning" icon={AlertTriangle} className="mb-6">
+          Não foi possível salvar a atualização. Tente novamente.
+        </Notice>
+      ) : null}
 
       <Card className="mb-6">
         <CardContent className="p-4 sm:p-5">
@@ -87,7 +100,7 @@ export default async function FeedbacksPage({
       {feedbacks.length ? (
         <div className="space-y-3">
           {feedbacks.map((feedback) => (
-            <FeedbackRow key={feedback.id} feedback={feedback} />
+            <FeedbackRow key={feedback.id} feedback={feedback} returnQuery={returnQuery} />
           ))}
         </div>
       ) : (
@@ -101,7 +114,13 @@ export default async function FeedbacksPage({
   );
 }
 
-function FeedbackRow({ feedback }: { feedback: FeedbackInboxItem }) {
+function FeedbackRow({
+  feedback,
+  returnQuery,
+}: {
+  feedback: FeedbackInboxItem;
+  returnQuery: string;
+}) {
   const userName = feedback.profiles?.full_name || "Aluno";
   const email = feedback.email || feedback.profiles?.email || "Sem e-mail";
 
@@ -149,6 +168,7 @@ function FeedbackRow({ feedback }: { feedback: FeedbackInboxItem }) {
 
         <form action={updateFeedbackStatusAction} className="mt-5 grid gap-3 lg:grid-cols-[180px_1fr_auto] lg:items-end">
           <input type="hidden" name="id" value={feedback.id} />
+          <input type="hidden" name="return_query" value={returnQuery} />
           <Select
             name="status"
             label="Status"
@@ -229,6 +249,15 @@ function Detail({ label, value }: { label: string; value: string }) {
 
 function firstParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/** Serializa os filtros atuais para a action devolver o admin à mesma listagem. */
+function buildReturnQuery(filters: AdminFeedbackFilters) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (value && value !== "all") params.set(key, value);
+  }
+  return params.toString();
 }
 
 const statusOptions = [

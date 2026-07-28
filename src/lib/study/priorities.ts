@@ -1,9 +1,6 @@
 import { calculatePriorityScore, priorityLabel } from "@/lib/db/scoring";
-import type { TopicPerformance, TopicWithSubject } from "@/lib/db/types";
-import {
-  normalizeSelfAssessmentRating,
-  perceivedDifficultyPriorityBoost,
-} from "@/lib/study/self-assessment-priority.mjs";
+import type { Profile, TopicPerformance, TopicWithSubject } from "@/lib/db/types";
+import { normalizeSelfAssessmentRating } from "@/lib/study/self-assessment-priority.mjs";
 
 /**
  * Motor único de priorização de assuntos.
@@ -25,6 +22,16 @@ export type PrioritizedTopic = {
 
 /** Autopercepção por área: 1 = mais dificuldade, 5 = mais facilidade. */
 export type PerceivedDifficulties = Record<string, number | string>;
+
+/** Extrai a autopercepção do perfil no formato que `prioritizeTopics` espera. */
+export function perceivedDifficultiesFromProfile(
+  profile: Pick<Profile, "perceived_difficulties"> | null | undefined,
+): PerceivedDifficulties | null {
+  const value = profile?.perceived_difficulties;
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as PerceivedDifficulties)
+    : null;
+}
 
 export function prioritizeTopics(
   topics: TopicWithSubject[],
@@ -76,7 +83,7 @@ function buildPriorityReason(
       return `Você marcou ${area} como uma área de maior dificuldade; este assunto ${recurrence}.`;
     }
     if (area && areaDifficulty != null && areaDifficulty >= 4) {
-      return `Você marcou ${area} com mais facilidade, mas este assunto ${recurrence} - confirme resolvendo questões.`;
+      return `Você marcou ${area} com mais facilidade, mas este assunto ${recurrence} — confirme resolvendo questões.`;
     }
     if (fromDiagnosis) {
       return `${sentence(recurrence)} e entrou na sua lista pelas respostas do seu diagnóstico. Resolva algumas questões para ajustarmos com seus acertos.`;
@@ -105,10 +112,6 @@ function areaDifficultyFor(
   return Number.isFinite(value) && value >= 1 && value <= 5
     ? normalizeSelfAssessmentRating(value)
     : null;
-}
-
-export function priorityBoostFromSelfAssessment(value: number | string) {
-  return perceivedDifficultyPriorityBoost(value);
 }
 
 function recurrenceClause(topic: TopicWithSubject) {

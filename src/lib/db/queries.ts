@@ -5,7 +5,10 @@ import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { formatDateTime, getWeekStart } from "@/lib/db/scoring";
-import { prioritizeTopics } from "@/lib/study/priorities";
+import {
+  perceivedDifficultiesFromProfile,
+  prioritizeTopics,
+} from "@/lib/study/priorities";
 import { calculateStudyStreak } from "@/lib/study/streak.mjs";
 import { appDateISO } from "@/lib/dates";
 import { latestQuestionAnswer } from "@/lib/questions/rules.mjs";
@@ -398,7 +401,10 @@ export async function getDashboardData() {
   const correct = answers.filter((answer) => answer.is_correct).length;
   const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
 
-  const priorities = prioritizeTopics(topics).slice(0, 4);
+  const priorities = prioritizeTopics(
+    topics,
+    perceivedDifficultiesFromProfile(profile),
+  ).slice(0, 4);
 
   const recentActivities: ActivityRecord[] = answers
     .slice(-5)
@@ -1248,25 +1254,25 @@ export async function getAdminFeedbackInbox(
   const { supabase } = await requireEssayAdminAccess();
 
   let query = supabase
-    .from("feedbacks" as never)
-    .select("*" as never)
-    .order("created_at" as never, { ascending: false } as never)
-    .limit(300 as never);
+    .from("feedbacks")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(300);
 
   if (filters.status && filters.status !== "all") {
-    query = query.eq("status" as never, filters.status as FeedbackStatus as never);
+    query = query.eq("status", filters.status as FeedbackStatus);
   }
   if (filters.type && filters.type !== "all") {
-    query = query.eq("feedback_type" as never, filters.type as FeedbackType as never);
+    query = query.eq("feedback_type", filters.type as FeedbackType);
   }
   if (filters.rating && filters.rating !== "all") {
-    query = query.eq("rating" as never, Number(filters.rating) as never);
+    query = query.eq("rating", Number(filters.rating));
   }
   if (filters.from) {
-    query = query.gte("created_at" as never, `${filters.from}T00:00:00.000Z` as never);
+    query = query.gte("created_at", `${filters.from}T00:00:00.000Z`);
   }
   if (filters.to) {
-    query = query.lte("created_at" as never, `${filters.to}T23:59:59.999Z` as never);
+    query = query.lte("created_at", `${filters.to}T23:59:59.999Z`);
   }
 
   const { data, error } = await query;
@@ -1275,27 +1281,27 @@ export async function getAdminFeedbackInbox(
     return [];
   }
 
-  const rawRows = ((data ?? []) as unknown as FeedbackInboxItem[]).filter((item) =>
-    feedbackMatchesSearch(item, filters.search),
-  );
-  const userIds = Array.from(new Set(rawRows.map((item) => item.user_id)));
+  const userIds = Array.from(new Set((data ?? []).map((item) => item.user_id)));
   const { data: profiles } = userIds.length
     ? await supabase.from("profiles").select("id,full_name,email").in("id", userIds)
     : { data: [] };
   const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
 
-  return rawRows.map((item) => ({
-    ...item,
-    profiles: profilesById.get(item.user_id) ?? null,
-  }));
+  // O join com profiles vem antes do filtro para a busca enxergar nome/e-mail.
+  return (data ?? [])
+    .map((item) => ({
+      ...item,
+      profiles: profilesById.get(item.user_id) ?? null,
+    }))
+    .filter((item) => feedbackMatchesSearch(item, filters.search));
 }
 
 async function getUnreadFeedbackCountForAdmin() {
   const { supabase } = await requireUser();
   const { count, error } = await supabase
-    .from("feedbacks" as never)
-    .select("id" as never, { count: "exact", head: true } as never)
-    .eq("status" as never, "novo" as never);
+    .from("feedbacks")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "novo");
 
   if (error) {
     logQueryError("feedbacks.unread_count", error);

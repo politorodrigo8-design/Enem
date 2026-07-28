@@ -8,7 +8,10 @@ import {
   getTopicsWithPerformance,
 } from "@/lib/db/queries";
 import { withCleanStatements } from "@/lib/questions/quality";
-import { prioritizeTopics } from "@/lib/study/priorities";
+import {
+  perceivedDifficultiesFromProfile,
+  prioritizeTopics,
+} from "@/lib/study/priorities";
 import { PracticeTabs, type PracticeTab } from "./practice-tabs";
 
 const uuidPattern =
@@ -46,7 +49,7 @@ export default async function PracticePage({
   // Mesma priorização de assuntos que a tela Hoje usa: é ela que define quais
   // assuntos entram em "Recomendadas" e o critério exibido ao aluno.
   const topicPriority = Object.fromEntries(
-    prioritizeTopics(topics).map((item) => [
+    prioritizeTopics(topics, perceivedDifficultiesFromProfile(profile)).map((item) => [
       item.topic.name,
       {
         score: item.score,

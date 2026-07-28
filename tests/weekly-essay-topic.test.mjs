@@ -40,19 +40,19 @@ test("tema sugerido troca por rotacao deterministica de periodo", () => {
   assert.match(contentSource, /periodIndex % activeTopics\.length/);
 });
 
-test("sem janela aberta a tela cai para a proposta mais recente, nunca fica vazia", () => {
-  assert.match(contentSource, /export function getWeeklyEssayTopicSuggestion/);
-  assert.match(contentSource, /isCurrentWeek: true/);
-  assert.match(contentSource, /isCurrentWeek: false/);
-  assert.match(contentSource, /topic\.startsAt <= currentDate/);
-  // O cliente lê a sugestão com fallback, não a janela seca.
-  assert.match(essayClientSource, /getWeeklyEssayTopicSuggestion\(\)/);
-  assert.doesNotMatch(essayClientSource, /getActiveWeeklyEssayTopic/);
+test("a rotacao garante tema ativo continuo a partir da primeira data publicada", () => {
+  // A rotação nunca deixa a tela vazia após a primeira data publicada; o antigo
+  // fallback de "proposta mais recente" (isCurrentWeek) virou código morto e saiu.
+  assert.doesNotMatch(contentSource, /isCurrentWeek/);
+  assert.match(essayClientSource, /getActiveWeeklyEssayTopic\(\)/);
+});
+
+test("card mostra o ultimo dia em que o tema vale, nao a data exclusiva de troca", () => {
+  assert.match(cardSource, /formatTopicDate\(addDaysISO\(topic\.endsAt, -1\)\)/);
 });
 
 test("card semanal oferece a proposta completa sem expor historico vazio", () => {
   assert.match(cardSource, /Tema de hoje/);
-  assert.match(cardSource, /Proposta de treino/);
   assert.match(cardSource, /não\s+representa previsão do ENEM/);
   assert.match(cardSource, /Usar este tema/);
   assert.match(cardSource, /Ver proposta completa/);
