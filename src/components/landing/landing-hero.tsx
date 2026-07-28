@@ -16,14 +16,11 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
       />
       <div className="relative mx-auto grid max-w-7xl items-center gap-3 px-4 pb-4 pt-6 sm:gap-7 sm:px-6 sm:pb-10 sm:pt-10 lg:min-h-[calc(88svh-4rem)] lg:grid-cols-[1fr_0.82fr] lg:gap-14 lg:px-8 lg:py-12">
         <div className="max-w-2xl">
-          <p className="animate-rise inline-flex rounded-full border border-blue-100 bg-white/80 px-4 py-2 text-sm font-extrabold text-blue-800 shadow-sm shadow-blue-900/5">
-            Preparação inteligente para o ENEM 2026
-          </p>
           <h1
-            className="animate-rise mt-4 text-[2.15rem] font-extrabold leading-[1.05] text-slate-950 sm:mt-6 sm:text-5xl lg:text-6xl"
+            className="animate-rise text-[2.15rem] font-extrabold leading-[1.05] text-slate-950 sm:text-5xl lg:text-6xl"
             style={{ "--rise-delay": "60ms" } as React.CSSProperties}
           >
-            Saiba o que estudar hoje.
+            Um novo jeito de estudar.
           </h1>
           <p
             className="animate-rise mt-4 max-w-xl text-lg font-medium leading-8 text-slate-600 sm:mt-5"
