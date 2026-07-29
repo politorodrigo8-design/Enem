@@ -63,8 +63,8 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
           <Image
             src="/images/landing/aluno-pontua-enem-app.png"
             alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
-            width={1448}
-            height={1086}
+            width={1535}
+            height={1024}
             priority
             sizes="(max-width: 768px) 92vw, (max-width: 1280px) 54vw, 760px"
             className="h-auto w-full max-w-[360px] object-contain sm:max-w-[560px] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[790px]"
