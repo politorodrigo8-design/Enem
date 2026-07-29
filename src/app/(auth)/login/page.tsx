@@ -200,6 +200,20 @@ function LoginPageContent() {
   }
 
   const copy = headline[mode];
+  const authImage =
+    mode === "signup"
+      ? {
+          src: "/images/landing/aluno-pontua-enem-cadastro.png",
+          width: 1024,
+          height: 1536,
+          className: "h-auto max-h-[440px] w-auto max-w-full object-contain",
+        }
+      : {
+          src: "/images/landing/aluno-pontua-enem-app-2026.png",
+          width: 1535,
+          height: 1024,
+          className: "h-auto w-full max-w-[520px] object-contain",
+        };
   const signupLegalReady =
     signupLegalAcceptance?.terms_of_use === legalVersions.terms_of_use &&
     signupLegalAcceptance?.refund_policy === legalVersions.refund_policy &&
@@ -237,12 +251,12 @@ function LoginPageContent() {
 
           <div className="relative z-10 -mb-10 flex justify-end">
             <Image
-              src="/images/landing/aluno-pontua-enem-app-2026.png"
+              src={authImage.src}
               alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
-              width={1535}
-              height={1024}
+              width={authImage.width}
+              height={authImage.height}
               sizes="520px"
-              className="h-auto w-full max-w-[520px] object-contain"
+              className={authImage.className}
             />
           </div>
         </section>
