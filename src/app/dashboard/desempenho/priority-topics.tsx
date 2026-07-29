@@ -270,6 +270,23 @@ function PriorityTopicRow({
     <li className="flex flex-col gap-3 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className="-ml-1 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            aria-expanded={expanded}
+            aria-controls={detailsId}
+            aria-label={
+              expanded
+                ? `Ocultar detalhes de ${item.discipline}: ${item.name}`
+                : `Entender prioridade de ${item.discipline}: ${item.name}`
+            }
+            onClick={() => setExpanded((current) => !current)}
+          >
+            <ChevronDown
+              className={cn("h-4 w-4 transition-transform duration-150", expanded && "rotate-180")}
+              aria-hidden="true"
+            />
+          </button>
           <p className="text-sm font-bold text-slate-950">
             {item.discipline}: {item.name}
           </p>
@@ -285,19 +302,6 @@ function PriorityTopicRow({
         <p className="mt-1 text-sm font-medium leading-6 text-slate-700">
           {essential}
         </p>
-        <button
-          type="button"
-          className="-mx-2 mt-1 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0"
-          aria-expanded={expanded}
-          aria-controls={detailsId}
-          onClick={() => setExpanded((current) => !current)}
-        >
-          <ChevronDown
-            className={cn("h-4 w-4 transition-transform duration-150", expanded && "rotate-180")}
-            aria-hidden="true"
-          />
-          {expanded ? "Ocultar detalhes" : "Entenda esta prioridade"}
-        </button>
         <div
           id={detailsId}
           className={cn(
