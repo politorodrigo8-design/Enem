@@ -228,7 +228,7 @@ function LoginPageContent() {
           <div className="relative z-10 mt-auto flex min-h-0 flex-1 items-end gap-4 pt-6 xl:gap-6">
             <div className="relative -mb-8 -ml-8 h-full w-[46%] max-w-[300px] shrink-0">
               <Image
-                src="/images/landing/aluno-pontua-enem-cadastro-2026.webp"
+                src="/images/landing/aluno-pontua-enem-cadastro-original.png"
                 alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
                 fill
                 sizes="300px"
