@@ -61,7 +61,7 @@ export const currentLegalDocuments = legalDocumentTypes.map(
 );
 
 export const legalContacts = {
-  supportEmail: "suporte@pontuaenem.com.br",
+  supportEmail: "pontuaenem.suporte@gmail.com",
   privacyEmail: null as string | null,
 };
 

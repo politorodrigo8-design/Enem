@@ -286,7 +286,7 @@ function LoginPageContent() {
               {setupMissing ? (
                 <Notice tone="warning" className="mt-6 rounded-[18px]">
                   O login está temporariamente indisponível. Tente novamente em
-                  alguns minutos ou fale com suporte@pontuaenem.com.br.
+                  alguns minutos ou fale com pontuaenem.suporte@gmail.com.
                 </Notice>
               ) : null}
 

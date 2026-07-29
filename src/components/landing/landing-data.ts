@@ -21,7 +21,7 @@ export const landingNavLinks = [
 
 export const accessUntilLabel = "01/12/2026";
 export const initialCreditsLabel = "50 créditos iniciais inclusos";
-export const supportEmail = "suporte@pontuaenem.com.br";
+export const supportEmail = "pontuaenem.suporte@gmail.com";
 
 export const benefits: Array<{
   title: string;

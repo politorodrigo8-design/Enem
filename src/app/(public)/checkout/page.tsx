@@ -111,10 +111,10 @@ export default async function CheckoutPage() {
             <p className="mt-3 text-xs leading-5">
               Continua sem liberar depois de confirmado? Escreva para{" "}
               <a
-                href="mailto:suporte@pontuaenem.com.br"
+                href="mailto:pontuaenem.suporte@gmail.com"
                 className="font-semibold underline underline-offset-2"
               >
-                suporte@pontuaenem.com.br
+                pontuaenem.suporte@gmail.com
               </a>{" "}
               com a data do pagamento.
             </p>
@@ -178,7 +178,7 @@ export default async function CheckoutPage() {
               <div className="mt-6">
                 <CheckoutButton
                   disabled={!product.launch_ready}
-                  disabledMessage="As vendas estão fechadas neste momento. Escreva para suporte@pontuaenem.com.br e avisamos você quando reabrirem."
+                  disabledMessage="As vendas estão fechadas neste momento. Escreva para pontuaenem.suporte@gmail.com e avisamos você quando reabrirem."
                 />
               </div>
 
@@ -195,10 +195,10 @@ export default async function CheckoutPage() {
             <p className="mt-4 text-center text-xs font-medium leading-5 text-slate-500">
               Dúvidas sobre a compra? Fale com{" "}
               <a
-                href="mailto:suporte@pontuaenem.com.br"
+                href="mailto:pontuaenem.suporte@gmail.com"
                 className="font-bold underline underline-offset-2 hover:text-slate-700"
               >
-                suporte@pontuaenem.com.br
+                pontuaenem.suporte@gmail.com
               </a>
               .
             </p>

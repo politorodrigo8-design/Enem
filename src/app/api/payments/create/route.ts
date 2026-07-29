@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
       {
         ok: false,
         message:
-          "As vendas estão fechadas neste momento. Escreva para suporte@pontuaenem.com.br e avisamos você quando reabrirem.",
+          "As vendas estão fechadas neste momento. Escreva para pontuaenem.suporte@gmail.com e avisamos você quando reabrirem.",
       },
       { status: 409 },
     );

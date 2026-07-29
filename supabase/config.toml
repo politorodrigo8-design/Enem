@@ -449,11 +449,14 @@ email_sent = 30
 
 # Resend via SMTP. A senha é a API key do Resend (usuário é literalmente "resend"),
 # lida de RESEND_SMTP_PASSWORD no ambiente ou em .env.local (fora do versionamento).
+# O remetente precisa ser do domínio verificado no Resend — um endereço @gmail.com
+# não pode ser autenticado e derruba o envio. O canal de atendimento visível ao
+# aluno (pontuaenem.suporte@gmail.com) fica no corpo dos templates, não aqui.
 [remotes.prod.auth.email.smtp]
 enabled = true
 host = "smtp.resend.com"
 port = 587
 user = "resend"
 pass = "env(RESEND_SMTP_PASSWORD)"
-admin_email = "suporte@pontuaenem.com.br"
+admin_email = "nao-responda@pontuaenem.com.br"
 sender_name = "Pontua Enem"

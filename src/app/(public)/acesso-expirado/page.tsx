@@ -22,7 +22,7 @@ export default function ExpiredAccessPage() {
               <Link href="/checkout" className={buttonClasses({ variant: "primary", size: "lg" })}>
                 Ver próxima oferta
               </Link>
-              <Link href="mailto:suporte@pontuaenem.com.br" className={buttonClasses({ variant: "outline", size: "lg" })}>
+              <Link href="mailto:pontuaenem.suporte@gmail.com" className={buttonClasses({ variant: "outline", size: "lg" })}>
                 <Mail className="h-5 w-5" aria-hidden="true" />
                 Falar com suporte
               </Link>

@@ -27,7 +27,7 @@ export default function PaymentFailurePage() {
                 Tentar novamente
               </Link>
               <Link
-                href="mailto:suporte@pontuaenem.com.br"
+                href="mailto:pontuaenem.suporte@gmail.com"
                 className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-2xl" })}
               >
                 Suporte

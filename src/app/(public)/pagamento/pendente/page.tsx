@@ -45,10 +45,10 @@ export default async function PaymentPendingPage({
             <p className="mt-6 text-sm leading-6 text-slate-500">
               Já confirmou e o acesso não liberou? Escreva para{" "}
               <a
-                href="mailto:suporte@pontuaenem.com.br"
+                href="mailto:pontuaenem.suporte@gmail.com"
                 className="font-medium underline underline-offset-2 hover:text-slate-700"
               >
-                suporte@pontuaenem.com.br
+                pontuaenem.suporte@gmail.com
               </a>
               {order ? ` informando o pedido ${order}.` : " informando a data do pagamento."}
             </p>

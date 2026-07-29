@@ -198,10 +198,10 @@ export function PaymentSuccessReconciliation({
               <p className="mt-6 text-sm leading-6 text-slate-500">
                 Se você já pagou e isso continuar, escreva para{" "}
                 <a
-                  href="mailto:suporte@pontuaenem.com.br"
+                  href="mailto:pontuaenem.suporte@gmail.com"
                   className="font-medium underline underline-offset-2 hover:text-slate-700"
                 >
-                  suporte@pontuaenem.com.br
+                  pontuaenem.suporte@gmail.com
                 </a>{" "}
                 com a data e a forma de pagamento.
               </p>

@@ -916,7 +916,7 @@ async function aiGenerationFailure({
     : failureHeadline;
   const creditNote = refunded
     ? "Seu crédito foi devolvido — tente novamente em alguns minutos."
-    : "Se o crédito não voltar ao seu saldo em alguns minutos, escreva para suporte@pontuaenem.com.br.";
+    : "Se o crédito não voltar ao seu saldo em alguns minutos, escreva para pontuaenem.suporte@gmail.com.";
 
   return {
     ok: false,

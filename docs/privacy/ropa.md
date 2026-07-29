@@ -9,7 +9,7 @@ Versão de referência dos documentos públicos: 2026-07-23.
 - Definir razão social ou nome do fornecedor/controlador.
 - Definir CPF/CNPJ, endereço ou domicílio aplicável.
 - Definir encarregado/DPO, se aplicável.
-- Confirmar se haverá e-mail dedicado `privacidade@pontuaenem.com.br`; até lá, o canal público é `suporte@pontuaenem.com.br`.
+- Confirmar se haverá e-mail dedicado `privacidade@pontuaenem.com.br`; até lá, o canal público é `pontuaenem.suporte@gmail.com`.
 - Validar política proporcional para adolescentes e eventual coleta de data de nascimento.
 - Validar prazos jurídicos de retenção por categoria.
 - Validar termos do fornecedor de IA sobre retenção, treinamento e transferência internacional.
