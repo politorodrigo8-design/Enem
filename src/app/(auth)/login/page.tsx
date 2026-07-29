@@ -225,14 +225,14 @@ function LoginPageContent() {
             </p>
           </div>
 
-          <div className="relative z-10 mt-auto flex min-h-0 flex-1 items-end gap-4 pt-6 xl:gap-6">
-            <div className="relative -mb-8 -ml-8 h-full w-[46%] max-w-[300px] shrink-0">
+          <div className="relative z-10 mt-auto flex min-h-0 flex-1 items-end gap-3 pt-6 xl:gap-5">
+            <div className="relative -mb-8 -ml-10 h-full w-[58%] max-w-[390px] shrink-0 xl:max-w-[430px]">
               <Image
                 src="/images/landing/aluno-pontua-enem-cadastro-original.png"
                 alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
                 fill
-                sizes="300px"
-                className="object-contain object-bottom"
+                sizes="(min-width: 1280px) 430px, 390px"
+                className="scale-[1.18] object-contain object-bottom"
               />
             </div>
             <ul className="min-w-0 flex-1 space-y-4 pb-2">
