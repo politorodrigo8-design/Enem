@@ -12,7 +12,6 @@ import {
   Loader2,
   MailCheck,
   Route,
-  Sparkles,
   Target,
 } from "lucide-react";
 import { Suspense, useState, useTransition } from "react";
@@ -217,11 +216,7 @@ function LoginPageContent() {
           <Logo className="relative z-10" />
 
           <div className="relative z-10 max-w-xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-extrabold text-blue-800 shadow-sm shadow-blue-900/5">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
-              Pontua Enem
-            </span>
-            <p className="mt-5 text-5xl font-extrabold leading-[1.04] tracking-tight text-slate-950">
+            <p className="text-5xl font-extrabold leading-[1.04] tracking-tight text-slate-950">
               Comece a estudar com mais direção.
             </p>
             <p className="mt-5 max-w-lg text-lg font-medium leading-8 text-slate-600">
