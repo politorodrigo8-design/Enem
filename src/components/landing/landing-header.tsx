@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ArrowRight, LogIn, Menu, X } from "lucide-react";
 import { type MouseEvent, useEffect, useState } from "react";
 import { AccountMenu } from "@/components/ui/account-menu";
+import { ctaClasses } from "@/components/ui/cta";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 import type { PublicViewer } from "@/lib/db/queries";
@@ -83,7 +84,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
             {viewer ? null : (
               <Link
                 href="/login"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
               >
                 <LogIn className="h-4 w-4" aria-hidden="true" />
                 Entrar
@@ -91,7 +92,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
             )}
             <Link
               href={primaryCta.href}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-[16px] bg-blue-700 px-5 text-sm font-bold text-white shadow-sm shadow-blue-900/10 transition hover:-translate-y-0.5 hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:translate-y-0"
+              className={ctaClasses({ size: "md" })}
             >
               {primaryCta.label}
               <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -106,7 +107,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
           ) : null}
           <button
             type="button"
-            className="inline-flex h-11 w-11 items-center justify-center rounded-[16px] border border-blue-100 bg-white text-slate-700 shadow-sm shadow-blue-900/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 md:hidden"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-blue-100 bg-white text-slate-700 shadow-sm shadow-blue-900/5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 md:hidden"
             onClick={() => setOpen((value) => !value)}
             aria-expanded={open}
             aria-controls="landing-mobile-menu"
@@ -126,7 +127,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
               <Link
                 key={link.href}
                 href={link.href}
-                className="inline-flex min-h-12 items-center rounded-[16px] px-4 text-base font-bold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className="inline-flex min-h-12 items-center rounded-2xl px-4 text-base font-bold text-slate-700 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 onClick={(event) => handleSectionLinkClick(event, link.href)}
               >
                 {link.label}
@@ -135,7 +136,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
             {viewer ? null : (
               <Link
                 href="/login"
-                className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-[16px] border border-blue-100 bg-white px-4 text-base font-bold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                className="mt-2 inline-flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-blue-100 bg-white px-4 text-base font-bold text-slate-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                 onClick={() => setOpen(false)}
               >
                 <LogIn className="h-4 w-4" aria-hidden="true" />
@@ -144,7 +145,7 @@ export function LandingHeader({ ctaHref, viewer }: LandingHeaderProps) {
             )}
             <Link
               href={primaryCta.href}
-              className="inline-flex h-12 w-full items-center justify-center rounded-[16px] bg-blue-700 px-4 text-base font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+              className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-blue-700 px-4 text-base font-bold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
               onClick={() => setOpen(false)}
             >
               {primaryCta.label}

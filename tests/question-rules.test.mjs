@@ -37,10 +37,31 @@ test("questao demonstrativa nunca chega ao aluno e a revisao e obrigatoria", () 
 });
 
 test("acervo local entra quando o banco nao tem questao liberada", () => {
-  assert.match(queriesSource, /if \(readyRecords\.length > 0\) \{\s*return readyRecords;/);
-  assert.match(queriesSource, /return getFallbackQuestionRecords\(\);/);
+  assert.match(queriesSource, /if \(!rows\?\.length\) return getFallbackQuestionRecords\(\)/);
   // Paginação: sem ela a API corta em max_rows e o acervo para de crescer.
-  assert.match(queriesSource, /\.range\(from, from \+ questionPageSize - 1\)/);
+  assert.match(queriesSource, /\.range\(from, to\)/);
+  assert.match(queriesSource, /Math\.ceil\(\(count \?\? 0\) \/ pageSize\)/);
+});
+
+// O índice do acervo é o payload que viaja em toda navegação do Praticar. Ele
+// carrega só metadado: conteúdo vai sob demanda e gabarito só volta pela action.
+// Sem esta guarda, bastava um campo a mais no select para o enunciado inteiro —
+// ou a resposta certa — voltar a trafegar com o acervo.
+test("indice do acervo nao carrega enunciado, alternativas nem gabarito", () => {
+  for (const field of ["statement", "question_options", "correct_option", "explanation"]) {
+    assert.match(
+      queriesSource,
+      new RegExp(`delete summary\\.${field};`),
+      `toPracticeSummary precisa remover ${field} do índice`,
+    );
+  }
+  // O conteúdo tem uma porta só, e ela entrega enunciado e alternativas — nunca
+  // correct_option/explanation.
+  const contentQuery = queriesSource.slice(
+    queriesSource.indexOf("export async function getPracticeQuestionContent"),
+  );
+  const contentBody = contentQuery.slice(0, contentQuery.indexOf("\n}\n"));
+  assert.doesNotMatch(contentBody, /correct_option|explanation/);
 });
 
 test("monta payload real de persistencia de resposta e resultado correto", () => {

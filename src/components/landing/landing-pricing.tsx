@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
+import { ctaClasses } from "@/components/ui/cta";
 import { formatCurrency } from "@/lib/services/billing";
 import { PRODUCT_NAME } from "@/lib/product-config";
 import { pricingItems } from "./landing-data";
@@ -56,7 +57,7 @@ export function LandingPricing({ price, ctaHref }: LandingPricingProps) {
 
             <Link
               href={ctaHref}
-              className="mt-8 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-blue-700 px-6 text-base font-extrabold text-white shadow-sm shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:translate-y-0 sm:w-auto"
+              className={ctaClasses({ full: true, className: "mt-8 sm:w-auto" })}
             >
               Começar minha preparação
               <ArrowRight className="h-5 w-5" aria-hidden="true" />

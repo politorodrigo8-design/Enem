@@ -28,17 +28,6 @@ export function normalizeTaxonomyKey(value: string) {
   return normalizeQuestionTextKey(value);
 }
 
-/**
- * Aplica a limpeza do enunciado no que vai para a tela. Não altera o dado
- * gravado: a marca d'água da digitalização continua no banco, só não é exibida.
- */
-export function withCleanStatements<T extends { statement: string }>(questions: T[]): T[] {
-  return questions.map((question) => {
-    const statement = cleanQuestionStatement(question.statement);
-    return statement === question.statement ? question : { ...question, statement };
-  });
-}
-
 const requiredOptionKeys = ["A", "B", "C", "D", "E"];
 const brokenTextFragments = [
   "[object object]",

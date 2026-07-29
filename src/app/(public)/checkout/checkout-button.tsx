@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Loader2, LockKeyhole } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
+import { ctaClasses } from "@/components/ui/cta";
 import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
 
 export function CheckoutButton({
@@ -16,11 +16,10 @@ export function CheckoutButton({
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
-  const [legalAccepted, setLegalAccepted] = useState(false);
-  const isDisabled = disabled || pending || !legalAccepted;
+  const isDisabled = disabled || pending;
 
   function startCheckout() {
-    if (disabled || !legalAccepted) return;
+    if (disabled) return;
 
     startTransition(async () => {
       setMessage("");
@@ -48,41 +47,26 @@ export function CheckoutButton({
 
   return (
     <div>
-      <label
-        htmlFor="checkout-legal-acceptance"
-        className="mb-4 flex cursor-pointer items-start gap-3 rounded-[18px] border border-blue-100 bg-blue-50/50 p-4 text-sm font-medium leading-6 text-slate-700"
-      >
-        <input
-          id="checkout-legal-acceptance"
-          type="checkbox"
-          checked={legalAccepted}
-          onChange={(event) => setLegalAccepted(event.target.checked)}
-          aria-describedby={message || (disabled && disabledMessage) ? "checkout-payment-message" : undefined}
-          className="mt-0.5 h-5 w-5 shrink-0 rounded border-blue-200 text-blue-700 focus:ring-4 focus:ring-blue-600/15"
-        />
-        <span className="min-w-0">
-          Li e concordo com os{" "}
-          <CheckoutLegalLink href="/termos">Termos de Uso</CheckoutLegalLink> e com a{" "}
-          <CheckoutLegalLink href="/reembolso">Política de Reembolso</CheckoutLegalLink> e
-          declaro que li a{" "}
-          <CheckoutLegalLink href="/privacidade">Política de Privacidade</CheckoutLegalLink>.
-        </span>
-      </label>
-      <Button
+      <button
         type="button"
-        size="lg"
-        full
         disabled={isDisabled}
         onClick={startCheckout}
-        className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+        aria-describedby={message || (disabled && disabledMessage) ? "checkout-payment-message" : undefined}
+        className={ctaClasses({ full: true })}
       >
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <LockKeyhole className="h-5 w-5" />}
         {disabled ? "Pagamento indisponível" : "Continuar para o pagamento"}
-      </Button>
+      </button>
+      <p className="mt-3 text-sm font-medium leading-6 text-slate-500">
+        Ao continuar você confirma os{" "}
+        <CheckoutLegalLink href="/termos">Termos de Uso</CheckoutLegalLink> e a{" "}
+        <CheckoutLegalLink href="/reembolso">Política de Reembolso</CheckoutLegalLink>{" "}
+        aceitos na criação da conta.
+      </p>
       {disabled && disabledMessage ? (
         <p
           id="checkout-payment-message"
-          className="mt-3 rounded-[16px] bg-slate-100 p-3 text-sm font-bold leading-6 text-slate-700"
+          className="mt-3 rounded-2xl bg-slate-100 p-3 text-sm font-bold leading-6 text-slate-700"
           aria-live="polite"
         >
           {disabledMessage}
@@ -91,7 +75,7 @@ export function CheckoutButton({
       {message ? (
         <p
           id="checkout-payment-message"
-          className="mt-3 break-words rounded-[16px] bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900"
+          className="mt-3 break-words rounded-2xl bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900"
           aria-live="polite"
         >
           {message}

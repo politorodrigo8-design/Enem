@@ -72,7 +72,7 @@ export function LandingProductShowcase() {
                   tabIndex={selected ? 0 : -1}
                   onClick={() => setActiveIndex(index)}
                   className={cn(
-                    "flex min-h-12 items-center justify-center gap-2 rounded-[16px] px-3 text-sm font-extrabold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
+                    "flex min-h-12 items-center justify-center gap-2 rounded-2xl px-3 text-sm font-extrabold transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700",
                     selected
                       ? "bg-blue-700 text-white shadow-sm shadow-blue-900/15"
                       : "text-slate-600 hover:bg-blue-50 hover:text-blue-800",

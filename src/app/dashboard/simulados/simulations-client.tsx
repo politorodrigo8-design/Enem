@@ -53,6 +53,7 @@ import {
 } from "@/lib/practice-session/rules.mjs";
 import {
   isLocalQuestionId,
+  localAnswerTaxonomy,
   recordLocalQuestionAnswer,
   useLocalQuestionProgress,
 } from "@/lib/local-question-progress";
@@ -357,12 +358,16 @@ export function SimulationsClient({
           (result.results ?? []).forEach((item) => {
             const selectedOption = answers[item.questionId];
             if (!selectedOption || !isLocalQuestionId(item.questionId)) return;
+            const question = examQuestions.find(
+              (candidate) => candidate.id === item.questionId,
+            );
             recordLocalQuestionAnswer({
               questionId: item.questionId,
               selectedOption,
               isCorrect: item.isCorrect,
               responseTimeSeconds: averageSeconds,
               answeredAt: new Date().toISOString(),
+              ...(question ? localAnswerTaxonomy(question) : {}),
             });
           });
         }

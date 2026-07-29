@@ -26,10 +26,8 @@ export function CreditPackageCheckoutButton({
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
   const [open, setOpen] = useState(false);
-  const [legalAccepted, setLegalAccepted] = useState(false);
   const cancelRef = useRef<HTMLButtonElement>(null);
   const isDisabled = disabled || pending;
-  const canContinue = !isDisabled && legalAccepted;
 
   useLockPageScroll(open);
 
@@ -38,10 +36,7 @@ export function CreditPackageCheckoutButton({
     cancelRef.current?.focus();
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape" && !pending) {
-        setOpen(false);
-        setLegalAccepted(false);
-      }
+      if (event.key === "Escape" && !pending) setOpen(false);
     }
 
     document.addEventListener("keydown", handleKeyDown);
@@ -51,11 +46,10 @@ export function CreditPackageCheckoutButton({
   function closeModal() {
     if (pending) return;
     setOpen(false);
-    setLegalAccepted(false);
   }
 
   function startCheckout() {
-    if (!canContinue) return;
+    if (isDisabled) return;
 
     startTransition(async () => {
       setMessage("");
@@ -91,7 +85,6 @@ export function CreditPackageCheckoutButton({
         disabled={isDisabled}
         onClick={() => {
           setMessage("");
-          setLegalAccepted(false);
           setOpen(true);
         }}
       >
@@ -156,21 +149,12 @@ export function CreditPackageCheckoutButton({
               </p>
             </div>
 
-            <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-white p-3 text-sm leading-6 text-slate-700">
-              <input
-                type="checkbox"
-                checked={legalAccepted}
-                onChange={(event) => setLegalAccepted(event.target.checked)}
-                className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
-              />
-              <span>
-                Li e concordo com os{" "}
-                <ModalLegalLink href="/termos">Termos de Uso</ModalLegalLink> e com a{" "}
-                <ModalLegalLink href="/reembolso">Política de Reembolso</ModalLegalLink> e
-                declaro que li a{" "}
-                <ModalLegalLink href="/privacidade">Política de Privacidade</ModalLegalLink>.
-              </span>
-            </label>
+            <p className="mt-4 text-sm leading-6 text-slate-500">
+              Ao continuar você confirma os{" "}
+              <ModalLegalLink href="/termos">Termos de Uso</ModalLegalLink> e a{" "}
+              <ModalLegalLink href="/reembolso">Política de Reembolso</ModalLegalLink>{" "}
+              aceitos na criação da conta.
+            </p>
 
             {message ? (
               <p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-900">
@@ -188,7 +172,7 @@ export function CreditPackageCheckoutButton({
               >
                 Cancelar
               </Button>
-              <Button type="button" onClick={startCheckout} disabled={!canContinue}>
+              <Button type="button" onClick={startCheckout} disabled={isDisabled}>
                 {pending ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
                 ) : (

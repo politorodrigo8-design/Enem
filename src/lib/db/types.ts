@@ -52,6 +52,81 @@ export type QuestionRecord = Question & {
   user_question_favorites?: Array<{ id: string }>;
 };
 
+export type QuestionUserAnswer = NonNullable<
+  QuestionRecord["user_question_answers"]
+>[number];
+
+/**
+ * Índice do acervo servido ao aluno (Praticar e Já respondidas). O acervo
+ * inteiro atravessa o payload RSC a cada navegação, então aqui entra só o que
+ * filtra, ordena e rotula uma questão na lista — nunca o conteúdo dela.
+ *
+ * Enunciado e alternativas ficam em `PracticeQuestionContent`, buscados sob
+ * demanda para a questão aberta: são ~1,2 MB do acervo e o aluno lê uma questão
+ * por vez. `explanation` e `correct_option` não entram em nenhum dos dois — a
+ * resolução só volta pela action, depois de responder.
+ *
+ * Editorial e simulados continuam com `QuestionRecord` completo, que é o
+ * registro de escrita/administração.
+ */
+export type PracticeQuestionRecord = Pick<
+  Question,
+  | "id"
+  | "difficulty"
+  | "year"
+  | "source"
+  | "exam_name"
+  | "exam_color"
+  | "exam_day"
+  | "question_number"
+  | "is_demo"
+  | "is_official"
+  | "is_authorial"
+  | "is_inspired"
+  | "priority_reason"
+  | "recurrence_category"
+  | "review_status"
+  | "reviewed"
+  | "source_verified"
+  | "answer_verified"
+  | "media_required"
+> & {
+  // Mídia legada: só o acervo local de reserva preenche estes campos. A tabela
+  // `questions` não tem coluna `media_url` — nunca selecionar por nome.
+  media_url?: string | null;
+  media_alt?: string | null;
+  media_metadata?: Database["public"]["Tables"]["profiles"]["Row"]["perceived_difficulties"];
+  subjects: Pick<Subject, "id" | "name" | "area">;
+  topics: Pick<Topic, "id" | "name">;
+  question_media?: QuestionMedia[];
+  user_question_answers?: QuestionUserAnswer[];
+  user_question_reviews?: Array<{ id: string; mastered: boolean }>;
+  user_question_favorites?: Array<{ id: string }>;
+};
+
+/** Conteúdo da questão aberta: buscado sob demanda, um punhado por vez. */
+export type PracticeQuestionContent = {
+  id: string;
+  statement: string;
+  question_options: Array<Pick<QuestionOption, "option_key" | "option_text">>;
+};
+
+/**
+ * Uma resposta do aluno com a taxonomia da questão anexada. É o insumo de todas
+ * as métricas de desempenho — que antes baixavam o acervo inteiro para somar
+ * acertos por área, disciplina e assunto.
+ */
+export type AnsweredQuestionMetric = {
+  id: string;
+  question_id: string;
+  is_correct: boolean;
+  response_time_seconds: number;
+  answered_at: string;
+  area: string;
+  subject: string;
+  topic: string;
+};
+
 export type CreditsData = {
   account: CreditAccount;
   ledger: CreditLedgerEntry[];

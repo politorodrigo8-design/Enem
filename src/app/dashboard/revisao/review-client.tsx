@@ -21,9 +21,18 @@ import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { submitQuestionAnswerAction } from "@/lib/actions/learning";
-import type { QuestionRecord } from "@/lib/db/types";
+import type { PracticeQuestionContent, PracticeQuestionRecord } from "@/lib/db/types";
+import {
+  questionContentWindow,
+  useQuestionContent,
+} from "@/lib/questions/use-question-content";
+import {
+  QuestionOptionsPlaceholder,
+  QuestionStatementPlaceholder,
+} from "@/components/dashboard/question-content-placeholder";
 import {
   isLocalQuestionId,
+  localAnswerTaxonomy,
   recordLocalQuestionAnswer,
 } from "@/lib/local-question-progress";
 import { cn } from "@/lib/utils";
@@ -41,11 +50,11 @@ const retryResetDelayMs = 4500;
 const filters: ReviewFilter[] = ["Para refazer", "Acertadas", "Favoritas"];
 
 /** Entra no histórico o que já foi respondido ou salvo como favorito. */
-export function hasReviewHistory(question: QuestionRecord) {
+export function hasReviewHistory(question: PracticeQuestionRecord) {
   return Boolean(question.user_question_answers?.length) || isFavorite(question);
 }
 
-export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
+export function ReviewClient({ questions }: { questions: PracticeQuestionRecord[] }) {
   const [filter, setFilter] = useState<ReviewFilter>("Para refazer");
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
   const [results, setResults] = useState<Record<string, RetryResult>>({});
@@ -82,12 +91,22 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
     () =>
       queueIds
         .map((id) => questionById.get(id))
-        .filter((item): item is QuestionRecord => Boolean(item)),
+        .filter((item): item is PracticeQuestionRecord => Boolean(item)),
     [questionById, queueIds],
   );
 
   const currentIndex = Math.min(index, Math.max(queue.length - 1, 0));
   const question = queue[currentIndex];
+  // O índice do acervo vem sem enunciado nem alternativas: o conteúdo da questão
+  // aberta (e o das vizinhas) chega por aqui.
+  const questionContentById = useQuestionContent(
+    // A fila resolvida, não `queueIds`: um id sem questão correspondente
+    // deslocaria a janela em relação à questão que está na tela.
+    questionContentWindow(
+      queue.map((item) => item.id),
+      currentIndex,
+    ),
+  );
   const result = question ? results[question.id] : undefined;
   const selectedOption = question ? selectedAnswers[question.id] ?? "" : "";
 
@@ -135,6 +154,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
           isCorrect: retryResult.isCorrect,
           responseTimeSeconds: 0,
           answeredAt: new Date().toISOString(),
+          ...localAnswerTaxonomy(target),
         });
       }
 
@@ -237,6 +257,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
           <QuestionReviewCard
             key={question.id}
             question={question}
+            content={questionContentById[question.id]}
             position={currentIndex + 1}
             total={queue.length}
             pending={pending}
@@ -260,6 +281,7 @@ export function ReviewClient({ questions }: { questions: QuestionRecord[] }) {
 
 function QuestionReviewCard({
   question,
+  content,
   position,
   total,
   pending,
@@ -270,7 +292,8 @@ function QuestionReviewCard({
   onPrevious,
   onNext,
 }: {
-  question: QuestionRecord;
+  question: PracticeQuestionRecord;
+  content?: PracticeQuestionContent;
   position: number;
   total: number;
   pending: boolean;
@@ -317,9 +340,13 @@ function QuestionReviewCard({
         </CardHeader>
         <CardContent>
           <div className="animate-rise min-w-0">
-            <p className="break-words text-base leading-7 text-slate-900">
-              {question.statement}
-            </p>
+            {content ? (
+              <p className="break-words text-base leading-7 text-slate-900">
+                {content.statement}
+              </p>
+            ) : (
+              <QuestionStatementPlaceholder />
+            )}
             {associatedMedia.length ? (
               <div className="mt-5 space-y-4">
                 {associatedMedia
@@ -363,7 +390,10 @@ function QuestionReviewCard({
             ) : null}
 
             <div className="mt-5 grid gap-2.5">
-              {question.question_options
+              {!content ? (
+                <QuestionOptionsPlaceholder />
+              ) : (
+                content.question_options
                 .slice()
                 .sort((a, b) => a.option_key.localeCompare(b.option_key))
                 .map((option) => {
@@ -378,7 +408,7 @@ function QuestionReviewCard({
 
                   return (
                     <button
-                      key={option.id}
+                      key={option.option_key}
                       type="button"
                       onClick={() => !result && onSelect(option.option_key)}
                       className={cn(
@@ -400,7 +430,8 @@ function QuestionReviewCard({
                       </span>
                     </button>
                   );
-                })}
+                })
+              )}
             </div>
 
             <p className="mt-5 border-t border-slate-100 pt-4 text-sm leading-6 text-slate-600">
@@ -441,7 +472,7 @@ function QuestionReviewCard({
               <Button
                 className="w-full sm:w-auto"
                 onClick={onRetry}
-                disabled={!selectedOption || pending || Boolean(result)}
+                disabled={!selectedOption || !content || pending || Boolean(result)}
               >
                 <RotateCcw className="h-4 w-4" aria-hidden="true" />
                 Responder de novo
@@ -504,18 +535,18 @@ function QuestionReviewCard({
   );
 }
 
-function matchesFilter(question: QuestionRecord, filter: ReviewFilter) {
+function matchesFilter(question: PracticeQuestionRecord, filter: ReviewFilter) {
   if (filter === "Favoritas") return isFavorite(question);
   const latest = latestAnswer(question);
   if (filter === "Acertadas") return Boolean(latest?.is_correct);
   return Boolean(latest) && !latest?.is_correct;
 }
 
-function isFavorite(question: QuestionRecord) {
+function isFavorite(question: PracticeQuestionRecord) {
   return Boolean(question.user_question_favorites?.length);
 }
 
-function latestAnswer(question: QuestionRecord) {
+function latestAnswer(question: PracticeQuestionRecord) {
   return question.user_question_answers
     ?.slice()
     .sort(
@@ -524,7 +555,7 @@ function latestAnswer(question: QuestionRecord) {
     )[0];
 }
 
-function questionOrigin(question: QuestionRecord) {
+function questionOrigin(question: PracticeQuestionRecord) {
   if (question.is_official) return "Oficial";
   if (question.is_authorial) return "Autoral";
   if (question.is_inspired) return "Inspirada";
@@ -532,7 +563,7 @@ function questionOrigin(question: QuestionRecord) {
   return "Revisada";
 }
 
-function questionBoard(question: QuestionRecord) {
+function questionBoard(question: PracticeQuestionRecord) {
   if (question.is_official) {
     const examName = question.exam_name?.trim() || "ENEM";
     return examName.toLowerCase().includes("enem") ? "ENEM" : examName;
@@ -545,7 +576,7 @@ function questionBoard(question: QuestionRecord) {
   return "Pontua Enem";
 }
 
-function formatQuestionSource(question: QuestionRecord) {
+function formatQuestionSource(question: PracticeQuestionRecord) {
   const parts = [
     question.source,
     question.exam_color,
@@ -555,7 +586,7 @@ function formatQuestionSource(question: QuestionRecord) {
   return parts.join(" · ");
 }
 
-function formatExamDetail(question: QuestionRecord) {
+function formatExamDetail(question: PracticeQuestionRecord) {
   const parts = [
     question.exam_name || "ENEM",
     String(question.year),
@@ -567,7 +598,7 @@ function formatExamDetail(question: QuestionRecord) {
   return parts.join(" · ");
 }
 
-function getQuestionMedia(question?: QuestionRecord) {
+function getQuestionMedia(question?: PracticeQuestionRecord) {
   if (!question?.media_url) return null;
   const metadata = question.media_metadata;
   const width =

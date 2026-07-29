@@ -31,13 +31,13 @@ export default async function PaymentPendingPage({
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href={order ? `/pagamento/sucesso?order=${order}` : "/pagamento/sucesso"}
-                className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
+                className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-2xl" })}
               >
                 Verificar meu pagamento
               </Link>
               <Link
                 href="/dashboard"
-                className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-[16px]" })}
+                className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-2xl" })}
               >
                 Ir para a plataforma
               </Link>

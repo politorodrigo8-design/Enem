@@ -32,7 +32,7 @@ import {
   updatePracticeSessionProgressAction,
 } from "@/lib/actions/learning";
 import type { AccessContext } from "@/lib/access";
-import type { ActivePracticeSession, QuestionRecord } from "@/lib/db/types";
+import type { ActivePracticeSession, PracticeQuestionRecord } from "@/lib/db/types";
 import {
   buildShortQuestionFeedback,
   getPracticeSessionStats,
@@ -41,9 +41,18 @@ import { selectRecommendedQuestions } from "@/lib/questions/rules.mjs";
 import { cn } from "@/lib/utils";
 import {
   isLocalQuestionId,
+  localAnswerTaxonomy,
   recordLocalQuestionAnswer,
   useLocalQuestionProgress,
 } from "@/lib/local-question-progress";
+import {
+  questionContentWindow,
+  useQuestionContent,
+} from "@/lib/questions/use-question-content";
+import {
+  QuestionOptionsPlaceholder,
+  QuestionStatementPlaceholder,
+} from "@/components/dashboard/question-content-placeholder";
 
 export type TopicPriority = Record<
   string,
@@ -51,7 +60,7 @@ export type TopicPriority = Record<
 >;
 
 type Props = {
-  questions: QuestionRecord[];
+  questions: PracticeQuestionRecord[];
   access: AccessContext;
   userId: string;
   answerSource?: "question_bank" | "high_priority";
@@ -63,6 +72,9 @@ type Props = {
 };
 
 export type FocusMode = "recommended" | "unanswered" | "review" | "all";
+
+// Janela mínima entre revalidações disparadas por foco/visibilidade.
+const revalidateOnFocusIntervalMs = 60_000;
 
 const allQuestionsSize = "Todas";
 const sessionSizePresets = ["10", "15", "20"];
@@ -128,7 +140,7 @@ function sameFilters(a: Filters, b: Filters) {
   );
 }
 
-function sliceForSize(questions: QuestionRecord[], size: SessionSize) {
+function sliceForSize(questions: PracticeQuestionRecord[], size: SessionSize) {
   const limit = Number(size);
   return size === allQuestionsSize || !Number.isFinite(limit) || limit < 1
     ? questions
@@ -302,7 +314,7 @@ export function QuestionBankClient({
     () =>
       session.questionIds
         .map((id) => questionById.get(id))
-        .filter((item): item is QuestionRecord => Boolean(item)),
+        .filter((item): item is PracticeQuestionRecord => Boolean(item)),
     [questionById, session.questionIds],
   );
 
@@ -384,6 +396,15 @@ export function QuestionBankClient({
   const knownCorrectOption = Boolean(currentResult?.correctOption);
   const displayedSelected =
     selected || (question ? sessionAnswer?.selectedOption ?? "" : "");
+  // Enunciado e alternativas não vêm no índice do acervo: chegam por aqui, para
+  // a questão aberta e as vizinhas.
+  const questionContentById = useQuestionContent(
+    questionContentWindow(
+      sessionQuestions.map((item) => item.id),
+      currentIndex,
+    ),
+  );
+  const questionContent = question ? questionContentById[question.id] : undefined;
   const accessBlocked = !access.hasPlatformAccess;
   const legacyMedia = getQuestionMedia(question);
   const associatedMedia = question?.question_media ?? [];
@@ -395,7 +416,7 @@ export function QuestionBankClient({
   const answeredInSession = sessionStats.answered;
   const sessionSubmittedQuestions = sessionStats.answeredQuestionIds
     .map((questionId) => questionById.get(questionId))
-    .filter((item): item is QuestionRecord => Boolean(item));
+    .filter((item): item is PracticeQuestionRecord => Boolean(item));
   const sessionSubmittedCount = sessionStats.answered;
   const sessionSubmittedCorrect = sessionStats.correct;
   const sessionSubmittedWrong = sessionStats.wrong;
@@ -491,8 +512,16 @@ export function QuestionBankClient({
   ]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
+  // Revalidar no foco custa o acervo inteiro de novo (payload RSC de MB): sem
+  // janela mínima, alternar de aba do navegador refazia a página a cada volta —
+  // "focus" e "visibilitychange" ainda disparam juntos no mesmo gesto.
   useEffect(() => {
+    let lastRefreshAt = Date.now();
+
     function revalidateFromServer() {
+      const now = Date.now();
+      if (now - lastRefreshAt < revalidateOnFocusIntervalMs) return;
+      lastRefreshAt = now;
       router.refresh();
     }
 
@@ -670,6 +699,7 @@ export function QuestionBankClient({
             isCorrect: Boolean(response.isCorrect),
             responseTimeSeconds: 0,
             answeredAt: new Date().toISOString(),
+            ...localAnswerTaxonomy(question),
           });
         }
         setSessionFinished(false);
@@ -1038,9 +1068,13 @@ export function QuestionBankClient({
             </CardHeader>
             <CardContent>
               <div key={question.id} className="animate-rise">
-                <p className="break-words text-base leading-7 text-slate-900 sm:text-lg sm:leading-8">
-                  {question.statement}
-                </p>
+                {questionContent ? (
+                  <p className="break-words text-base leading-7 text-slate-900 sm:text-lg sm:leading-8">
+                    {questionContent.statement}
+                  </p>
+                ) : (
+                  <QuestionStatementPlaceholder />
+                )}
                 {associatedMedia.length ? (
                   <div className="mt-6 space-y-4">
                     {associatedMedia
@@ -1100,7 +1134,10 @@ export function QuestionBankClient({
                   </div>
                 ) : null}
                 <div className="mt-6 space-y-3">
-                  {question.question_options
+                  {!questionContent ? (
+                    <QuestionOptionsPlaceholder />
+                  ) : (
+                    questionContent.question_options
                     .slice()
                     .sort((a, b) => a.option_key.localeCompare(b.option_key))
                     .map((option) => {
@@ -1117,7 +1154,7 @@ export function QuestionBankClient({
 
                       return (
                         <button
-                          key={option.id}
+                          key={option.option_key}
                           type="button"
                           onClick={() =>
                             !currentResult && setSelected(option.option_key)
@@ -1141,7 +1178,8 @@ export function QuestionBankClient({
                           </span>
                         </button>
                       );
-                    })}
+                    })
+                  )}
                 </div>
               </div>
 
@@ -1172,7 +1210,11 @@ export function QuestionBankClient({
                   className="w-full sm:w-auto"
                   onClick={submitAnswer}
                   disabled={
-                    !selected || pending || Boolean(currentResult) || accessBlocked
+                    !selected ||
+                    !questionContent ||
+                    pending ||
+                    Boolean(currentResult) ||
+                    accessBlocked
                   }
                 >
                   Responder
@@ -1372,7 +1414,7 @@ function RecommendationCriteria({
   questions,
   topicPriority,
 }: {
-  questions: QuestionRecord[];
+  questions: PracticeQuestionRecord[];
   topicPriority?: TopicPriority;
 }) {
   const topicNames = Array.from(
@@ -1416,7 +1458,7 @@ function formatTopicList(names: string[]) {
 }
 
 // A razão do assunto vem do mesmo motor de prioridades da tela Hoje.
-function hasWhyThisQuestion(question: QuestionRecord, topicReason?: string) {
+function hasWhyThisQuestion(question: PracticeQuestionRecord, topicReason?: string) {
   return Boolean(
     topicReason?.trim() ||
       question.priority_reason?.trim() ||
@@ -1428,7 +1470,7 @@ function WhyThisQuestion({
   question,
   topicReason,
 }: {
-  question: QuestionRecord;
+  question: PracticeQuestionRecord;
   topicReason?: string;
 }) {
   const reason = topicReason?.trim() || question.priority_reason?.trim();
@@ -1450,7 +1492,7 @@ function WhyThisQuestion({
 }
 
 // As categorias vêm do pipeline editorial sem acentos; nunca exibir o valor cru.
-function recurrenceDisplay(question: QuestionRecord) {
+function recurrenceDisplay(question: PracticeQuestionRecord) {
   switch (question.recurrence_category) {
     case "Potencial muito alto de recorrencia do conteudo":
       return "Conteúdo muito frequente nas últimas provas";
@@ -1464,7 +1506,7 @@ function recurrenceDisplay(question: QuestionRecord) {
 }
 
 function buildFilterOptions(
-  questions: QuestionRecord[],
+  questions: PracticeQuestionRecord[],
   filters: typeof defaultFilters,
 ) {
   const byArea =
@@ -1502,7 +1544,7 @@ function filterQuestions({
   filters,
   topicPriority,
 }: {
-  questions: QuestionRecord[];
+  questions: PracticeQuestionRecord[];
   focusMode: FocusMode;
   answerState: Record<string, unknown>;
   favoriteState: Record<string, unknown>;
@@ -1540,10 +1582,10 @@ function filterQuestions({
   return selectRecommendedQuestions({
     questions: selected,
     topicPriority,
-  }) as QuestionRecord[];
+  }) as PracticeQuestionRecord[];
 }
 
-function questionOrigin(question: QuestionRecord) {
+function questionOrigin(question: PracticeQuestionRecord) {
   if (question.is_official) return "Oficial";
   if (question.is_authorial) return "Autoral";
   if (question.is_inspired) return "Inspirada";
@@ -1551,7 +1593,7 @@ function questionOrigin(question: QuestionRecord) {
   return "Revisada";
 }
 
-function questionBoard(question: QuestionRecord) {
+function questionBoard(question: PracticeQuestionRecord) {
   if (question.is_official) {
     const examName = question.exam_name?.trim() || "ENEM";
     return examName.toLowerCase().includes("enem") ? "ENEM" : examName;
@@ -1564,7 +1606,7 @@ function questionBoard(question: QuestionRecord) {
   return "Pontua Enem";
 }
 
-function formatQuestionSource(question: QuestionRecord) {
+function formatQuestionSource(question: PracticeQuestionRecord) {
   const parts = [
     question.source,
     question.exam_color,
@@ -1574,7 +1616,7 @@ function formatQuestionSource(question: QuestionRecord) {
   return parts.join(" · ");
 }
 
-function formatExamDetail(question: QuestionRecord) {
+function formatExamDetail(question: PracticeQuestionRecord) {
   const parts = [
     question.exam_name || "ENEM",
     String(question.year),
@@ -1615,7 +1657,7 @@ function Select({
   );
 }
 
-function getQuestionMedia(question?: QuestionRecord) {
+function getQuestionMedia(question?: PracticeQuestionRecord) {
   if (!question?.media_url) return null;
   const metadata = question.media_metadata;
   const width =
@@ -1674,7 +1716,7 @@ function buildInitialSessionSnapshot({
   topicPriority,
 }: {
   restoredPracticeSession?: ActivePracticeSession | null;
-  orderedQuestions: QuestionRecord[];
+  orderedQuestions: PracticeQuestionRecord[];
   focusMode: FocusMode;
   sessionSize: SessionSize;
   filters: Filters;
@@ -1733,7 +1775,7 @@ function answerStateFromActiveSession(session: ActivePracticeSession): AnswerSta
   );
 }
 
-function latestAnswer(question: QuestionRecord) {
+function latestAnswer(question: PracticeQuestionRecord) {
   return question.user_question_answers
     ?.slice()
     .sort(

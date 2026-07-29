@@ -1,4 +1,6 @@
+import { Suspense } from "react";
 import { DashboardPageHeader } from "@/components/dashboard/page-header";
+import { PracticeTabsSkeleton } from "@/components/ui/skeleton";
 import { getAccessContext } from "@/lib/access";
 import {
   getProfile,
@@ -7,7 +9,6 @@ import {
   getTopicNameById,
   getTopicsWithPerformance,
 } from "@/lib/db/queries";
-import { withCleanStatements } from "@/lib/questions/quality";
 import {
   perceivedDifficultiesFromProfile,
   prioritizeTopics,
@@ -17,15 +18,38 @@ import { PracticeTabs, type PracticeTab } from "./practice-tabs";
 const uuidPattern =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+type PracticeSearchParams = {
+  tab?: string;
+  question?: string;
+  topic?: string;
+  meta?: string;
+};
+
+// O cabeçalho não depende do acervo: sai na primeira resposta e o índice das
+// questões (a parte lenta) transmite depois, dentro do Suspense. Antes a tela
+// inteira ficava no esqueleto do dashboard até a última questão chegar.
 export default async function PracticePage({
   searchParams,
 }: {
-  searchParams: Promise<{
-    tab?: string;
-    question?: string;
-    topic?: string;
-    meta?: string;
-  }>;
+  searchParams: Promise<PracticeSearchParams>;
+}) {
+  return (
+    <div>
+      <DashboardPageHeader
+        title="Questões"
+        description="Resolva recomendadas, filtre o banco ou revise questões."
+      />
+      <Suspense fallback={<PracticeTabsSkeleton />}>
+        <PracticeContent searchParams={searchParams} />
+      </Suspense>
+    </div>
+  );
+}
+
+async function PracticeContent({
+  searchParams,
+}: {
+  searchParams: Promise<PracticeSearchParams>;
 }) {
   const [{ tab, question, topic, meta }, questions, activePracticeSession, profile, topics] =
     await Promise.all([
@@ -60,23 +84,17 @@ export default async function PracticePage({
   );
 
   return (
-    <div>
-      <DashboardPageHeader
-        title="Questões"
-        description="Resolva recomendadas, filtre o banco ou revise questões."
-      />
-      <PracticeTabs
-        initialTab={initialTab}
-        questions={withCleanStatements(questions)}
-        access={access}
-        userId={profile?.id ?? ""}
-        initialQuestionId={question}
-        initialTopic={initialTopic}
-        initialGoal={parseGoal(meta)}
-        topicPriority={topicPriority}
-        activePracticeSession={activePracticeSession}
-      />
-    </div>
+    <PracticeTabs
+      initialTab={initialTab}
+      questions={questions}
+      access={access}
+      userId={profile?.id ?? ""}
+      initialQuestionId={question}
+      initialTopic={initialTopic}
+      initialGoal={parseGoal(meta)}
+      topicPriority={topicPriority}
+      activePracticeSession={activePracticeSession}
+    />
   );
 }
 

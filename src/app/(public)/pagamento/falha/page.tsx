@@ -22,13 +22,13 @@ export default function PaymentFailurePage() {
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/checkout"
-                className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
+                className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-2xl" })}
               >
                 Tentar novamente
               </Link>
               <Link
                 href="mailto:suporte@pontuaenem.com.br"
-                className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-[16px]" })}
+                className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-2xl" })}
               >
                 Suporte
               </Link>

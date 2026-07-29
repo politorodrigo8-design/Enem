@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { getAccessContext } from "@/lib/access";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -11,15 +12,16 @@ import {
 } from "@/lib/study/priorities";
 import { calculateStudyStreak } from "@/lib/study/streak.mjs";
 import { appDateISO } from "@/lib/dates";
-import { latestQuestionAnswer } from "@/lib/questions/rules.mjs";
+import { cleanQuestionStatement } from "@/lib/questions/rules.mjs";
+import { buildAreaMetrics } from "@/lib/db/metrics";
 import {
   getFallbackQuestionRecords,
   getFallbackSimulations,
   getFallbackTopicsWithPerformance,
+  isFallbackQuestionId,
 } from "@/lib/db/fallback-content";
 import type {
   ActivityRecord,
-  AreaMetric,
   ActivePracticeSession,
   CreditsData,
   DashboardEssayCreditData,
@@ -29,6 +31,9 @@ import type {
   FeedbackInboxItem,
   FeedbackStatus,
   FeedbackType,
+  AnsweredQuestionMetric,
+  PracticeQuestionContent,
+  PracticeQuestionRecord,
   Profile,
   QuestionRecord,
   Referral,
@@ -62,6 +67,54 @@ function logQueryError(queryName: string, error: QueryError | null) {
   });
 }
 
+// A API do Supabase corta cada resposta em `max_rows` (supabase/config.toml).
+// Precisa acompanhar esse teto: uma página maior volta cortada em silêncio.
+const supabaseMaxRows = 1000;
+
+/**
+ * Lê uma tabela inteira sem descobrir o fim página a página: uma requisição
+ * `head` traz a contagem e todas as páginas saem juntas. Devolve `null` no
+ * primeiro erro, para o chamador decidir o fallback.
+ */
+async function fetchAllRows({
+  queryName,
+  countRows,
+  fetchPage,
+  pageSize = supabaseMaxRows,
+}: {
+  queryName: string;
+  countRows: () => PromiseLike<{ count: number | null; error: QueryError | null }>;
+  fetchPage: (
+    from: number,
+    to: number,
+  ) => PromiseLike<{ data: unknown[] | null; error: QueryError | null }>;
+  pageSize?: number;
+}): Promise<unknown[] | null> {
+  const { count, error: countError } = await countRows();
+  if (countError) {
+    logQueryError(`${queryName}.count`, countError);
+    return null;
+  }
+
+  const pageCount = Math.max(1, Math.ceil((count ?? 0) / pageSize));
+  const pages = await Promise.all(
+    Array.from({ length: pageCount }, (_, page) =>
+      fetchPage(page * pageSize, page * pageSize + pageSize - 1),
+    ),
+  );
+
+  const rows: unknown[] = [];
+  for (const page of pages) {
+    if (page.error) {
+      logQueryError(queryName, page.error);
+      return null;
+    }
+    rows.push(...(page.data ?? []));
+  }
+
+  return rows;
+}
+
 // O gabarito (correct_option) e a resolução (explanation) nunca devem chegar ao
 // cliente junto da questão: o payload RSC é inspecionável e revelaria a resposta
 // antes do envio. Esses campos voltam apenas na resposta da action, após responder.
@@ -69,6 +122,25 @@ function stripAnswerKey<T extends { correct_option: string; explanation: string 
   question: T,
 ): T {
   return { ...question, correct_option: "", explanation: "" };
+}
+
+// Campos que existem no registro lido do banco e não podem sobrar no índice:
+// conteúdo da questão (vai sob demanda) e gabarito (só volta pela action).
+type PracticeSummaryLeftovers = Partial<
+  Pick<PracticeQuestionRow, "statement" | "question_options" | "correct_option"> & {
+    explanation: string;
+  }
+>;
+
+function toPracticeSummary(
+  question: PracticeQuestionRow | QuestionRecord,
+): PracticeQuestionRecord {
+  const summary: PracticeQuestionRecord & PracticeSummaryLeftovers = { ...question };
+  delete summary.statement;
+  delete summary.question_options;
+  delete summary.correct_option;
+  delete summary.explanation;
+  return summary;
 }
 
 // 150 uuids ≈ 5,5 KB de URL, com folga larga para o limite do servidor.
@@ -252,64 +324,136 @@ export async function getProfile(): Promise<Profile | null> {
   return data;
 }
 
-// A API do Supabase corta a resposta em `max_rows` (1000 em supabase/config.toml).
+// O acervo inteiro atravessa o payload RSC a cada navegação: `select *` levava
+// ~3,6 MB de colunas editoriais (explanation, editorial_notes, urls de fonte,
+// carimbos de revisão) que nenhuma tela renderiza.
+//
+// `statement` e `question_options` continuam sendo lidos aqui — o filtro de
+// qualidade precisa deles e as regras vivem em TypeScript (quality.ts), não em
+// SQL — mas saem do registro antes de virar payload: quem os quer usa
+// getPracticeQuestionContent. Idem `correct_option`; `explanation` nem entra.
+//
+// `question_media` vem embutido pela FK: a versão anterior fazia ~9 requisições
+// sequenciais de `in.(...)` só para colar a mídia de volta.
+const practiceQuestionSelect = `
+  id, statement, difficulty, year, source, exam_name, exam_color, exam_day,
+  question_number, is_demo, is_official, is_authorial, is_inspired,
+  priority_reason, recurrence_category, review_status, reviewed,
+  source_verified, answer_verified, media_required, correct_option,
+  subjects (id, name, area),
+  topics (id, name),
+  question_options (option_key, option_text),
+  question_media (*),
+  user_question_answers (id, question_id, practice_session_id, selected_option, is_correct, response_time_seconds, answered_at),
+  user_question_reviews (id, mastered),
+  user_question_favorites (id)
+`;
+
+type PracticeQuestionRow = PracticeQuestionRecord &
+  PracticeQuestionContent & { correct_option: string };
+
 // Sem paginar, o acervo parava de crescer para o aluno: com 1309 questões no
 // banco chegavam 1000 ao servidor e 933 à tela, ou seja, ~300 questões ficavam
 // invisíveis em silêncio — e o número piora a cada importação.
-const questionPageSize = 500;
-
-export async function getQuestionRecords(): Promise<QuestionRecord[]> {
+const fetchQuestionRows = cache(async function fetchQuestionRows(): Promise<
+  PracticeQuestionRow[] | null
+> {
   const { supabase, user } = await requireUser();
-  const records: QuestionRecord[] = [];
 
-  for (let from = 0; ; from += questionPageSize) {
+  const rows = await fetchAllRows({
+    queryName: "questions.with_user_answers_and_reviews",
+    countRows: () =>
+      supabase.from("questions").select("id", { count: "exact", head: true }),
+    fetchPage: (from, to) =>
+      supabase
+        .from("questions")
+        .select(practiceQuestionSelect)
+        .eq("user_question_answers.user_id", user.id)
+        .eq("user_question_reviews.user_id", user.id)
+        .eq("user_question_favorites.user_id", user.id)
+        .order("created_at", { ascending: true })
+        .range(from, to),
+  });
+
+  if (!rows) return null;
+  return (rows as unknown as PracticeQuestionRow[]).filter(isStudentReadyQuestion);
+});
+
+// Cache por requisição: `/dashboard/diagnostico` chamava o acervo duas vezes
+// (getDashboardData + getAreaMetrics) e baixava tudo em dobro.
+export const getQuestionRecords = cache(
+  async function getQuestionRecords(): Promise<PracticeQuestionRecord[]> {
+    const rows = await fetchQuestionRows();
+
+    // O acervo local só entra quando o banco não tem nada a servir (`null` cobre
+    // o banco indisponível). Mesclar os dois quando o banco respondeu injetava
+    // questões com id sintético `fallback-question-*`, e resposta nesse id não
+    // tem onde ser gravada: user_question_answers.question_id referencia
+    // questions(id). O aluno lia "Resposta correta." e nada entrava no
+    // desempenho, na sequência de estudo nem na revisão de erros.
+    // Para publicar o acervo local no banco: scripts/import-questions.mjs --commit.
+    if (!rows?.length) return getFallbackQuestionRecords().map(toPracticeSummary);
+    return rows.map(toPracticeSummary);
+  },
+);
+
+/**
+ * Enunciado e alternativas das questões pedidas — o que o índice do acervo
+ * deixou de fora. Chamado para a questão aberta e as vizinhas, não para o banco
+ * inteiro.
+ */
+export async function getPracticeQuestionContent(
+  questionIds: string[],
+): Promise<PracticeQuestionContent[]> {
+  const ids = Array.from(new Set(questionIds.filter(Boolean)));
+  if (!ids.length) return [];
+
+  // Busca por id, nunca varrendo o acervo: são poucas questões por chamada e
+  // reaproveitar a leitura completa aqui traria as ~1,2 mil linhas de volta a
+  // cada avanço de questão.
+  const localIds = ids.filter(isFallbackQuestionId);
+  const databaseIds = ids.filter((id) => !isFallbackQuestionId(id));
+  const content: PracticeQuestionContent[] = [];
+
+  if (databaseIds.length) {
+    const { supabase } = await requireUser();
     const { data, error } = await supabase
       .from("questions")
-      .select(
-        `
-      *,
-      subjects (*),
-      topics (*),
-      question_options (*),
-      user_question_answers (id, question_id, practice_session_id, selected_option, is_correct, response_time_seconds, answered_at),
-      user_question_reviews (id, mastered),
-      user_question_favorites (id)
-    `,
-      )
-      .eq("user_question_answers.user_id", user.id)
-      .eq("user_question_reviews.user_id", user.id)
-      .eq("user_question_favorites.user_id", user.id)
-      .order("created_at", { ascending: true })
-      .range(from, from + questionPageSize - 1);
+      .select("id, statement, question_options (option_key, option_text)")
+      .in("id", databaseIds);
 
-    if (error) {
-      logQueryError("questions.with_user_answers_and_reviews", error);
-      return getFallbackQuestionRecords();
+    if (error) logQueryError("questions.content.by_ids", error);
+    else content.push(...(data ?? []).map(toQuestionContent));
+  }
+
+  if (localIds.length) {
+    const localById = new Map(
+      getFallbackQuestionRecords().map((question) => [question.id, question]),
+    );
+    for (const id of localIds) {
+      const question = localById.get(id);
+      if (question) content.push(toQuestionContent(question));
     }
-
-    const page = (data ?? []) as unknown as QuestionRecord[];
-    records.push(...page);
-    if (page.length < questionPageSize) break;
   }
 
-  const recordsWithMedia = await attachQuestionMedia(supabase, records);
-  const readyRecords = recordsWithMedia
-    .filter(isStudentReadyQuestion)
-    .map(stripAnswerKey);
+  return content;
+}
 
-
-  // O acervo local só entra quando o banco não tem nada a servir (o retorno de
-  // erro acima cobre o banco indisponível). Mesclar os dois quando o banco
-  // respondeu injetava questões com id sintético `fallback-question-*`, e
-  // resposta nesse id não tem onde ser gravada: user_question_answers.question_id
-  // referencia questions(id). O aluno lia "Resposta correta." e nada entrava no
-  // desempenho, na sequência de estudo nem na revisão de erros.
-  // Para publicar o acervo local no banco: scripts/import-questions.mjs --commit.
-  if (readyRecords.length > 0) {
-    return readyRecords;
-  }
-
-  return getFallbackQuestionRecords();
+function toQuestionContent(question: {
+  id: string;
+  statement: string;
+  question_options: Array<{ option_key: string; option_text: string }>;
+}): PracticeQuestionContent {
+  return {
+    id: question.id,
+    // O enunciado é limpo no ponto em que o conteúdo é servido: a marca d'água
+    // da digitalização continua no banco, só não é exibida.
+    statement: cleanQuestionStatement(question.statement),
+    question_options: question.question_options.map((option) => ({
+      option_key: option.option_key,
+      option_text: option.option_text,
+    })),
+  };
 }
 
 // Resolve o id de um tópico do banco para o nome canônico do assunto. Links de
@@ -349,28 +493,61 @@ export async function getTopicsWithPerformance(): Promise<TopicWithSubject[]> {
   return mergeTopicSources(topics, fallbackTopics);
 }
 
-export async function getAreaMetrics(): Promise<AreaMetric[]> {
-  const questions = await getQuestionRecords();
-  const areaMap = new Map<string, { answered: number; correct: number }>();
+type AnsweredQuestionRow = {
+  id: string;
+  question_id: string;
+  is_correct: boolean;
+  response_time_seconds: number | null;
+  answered_at: string;
+  questions: {
+    subjects: { name: string; area: string } | null;
+    topics: { name: string } | null;
+  } | null;
+};
 
-  questions.forEach((question) => {
-    const answers = question.user_question_answers ?? [];
-    answers.forEach((answer) => {
-      const current = areaMap.get(question.subjects.area) ?? { answered: 0, correct: 0 };
-      current.answered += 1;
-      current.correct += answer.is_correct ? 1 : 0;
-      areaMap.set(question.subjects.area, current);
+/**
+ * As respostas do aluno com a taxonomia da questão anexada, em ordem
+ * cronológica. Desempenho e diagnóstico se apoiavam no acervo inteiro para
+ * chegar nesses mesmos números: eram ~1,2 mil questões baixadas para somar
+ * algumas centenas de respostas.
+ */
+export const getAnsweredQuestionMetrics = cache(
+  async function getAnsweredQuestionMetrics(): Promise<AnsweredQuestionMetric[]> {
+    const { supabase, user } = await requireUser();
+
+    const rows = await fetchAllRows({
+      queryName: "user_question_answers.with_question_taxonomy",
+      countRows: () =>
+        supabase
+          .from("user_question_answers")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", user.id),
+      fetchPage: (from, to) =>
+        supabase
+          .from("user_question_answers")
+          .select(
+            "id, question_id, is_correct, response_time_seconds, answered_at, questions (subjects (name, area), topics (name))",
+          )
+          .eq("user_id", user.id)
+          .order("answered_at", { ascending: true })
+          .range(from, to),
     });
-  });
 
-  return Array.from(areaMap.entries()).map(([area, metric]) => ({
-    area,
-    answered: metric.answered,
-    accuracy: metric.answered
-      ? Math.round((metric.correct / metric.answered) * 100)
-      : 0,
-  }));
-}
+    if (!rows) return [];
+
+    return (rows as unknown as AnsweredQuestionRow[]).map((row) => ({
+      id: row.id,
+      question_id: row.question_id,
+      is_correct: row.is_correct,
+      response_time_seconds: row.response_time_seconds ?? 0,
+      answered_at: row.answered_at,
+      area: row.questions?.subjects?.area ?? "",
+      subject: row.questions?.subjects?.name ?? "",
+      topic: row.questions?.topics?.name ?? "",
+    }));
+  },
+);
+
 
 export async function getQuestionAnswerCount(): Promise<number> {
   const { supabase, user } = await requireUser();
@@ -388,15 +565,14 @@ export async function getQuestionAnswerCount(): Promise<number> {
 }
 
 export async function getDashboardData() {
-  const [profile, questions, topics, areaMetrics, plan] = await Promise.all([
+  const [profile, answers, topics, plan] = await Promise.all([
     getProfile(),
-    getQuestionRecords(),
+    getAnsweredQuestionMetrics(),
     getTopicsWithPerformance(),
-    getAreaMetrics(),
     getCurrentStudyPlan(),
   ]);
 
-  const answers = questions.flatMap((question) => question.user_question_answers ?? []);
+  const areaMetrics = buildAreaMetrics(answers);
   const answered = answers.length;
   const correct = answers.filter((answer) => answer.is_correct).length;
   const accuracy = answered ? Math.round((correct / answered) * 100) : 0;
@@ -406,21 +582,22 @@ export async function getDashboardData() {
     perceivedDifficultiesFromProfile(profile),
   ).slice(0, 4);
 
+  // As respostas já vêm ordenadas por data: as cinco últimas são de fato as mais
+  // recentes. Antes a lista seguia a ordem do acervo, então "atividade recente"
+  // podia mostrar respostas antigas de questões cadastradas por último.
   const recentActivities: ActivityRecord[] = answers
     .slice(-5)
     .reverse()
-    .map((answer) => {
-      const question = questions.find((item) => item.id === answer.question_id);
-      return {
-        id: answer.id,
-        title: answer.is_correct ? "Questão correta registrada" : "Erro registrado",
-        description: question
-          ? `${question.subjects.name}: ${question.topics.name}`
+    .map((answer) => ({
+      id: answer.id,
+      title: answer.is_correct ? "Questão correta registrada" : "Erro registrado",
+      description:
+        answer.subject && answer.topic
+          ? `${answer.subject}: ${answer.topic}`
           : "Resposta salva no banco.",
-        timestamp: formatDateTime(answer.answered_at),
-        type: "questões",
-      };
-    });
+      timestamp: formatDateTime(answer.answered_at),
+      type: "questões",
+    }));
 
   const completedPlanItems =
     plan?.study_plan_items.filter((item) => item.completed).length ?? 0;
@@ -661,14 +838,6 @@ export function getDailyQuestionGoal(
   if (Number.isFinite(stored) && stored >= 5 && stored <= 60) return stored;
   if (planGoal && planGoal > 0) return planGoal;
   return 10;
-}
-
-export async function getReviewQuestions() {
-  const questions = await getQuestionRecords();
-  return questions.filter((question) => {
-    const latest = latestQuestionAnswer(question.user_question_answers ?? []);
-    return Boolean(latest && !latest.is_correct);
-  });
 }
 
 function mergeTopicSources(primary: TopicWithSubject[], fallback: TopicWithSubject[]) {

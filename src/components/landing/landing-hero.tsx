@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { ctaClasses } from "@/components/ui/cta";
 import { accessUntilLabel, initialCreditsLabel } from "./landing-data";
 import { LandingSectionLink } from "./landing-section-link";
 
@@ -35,16 +36,13 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
             className="animate-rise mt-6 flex flex-col gap-3 sm:mt-8 sm:flex-row"
             style={{ "--rise-delay": "180ms" } as React.CSSProperties}
           >
-            <Link
-              href={ctaHref}
-              className="inline-flex h-12 items-center justify-center gap-2 rounded-[16px] bg-blue-700 px-6 text-base font-extrabold text-white shadow-sm shadow-blue-900/15 transition hover:-translate-y-0.5 hover:bg-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:translate-y-0 sm:h-[52px] sm:w-auto"
-            >
+            <Link href={ctaHref} className={ctaClasses({ className: "sm:w-auto" })}>
               Começar minha preparação
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </Link>
             <LandingSectionLink
               href="/#como-funciona"
-              className="inline-flex h-12 items-center justify-center rounded-[16px] border border-blue-100 bg-white px-6 text-base font-extrabold text-blue-800 shadow-sm shadow-blue-900/5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:translate-y-0 sm:h-[52px] sm:w-auto"
+              className={ctaClasses({ variant: "outline", className: "sm:w-auto" })}
             >
               Ver como funciona
             </LandingSectionLink>
@@ -58,17 +56,17 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
           </div>
         </div>
         <div
-          className="animate-rise flex justify-center lg:-mr-12 lg:justify-end xl:-mr-20"
+          className="animate-rise -mb-4 flex justify-center sm:-mb-10 lg:-mb-12 lg:-mr-4 lg:justify-end lg:self-end xl:-mr-10"
           style={{ "--rise-delay": "160ms" } as React.CSSProperties}
         >
           <Image
-            src="/images/landing/aluno-pontua-enem-app-2026.png"
+            src="/images/landing/aluno-pontua-enem-app-2026.webp"
             alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
-            width={1535}
-            height={1024}
+            width={1155}
+            height={1011}
             priority
-            sizes="(max-width: 768px) 92vw, (max-width: 1280px) 54vw, 760px"
-            className="h-auto w-full max-w-[360px] object-contain sm:max-w-[560px] md:max-w-[640px] lg:max-w-[720px] xl:max-w-[790px]"
+            sizes="(max-width: 768px) 92vw, (max-width: 1280px) 42vw, 595px"
+            className="h-auto w-full max-w-[270px] object-contain sm:max-w-[420px] md:max-w-[480px] lg:w-[80%] lg:max-w-none xl:max-w-[550px]"
           />
         </div>
       </div>

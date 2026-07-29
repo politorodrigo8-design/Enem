@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { ctaClasses } from "@/components/ui/cta";
 
 type LandingFinalCtaProps = {
   ctaHref: string;
@@ -18,7 +19,11 @@ export function LandingFinalCta({ ctaHref }: LandingFinalCtaProps) {
         </p>
         <Link
           href={ctaHref}
-          className="mt-8 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-[16px] bg-white px-6 text-base font-extrabold text-blue-800 shadow-sm shadow-blue-950/10 transition hover:-translate-y-0.5 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white active:translate-y-0 sm:w-auto"
+          className={ctaClasses({
+            variant: "inverse",
+            full: true,
+            className: "mt-8 sm:w-auto",
+          })}
         >
           Começar minha preparação
           <ArrowRight className="h-5 w-5" aria-hidden="true" />

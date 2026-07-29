@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { QuestionRecord } from "@/lib/db/types";
+import type { AnsweredQuestionMetric, PracticeQuestionRecord } from "@/lib/db/types";
 
 export type LocalQuestionAnswer = {
   questionId: string;
@@ -9,6 +9,14 @@ export type LocalQuestionAnswer = {
   isCorrect: boolean;
   responseTimeSeconds: number;
   answeredAt: string;
+  // A taxonomia viaja junto da resposta: o Desempenho deixou de baixar o acervo
+  // para descobrir a que área/disciplina/assunto a questão pertencia, e sem isso
+  // uma resposta local não teria como entrar nas tabelas por matéria.
+  // Ausente nos registros gravados antes dessa mudança — eles ainda contam nos
+  // totais, mas ficam fora do recorte por matéria.
+  area?: string;
+  subject?: string;
+  topic?: string;
 };
 
 export type LocalQuestionProgress = Record<string, LocalQuestionAnswer>;
@@ -45,6 +53,9 @@ export function readLocalQuestionProgress(): LocalQuestionProgress {
               typeof answer.answeredAt === "string"
                 ? answer.answeredAt
                 : new Date().toISOString(),
+            area: typeof answer.area === "string" ? answer.area : undefined,
+            subject: typeof answer.subject === "string" ? answer.subject : undefined,
+            topic: typeof answer.topic === "string" ? answer.topic : undefined,
           },
         ]),
     );
@@ -57,6 +68,7 @@ export function recordLocalQuestionAnswer(answer: LocalQuestionAnswer) {
   if (!isLocalQuestionId(answer.questionId)) return;
 
   const current = readLocalQuestionProgress();
+  const previous = current[answer.questionId];
   writeLocalQuestionProgress({
     ...current,
     [answer.questionId]: {
@@ -65,8 +77,25 @@ export function recordLocalQuestionAnswer(answer: LocalQuestionAnswer) {
         0,
         Math.floor(Number(answer.responseTimeSeconds) || 0),
       ),
+      // Regravação sem taxonomia (a restauração de uma sessão salva não tem a
+      // questão em mãos) não pode apagar a que já estava guardada.
+      area: answer.area ?? previous?.area,
+      subject: answer.subject ?? previous?.subject,
+      topic: answer.topic ?? previous?.topic,
     },
   });
+}
+
+/** Taxonomia da questão no formato guardado junto da resposta local. */
+export function localAnswerTaxonomy(question: {
+  subjects: { area: string; name: string };
+  topics: { name: string };
+}) {
+  return {
+    area: question.subjects.area,
+    subject: question.subjects.name,
+    topic: question.topics.name,
+  };
 }
 
 export function removeLocalQuestionAnswer(questionId: string) {
@@ -79,10 +108,9 @@ export function removeLocalQuestionAnswer(questionId: string) {
   writeLocalQuestionProgress(next);
 }
 
-export function mergeLocalProgressIntoQuestions(
-  questions: QuestionRecord[],
-  progress: LocalQuestionProgress,
-) {
+export function mergeLocalProgressIntoQuestions<
+  T extends Pick<PracticeQuestionRecord, "id" | "user_question_answers">,
+>(questions: T[], progress: LocalQuestionProgress): T[] {
   return questions.map((question) => {
     const answer = progress[question.id];
     if (!answer) return question;
@@ -108,6 +136,26 @@ export function mergeLocalProgressIntoQuestions(
       ],
     };
   });
+}
+
+/**
+ * Respostas locais no mesmo formato das métricas do servidor, para somarem
+ * juntas no Desempenho. Registros antigos, sem taxonomia, entram com os campos
+ * vazios — contam nos totais e ficam fora das tabelas por matéria.
+ */
+export function localProgressAsMetrics(
+  progress: LocalQuestionProgress,
+): AnsweredQuestionMetric[] {
+  return Object.values(progress).map((answer) => ({
+    id: localAnswerId(answer.questionId),
+    question_id: answer.questionId,
+    is_correct: answer.isCorrect,
+    response_time_seconds: answer.responseTimeSeconds,
+    answered_at: answer.answeredAt,
+    area: answer.area ?? "",
+    subject: answer.subject ?? "",
+    topic: answer.topic ?? "",
+  }));
 }
 
 export function useLocalQuestionProgress() {

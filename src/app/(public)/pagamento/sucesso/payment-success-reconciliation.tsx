@@ -161,7 +161,7 @@ export function PaymentSuccessReconciliation({
               {state === "approved" ? (
                 <Link
                   href="/dashboard"
-                  className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
+                  className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-2xl" })}
                 >
                   Acessar dashboard
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
@@ -169,7 +169,7 @@ export function PaymentSuccessReconciliation({
               ) : state === "signed_out" ? (
                 <Link
                   href={loginHref}
-                  className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
+                  className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-2xl" })}
                 >
                   <LogIn className="h-4 w-4" aria-hidden="true" />
                   Entrar na minha conta
@@ -178,7 +178,7 @@ export function PaymentSuccessReconciliation({
                 <Button
                   type="button"
                   size="lg"
-                  className="rounded-[16px]"
+                  className="rounded-2xl"
                   onClick={() => void reconcile()}
                 >
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
@@ -188,7 +188,7 @@ export function PaymentSuccessReconciliation({
               {state === "signed_out" ? null : (
                 <Link
                   href="/dashboard"
-                  className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-[16px]" })}
+                  className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-2xl" })}
                 >
                   Ir para o dashboard
                 </Link>

@@ -1,0 +1,139 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html lang="pt-BR" xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="x-apple-disable-message-reformatting" />
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+    <title>Redefinir sua senha</title>
+    <style type="text/css">
+      /* Clientes que suportam <style>. Todo estilo essencial também está inline. */
+      body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+      table { border-collapse: collapse !important; }
+      img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+      a { color: #1d4ed8; }
+      @media only screen and (max-width: 620px) {
+        .sm-px { padding-left: 20px !important; padding-right: 20px !important; }
+        .sm-py { padding-top: 28px !important; padding-bottom: 28px !important; }
+        .sm-h1 { font-size: 24px !important; line-height: 32px !important; }
+        .sm-btn a { display: block !important; }
+      }
+      .logo-dark { display: none !important; }
+      @media (prefers-color-scheme: dark) {
+        .logo-light { display: none !important; }
+        .logo-dark { display: block !important; }
+        .dm-bg { background-color: #0f172a !important; }
+        .dm-card { background-color: #1e293b !important; border-color: #334155 !important; }
+        .dm-title, .dm-title * { color: #f8fafc !important; }
+        .dm-text, .dm-text * { color: #cbd5e1 !important; }
+        .dm-muted, .dm-muted * { color: #94a3b8 !important; }
+        .dm-rule { border-color: #334155 !important; }
+        .hl, .dm-title .hl { background-color: #fde68a !important; color: #0f172a !important; }
+      }
+    </style>
+  </head>
+  <body class="dm-bg" style="margin: 0; padding: 0; width: 100%; background-color: #fcfcfa; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+    <div style="display: none; max-height: 0; overflow: hidden; opacity: 0; mso-hide: all;">
+      Crie uma nova senha para sua conta no Pontua Enem.
+      &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
+    </div>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" class="dm-bg" style="background-color: #fcfcfa;">
+      <tr>
+        <td align="center" style="padding: 32px 12px;">
+          <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width: 600px; max-width: 600px;">
+            <!-- Marca -->
+            <tr>
+              <td class="sm-px" style="padding: 0 8px 20px;">
+                <a href="{{ .SiteURL }}" style="text-decoration: none;">
+                  <img class="logo-light" src="https://pontuaenem.com.br/pontuaenem-logo-for-light-bg.png" width="132" height="34" alt="Pontua Enem" style="display: block; width: 132px; height: 34px;" />
+                  <!--[if !mso]><!-->
+                  <img class="logo-dark" src="https://pontuaenem.com.br/pontuaenem-logo-for-dark-bg.png" width="132" height="34" alt="" style="display: none; width: 132px; height: 34px; mso-hide: all;" />
+                  <!--<![endif]--></a>
+              </td>
+            </tr>
+
+            <!-- Cartão -->
+            <tr>
+              <td class="dm-card" style="background-color: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                  <tr>
+                    <td class="sm-px sm-py" style="padding: 36px 40px 8px;">
+                      <p class="dm-muted" style="margin: 0 0 12px; font-size: 12px; line-height: 16px; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; font-weight: 600;">
+                        Recuperação de acesso
+                      </p>
+                      <h1 class="sm-h1 dm-title" style="margin: 0 0 16px; font-family: Georgia, 'Times New Roman', serif; font-size: 28px; line-height: 36px; font-weight: 600; color: #0f172a;">
+                        Vamos criar uma <span class="hl" style="background-color: #fde68a; color: #0f172a; padding: 0 3px;">nova senha</span>
+                      </h1>
+                      <p class="dm-text" style="margin: 0 0 28px; font-size: 16px; line-height: 26px; color: #475569;">
+                        Recebemos um pedido para redefinir a senha da conta <strong class="dm-title" style="color: #0f172a; font-weight: 600;">{{ .Email }}</strong>. Use o botão abaixo para escolher uma nova senha — seu progresso continua exatamente onde parou.
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Botão -->
+                  <tr>
+                    <td class="sm-px" style="padding: 0 40px 28px;">
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="sm-btn">
+                        <tr>
+                          <td bgcolor="#1d4ed8" style="background-color: #1d4ed8; border-radius: 8px;">
+                            <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 28px; font-size: 16px; line-height: 20px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">
+                              Redefinir minha senha
+                            </a>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+
+                  <!-- Fallback do link -->
+                  <tr>
+                    <td class="sm-px" style="padding: 0 40px 32px;">
+                      <p class="dm-muted" style="margin: 0 0 6px; font-size: 13px; line-height: 20px; color: #64748b;">
+                        Se o botão não funcionar, copie e cole este endereço no navegador:
+                      </p>
+                      <p style="margin: 0; font-size: 13px; line-height: 20px; word-break: break-all;">
+                        <a href="{{ .ConfirmationURL }}" style="color: #1d4ed8; text-decoration: underline;">{{ .ConfirmationURL }}</a>
+                      </p>
+                    </td>
+                  </tr>
+
+                  <!-- Rodapé do cartão -->
+                  <tr>
+                    <td class="sm-px" style="padding: 0 40px 36px;">
+                      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                          <td class="dm-rule" style="border-top: 1px solid #e2e8f0; padding-top: 20px;">
+                            <p class="dm-muted" style="margin: 0 0 8px; font-size: 13px; line-height: 20px; color: #64748b;">
+                              O link é de uso único e expira por segurança. Se ele já tiver vencido, peça outro em "Esqueci minha senha".
+                            </p>
+                            <p class="dm-muted" style="margin: 0; font-size: 13px; line-height: 20px; color: #64748b;">
+                              Se não foi você que pediu, ignore este e-mail — sua senha atual continua valendo.
+                            </p>
+                          </td>
+                        </tr>
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+              </td>
+            </tr>
+
+            <!-- Rodapé -->
+            <tr>
+              <td class="sm-px" style="padding: 24px 8px 0;">
+                <p class="dm-muted" style="margin: 0 0 4px; font-size: 12px; line-height: 20px; color: #64748b;">
+                  Pontua Enem — preparação para o ENEM com plano de estudos e correção de redação.
+                </p>
+                <p class="dm-muted" style="margin: 0; font-size: 12px; line-height: 20px; color: #64748b;">
+                  Dúvidas? Escreva para <a href="mailto:suporte@pontuaenem.com.br" style="color: #1d4ed8; text-decoration: underline;">suporte@pontuaenem.com.br</a>.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

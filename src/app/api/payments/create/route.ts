@@ -180,6 +180,14 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // O aceite explícito acontece no cadastro. Aqui o registro do aceite é
+  // gerado pelo ato de continuar para o pagamento com o aviso legal visível,
+  // então a origem precisa dizer isso — não existe checkbox nesta etapa.
+  const legalAcceptanceSource =
+    product.product_kind === "credit_package"
+      ? "credit_modal_continue_button"
+      : "checkout_continue_button";
+
   const { data: pendingOrder } = await admin
     .from("orders")
     .select("*")
@@ -202,6 +210,7 @@ export async function POST(request: NextRequest) {
         orderId: reusableOrder.id,
         productId: product.id,
         metadata: {
+          source: legalAcceptanceSource,
           product_slug: product.slug,
           product_kind: product.product_kind,
           amount_cents: reusableOrder.amount_cents,
@@ -272,6 +281,7 @@ export async function POST(request: NextRequest) {
       orderId: createdOrder.id,
       productId: product.id,
       metadata: {
+        source: legalAcceptanceSource,
         product_slug: product.slug,
         product_kind: product.product_kind,
         amount_cents: createdOrder.amount_cents,

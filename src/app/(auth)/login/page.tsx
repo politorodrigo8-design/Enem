@@ -52,7 +52,7 @@ const headline: Record<Mode, { title: string; description: string }> = {
   },
   signup: {
     title: "Criar sua conta",
-    description: "Leva menos de um minuto. Depois, você poderá continuar para a compra do acesso.",
+    description: "Depois do cadastro, você segue para a compra do acesso.",
   },
   reset: {
     title: "Recuperar senha",
@@ -66,9 +66,9 @@ const headline: Record<Mode, { title: string; description: string }> = {
 };
 
 const authBenefits = [
-  { label: "Prioridades baseadas no seu desempenho", icon: Target },
-  { label: "Questões e simulados em um só lugar", icon: BookOpenCheck },
-  { label: "Plano semanal para orientar seus estudos", icon: Route },
+  { label: "Prioridades pelo seu desempenho", icon: Target },
+  { label: "Questões e simulados no mesmo lugar", icon: BookOpenCheck },
+  { label: "Plano semanal para a rotina", icon: Route },
 ];
 
 function initialModeFromSearchParam(value: string | null): Mode {
@@ -200,20 +200,6 @@ function LoginPageContent() {
   }
 
   const copy = headline[mode];
-  const authImage =
-    mode === "signup"
-      ? {
-          src: "/images/landing/aluno-pontua-enem-cadastro.png",
-          width: 1024,
-          height: 1536,
-          className: "h-auto max-h-[440px] w-auto max-w-full object-contain",
-        }
-      : {
-          src: "/images/landing/aluno-pontua-enem-app-2026.png",
-          width: 1535,
-          height: 1024,
-          className: "h-auto w-full max-w-[520px] object-contain",
-        };
   const signupLegalReady =
     signupLegalAcceptance?.terms_of_use === legalVersions.terms_of_use &&
     signupLegalAcceptance?.refund_policy === legalVersions.refund_policy &&
@@ -221,48 +207,49 @@ function LoginPageContent() {
 
   return (
     <main className="min-h-dvh overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#eff7ff_100%)]">
-      <div className="mx-auto grid min-h-dvh w-full max-w-7xl gap-5 px-4 py-4 sm:px-6 lg:grid-cols-[0.94fr_1.06fr] lg:gap-8 lg:px-8 lg:py-8">
-        <section className="relative hidden overflow-hidden rounded-[32px] border border-blue-100 bg-[#f1f8ff] p-8 shadow-sm shadow-blue-900/5 lg:flex lg:flex-col lg:justify-between">
+      <div className="mx-auto grid min-h-dvh w-full max-w-7xl gap-5 px-4 py-4 sm:px-6 lg:grid-cols-[0.94fr_1.06fr] lg:gap-8 lg:px-8 lg:py-6">
+        <section className="relative hidden overflow-hidden rounded-[32px] border border-blue-100 bg-[#f1f8ff] p-8 shadow-sm shadow-blue-900/5 lg:flex lg:flex-col">
           <div
-            className="pointer-events-none absolute inset-x-8 top-24 h-52 rounded-full bg-blue-100/70 blur-3xl"
+            className="pointer-events-none absolute inset-x-8 top-20 h-48 rounded-full bg-blue-100/70 blur-3xl"
             aria-hidden="true"
           />
           <Logo className="relative z-10" />
 
-          <div className="relative z-10 max-w-xl">
-            <p className="text-5xl font-extrabold leading-[1.04] tracking-tight text-slate-950">
+          <div className="relative z-10 mt-8 max-w-xl">
+            <p className="text-4xl font-extrabold leading-[1.04] tracking-tight text-slate-950 xl:text-5xl">
               Comece a estudar com mais direção.
             </p>
-            <p className="mt-5 max-w-lg text-lg font-medium leading-8 text-slate-600">
+            <p className="mt-4 max-w-lg text-base font-medium leading-7 text-slate-600 xl:text-lg xl:leading-8">
               Crie sua conta para descobrir suas prioridades, organizar sua rotina
               e acompanhar sua evolução até o ENEM.
             </p>
-            <ul className="mt-7 space-y-3">
+          </div>
+
+          <div className="relative z-10 mt-auto flex min-h-0 flex-1 items-end gap-4 pt-6 xl:gap-6">
+            <div className="relative -mb-8 -ml-8 h-full w-[46%] max-w-[300px] shrink-0">
+              <Image
+                src="/images/landing/aluno-pontua-enem-cadastro-2026.webp"
+                alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
+                fill
+                sizes="300px"
+                className="object-contain object-bottom"
+              />
+            </div>
+            <ul className="min-w-0 flex-1 space-y-4 pb-2">
               {authBenefits.map(({ label, icon: Icon }) => (
-                <li key={label} className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                <li key={label} className="flex items-center gap-3 text-sm font-bold leading-5 text-slate-700">
                   <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-white text-blue-700 shadow-sm shadow-blue-900/5">
                     <Icon className="h-4.5 w-4.5" aria-hidden="true" />
                   </span>
-                  <span>{label}</span>
+                  <span className="min-w-0">{label}</span>
                 </li>
               ))}
             </ul>
           </div>
-
-          <div className="relative z-10 -mb-10 flex justify-end">
-            <Image
-              src={authImage.src}
-              alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
-              width={authImage.width}
-              height={authImage.height}
-              sizes="520px"
-              className={authImage.className}
-            />
-          </div>
         </section>
 
         <section className="flex min-w-0 flex-col">
-          <div className="flex items-center justify-between py-2 lg:justify-end">
+          <div className="flex items-center justify-between lg:justify-end">
             <div className="lg:hidden">
               <Logo />
             </div>
@@ -275,9 +262,9 @@ function LoginPageContent() {
             </Link>
           </div>
 
-          <div className="flex flex-1 items-center py-6 sm:py-8 lg:py-10">
+          <div className="flex flex-1 items-center py-3 sm:py-4">
             <div
-              className="animate-rise mx-auto w-full max-w-[460px] rounded-[28px] border border-blue-100 bg-white/95 p-5 shadow-sm shadow-blue-900/5 sm:p-8"
+              className="animate-rise mx-auto w-full max-w-[460px] rounded-[28px] border border-blue-100 bg-white/95 p-5 shadow-sm shadow-blue-900/5 sm:p-6"
               style={{ "--rise-delay": "80ms" } as React.CSSProperties}
             >
               <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-800">
@@ -289,10 +276,10 @@ function LoginPageContent() {
                       ? "Verificação"
                       : "Acesso"}
               </span>
-              <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+              <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950">
                 {copy.title}
               </h1>
-              <p className="mt-3 text-sm font-medium leading-6 text-slate-600">
+              <p className="mt-2 text-sm font-medium leading-6 text-slate-600">
                 {copy.description}
               </p>
 
@@ -305,7 +292,7 @@ function LoginPageContent() {
 
               {mode === "login" ? (
                 <form
-                  className="mt-7 space-y-4"
+                  className="mt-6 space-y-4"
                   onSubmit={signInForm.handleSubmit(handleSignIn)}
                 >
                   <Field
@@ -324,7 +311,7 @@ function LoginPageContent() {
                     labelAside={
                       <button
                         type="button"
-                        className="-my-2 inline-flex min-h-10 items-center rounded-[12px] px-1 text-sm font-bold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                        className="-my-2 inline-flex min-h-10 items-center rounded-xl px-1 text-sm font-bold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
                         onClick={() => setMode("reset")}
                       >
                         Esqueci minha senha
@@ -336,7 +323,7 @@ function LoginPageContent() {
                     full
                     size="lg"
                     disabled={pending}
-                    className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                    className="h-12 rounded-[14px] text-base font-extrabold shadow-sm shadow-blue-900/15"
                   >
                     {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                     Entrar
@@ -356,7 +343,7 @@ function LoginPageContent() {
 
               {mode === "signup" ? (
                 <form
-                  className="mt-7 space-y-4"
+                  className="mt-6 space-y-4"
                   onSubmit={signUpForm.handleSubmit(handleSignUp)}
                 >
                   <Field
@@ -374,19 +361,21 @@ function LoginPageContent() {
                     error={signUpForm.formState.errors.email?.message}
                     registration={signUpForm.register("email")}
                   />
-                  <PasswordField
-                    label="Senha"
-                    autoComplete="new-password"
-                    error={signUpForm.formState.errors.password?.message}
-                    registration={signUpForm.register("password")}
-                  />
-                  <PasswordField
-                    label="Confirmar senha"
-                    autoComplete="new-password"
-                    error={signUpForm.formState.errors.confirmPassword?.message}
-                    registration={signUpForm.register("confirmPassword")}
-                  />
-                  <div className="space-y-3 rounded-[18px] border border-blue-100 bg-blue-50/50 p-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <PasswordField
+                      label="Senha"
+                      autoComplete="new-password"
+                      error={signUpForm.formState.errors.password?.message}
+                      registration={signUpForm.register("password")}
+                    />
+                    <PasswordField
+                      label="Confirmar senha"
+                      autoComplete="new-password"
+                      error={signUpForm.formState.errors.confirmPassword?.message}
+                      registration={signUpForm.register("confirmPassword")}
+                    />
+                  </div>
+                  <div className="space-y-2 rounded-[18px] border border-blue-100 bg-blue-50/50 p-3">
                     <LegalCheckbox
                       id="signup-legal-acceptance"
                       describedBy={
@@ -430,7 +419,7 @@ function LoginPageContent() {
                     full
                     size="lg"
                     disabled={pending || !signupLegalReady}
-                    className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                    className="h-12 rounded-[14px] text-base font-extrabold shadow-sm shadow-blue-900/15"
                   >
                     {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                     Criar conta
@@ -450,7 +439,7 @@ function LoginPageContent() {
 
               {mode === "reset" ? (
                 <form
-                  className="mt-7 space-y-4"
+                  className="mt-6 space-y-4"
                   onSubmit={resetForm.handleSubmit(handleReset)}
                 >
                   <Field
@@ -466,7 +455,7 @@ function LoginPageContent() {
                     full
                     size="lg"
                     disabled={pending}
-                    className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                    className="h-12 rounded-[14px] text-base font-extrabold shadow-sm shadow-blue-900/15"
                   >
                     {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                     Enviar link de recuperação
@@ -485,7 +474,7 @@ function LoginPageContent() {
               ) : null}
 
               {mode === "verify" ? (
-                <div className="mt-7 space-y-5">
+                <div className="mt-6 space-y-5">
                   <Notice tone="success" icon={MailCheck} title="Link de confirmação enviado">
                     <p>
                       Abra o e-mail que enviamos para
@@ -515,7 +504,7 @@ function LoginPageContent() {
                       full
                       size="lg"
                       disabled={pending}
-                      className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                      className="h-12 rounded-[14px] text-base font-extrabold shadow-sm shadow-blue-900/15"
                     >
                       {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                       Reenviar e-mail
@@ -618,7 +607,7 @@ function showAuthToast(
 }
 
 const inputClasses =
-  "h-12 w-full rounded-[16px] border border-blue-100 bg-white px-4 text-base font-medium text-slate-950 shadow-sm shadow-blue-900/5 placeholder:text-slate-400 transition-colors focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/10 sm:text-sm";
+  "h-11 w-full rounded-[14px] border border-blue-100 bg-white px-4 text-base font-medium text-slate-950 shadow-sm shadow-blue-900/5 placeholder:text-slate-400 transition-colors focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/10 sm:text-sm";
 
 function Field({
   label,
@@ -640,7 +629,7 @@ function Field({
 
   return (
     <div className="block">
-      <label htmlFor={inputId} className="mb-1.5 block text-sm font-bold text-slate-700">
+      <label htmlFor={inputId} className="mb-1 block text-sm font-bold text-slate-700">
         {label}
       </label>
       <input
@@ -685,7 +674,7 @@ function PasswordField({
 
   return (
     <div className="block">
-      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3">
+      <div className="mb-1 flex flex-wrap items-center justify-between gap-x-3">
         <label htmlFor={inputId} className="text-sm font-bold text-slate-700">
           {label}
         </label>
@@ -703,7 +692,7 @@ function PasswordField({
         />
         <button
           type="button"
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-[16px] text-slate-400 transition-colors hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-[14px] text-slate-400 transition-colors hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           onClick={() => setVisible((value) => !value)}
           aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
         >

@@ -19,9 +19,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Reveal } from "@/components/ui/reveal";
 import type { AccessContext } from "@/lib/access";
-import type { QuestionRecord } from "@/lib/db/types";
+import type { AnsweredQuestionMetric } from "@/lib/db/types";
+import { buildAreaMetrics } from "@/lib/db/metrics";
 import {
-  mergeLocalProgressIntoQuestions,
+  localProgressAsMetrics,
   useLocalQuestionProgress,
 } from "@/lib/local-question-progress";
 import { buildWeeklyTrend } from "@/lib/study/weekly-trend.mjs";
@@ -39,34 +40,34 @@ const statusBadgeStyles = {
 } as const;
 
 export function PerformanceView({
-  questions,
+  answers: serverAnswers,
   access,
   creditBalance,
 }: {
-  questions: QuestionRecord[];
+  answers: AnsweredQuestionMetric[];
   access: AccessContext;
   creditBalance: number;
 }) {
+  // As respostas do acervo local só existem no navegador; as do banco já chegam
+  // prontas do servidor, sem passar pelo acervo inteiro.
   const localProgress = useLocalQuestionProgress();
-  const questionsWithLocalProgress = useMemo(
-    () => mergeLocalProgressIntoQuestions(questions, localProgress),
-    [localProgress, questions],
+  const answers = useMemo(
+    () => [...serverAnswers, ...localProgressAsMetrics(localProgress)],
+    [localProgress, serverAnswers],
   );
-  const answers = questionsWithLocalProgress.flatMap((question) =>
-    (question.user_question_answers ?? []).map((answer) => ({ question, answer })),
-  );
-  const correct = answers.filter((item) => item.answer.is_correct).length;
+
+  const correct = answers.filter((answer) => answer.is_correct).length;
   const accuracy = answers.length ? Math.round((correct / answers.length) * 100) : 0;
   const avgTime = answers.length
     ? Math.round(
-        answers.reduce((sum, item) => sum + (item.answer.response_time_seconds ?? 0), 0) /
+        answers.reduce((sum, answer) => sum + (answer.response_time_seconds ?? 0), 0) /
           answers.length,
       )
     : 0;
   const subjectRows = buildPerformanceRows(answers, "subject");
   const topicRows = buildPerformanceRows(answers, "topic");
   const areaMetrics = buildAreaMetrics(answers);
-  const weeklyTrend = buildWeeklyTrend(answers.map((item) => item.answer));
+  const weeklyTrend = buildWeeklyTrend(answers);
   const dominated = topicRows.filter((item) => item.status === "Dominado");
   const attention = topicRows.filter((item) => item.status === "Atenção");
   const critical = topicRows.filter((item) => item.status === "Crítico");
@@ -192,16 +193,13 @@ export function PerformanceView({
   );
 }
 
-function buildPerformanceRows(
-  answers: Array<{
-    question: { subjects: { name: string }; topics: { name: string } };
-    answer: { is_correct: boolean };
-  }>,
-  by: "subject" | "topic",
-) {
+function buildPerformanceRows(answers: AnsweredQuestionMetric[], by: "subject" | "topic") {
   const map = new Map<string, { answered: number; correct: number }>();
-  answers.forEach(({ question, answer }) => {
-    const key = by === "subject" ? question.subjects.name : question.topics.name;
+  answers.forEach((answer) => {
+    const key = by === "subject" ? answer.subject : answer.topic;
+    // Resposta sem taxonomia (registro local antigo) conta no total, mas não tem
+    // linha própria: inventar uma matéria para ela seria pior que omitir.
+    if (!key) return;
     const current = map.get(key) ?? { answered: 0, correct: 0 };
     current.answered += 1;
     current.correct += answer.is_correct ? 1 : 0;
@@ -219,29 +217,6 @@ function buildPerformanceRows(
       status: accuracy >= 75 ? "Dominado" : accuracy >= 55 ? "Atenção" : "Crítico",
     } as const;
   });
-}
-
-function buildAreaMetrics(
-  answers: Array<{
-    question: { subjects: { area: string } };
-    answer: { is_correct: boolean };
-  }>,
-) {
-  const map = new Map<string, { answered: number; correct: number }>();
-  answers.forEach(({ question, answer }) => {
-    const current = map.get(question.subjects.area) ?? { answered: 0, correct: 0 };
-    current.answered += 1;
-    current.correct += answer.is_correct ? 1 : 0;
-    map.set(question.subjects.area, current);
-  });
-
-  return Array.from(map.entries()).map(([area, metric]) => ({
-    area,
-    answered: metric.answered,
-    accuracy: metric.answered
-      ? Math.round((metric.correct / metric.answered) * 100)
-      : 0,
-  }));
 }
 
 type PerformanceRow = ReturnType<typeof buildPerformanceRows>[number];

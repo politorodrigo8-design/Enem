@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   QuestionBankClient,
   type TopicPriority,
 } from "../questoes/question-bank-client";
 import { ReviewClient, hasReviewHistory } from "../revisao/review-client";
 import type { AccessContext } from "@/lib/access";
-import type { ActivePracticeSession, QuestionRecord } from "@/lib/db/types";
+import type { ActivePracticeSession, PracticeQuestionRecord } from "@/lib/db/types";
 import { cn } from "@/lib/utils";
 import {
   mergeLocalProgressIntoQuestions,
@@ -35,7 +35,7 @@ export function PracticeTabs({
   activePracticeSession,
 }: {
   initialTab: PracticeTab;
-  questions: QuestionRecord[];
+  questions: PracticeQuestionRecord[];
   access: AccessContext;
   userId: string;
   initialQuestionId?: string;
@@ -46,11 +46,16 @@ export function PracticeTabs({
 }) {
   const [tab, setTab] = useState<PracticeTab>(initialTab);
   const localProgress = useLocalQuestionProgress();
-  const questionsWithLocalProgress = mergeLocalProgressIntoQuestions(
-    questions,
-    localProgress,
+  // Sem memo, trocar de aba reconstruía o acervo inteiro (~1,2 mil objetos) e
+  // recontava o histórico a cada render.
+  const questionsWithLocalProgress = useMemo(
+    () => mergeLocalProgressIntoQuestions(questions, localProgress),
+    [questions, localProgress],
   );
-  const historyCount = questionsWithLocalProgress.filter(hasReviewHistory).length;
+  const historyCount = useMemo(
+    () => questionsWithLocalProgress.filter(hasReviewHistory).length,
+    [questionsWithLocalProgress],
+  );
 
   return (
     <div>

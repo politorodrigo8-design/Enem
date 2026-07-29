@@ -33,7 +33,7 @@ export function LandingFooter({ supplierLines }: LandingFooterProps) {
                 <Link
                   key={link.label}
                   href={link.href}
-                  className="inline-flex min-h-11 w-fit items-center rounded-[12px] text-sm font-semibold text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0"
+                  className="inline-flex min-h-11 w-fit items-center rounded-xl text-sm font-semibold text-slate-600 transition hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 sm:min-h-0"
                 >
                   {link.label}
                 </Link>

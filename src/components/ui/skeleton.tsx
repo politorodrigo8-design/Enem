@@ -4,6 +4,20 @@ export function Skeleton({ className }: { className?: string }) {
   return <div className={cn("animate-pulse rounded-lg bg-slate-200", className)} />;
 }
 
+/** Espelha o Praticar abaixo do cabeçalho: abas, controles de sessão e o card. */
+export function PracticeTabsSkeleton() {
+  return (
+    <div>
+      <div className="mb-6 flex gap-2 border-b border-slate-200 pb-2.5">
+        <Skeleton className="h-8 w-44" />
+        <Skeleton className="h-8 w-36" />
+      </div>
+      <Skeleton className="h-44 sm:h-32" />
+      <Skeleton className="mt-6 h-96" />
+    </div>
+  );
+}
+
 /** Espelha o layout real de /dashboard: cabeçalho, card de meta, plano e 2 cards. */
 export function DashboardSkeleton() {
   return (
