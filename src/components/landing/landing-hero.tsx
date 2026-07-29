@@ -60,7 +60,7 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
           style={{ "--rise-delay": "160ms" } as React.CSSProperties}
         >
           <Image
-            src="/images/landing/aluno-pontua-enem-app-2026.webp"
+            src="/images/landing/aluno-pontua-enem-app-2026-celular-branco.webp"
             alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
             width={1155}
             height={1011}
