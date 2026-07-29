@@ -11,31 +11,33 @@ export default async function PaymentPendingPage({
   const { order } = await searchParams;
 
   return (
-    <main className="bg-slate-50 py-10 sm:py-16">
+    <main className="min-h-dvh bg-[linear-gradient(180deg,#ffffff_0%,#eff7ff_100%)] py-10 sm:py-16">
       <div className="animate-rise mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
-        <Card>
+        <Card className="rounded-[28px] border-blue-100 shadow-sm shadow-blue-900/5">
           <CardContent className="p-6 sm:p-10">
-            <Clock className="h-10 w-10 text-amber-600" aria-hidden="true" />
-            <h1 className="mt-5 text-3xl font-display font-semibold tracking-tight text-slate-950">
+            <span className="inline-flex h-14 w-14 items-center justify-center rounded-[20px] bg-amber-50 text-amber-600">
+              <Clock className="h-7 w-7" aria-hidden="true" />
+            </span>
+            <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-950">
               Recebemos seu pedido
             </h1>
             <p className="mt-4 text-base leading-7 text-slate-600">
               Estamos aguardando a confirmação do pagamento. Pix costuma ser confirmado em
               minutos; boleto pode levar até 3 dias úteis. Seu acesso é liberado
-              automaticamente na confirmação — você não precisa pagar de novo.
+              automaticamente na confirmação. Você não precisa pagar de novo.
             </p>
             {/* O único caminho daqui era "Voltar ao checkout", que pedia o pagamento
                 outra vez a quem tinha acabado de pagar. */}
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
                 href={order ? `/pagamento/sucesso?order=${order}` : "/pagamento/sucesso"}
-                className={buttonClasses({ variant: "primary", size: "lg" })}
+                className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
               >
                 Verificar meu pagamento
               </Link>
               <Link
                 href="/dashboard"
-                className={buttonClasses({ variant: "outline", size: "lg" })}
+                className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-[16px]" })}
               >
                 Ir para a plataforma
               </Link>

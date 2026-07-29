@@ -48,12 +48,17 @@ export function CheckoutButton({
 
   return (
     <div>
-      <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm leading-6 text-slate-700">
+      <label
+        htmlFor="checkout-legal-acceptance"
+        className="mb-4 flex cursor-pointer items-start gap-3 rounded-[18px] border border-blue-100 bg-blue-50/50 p-4 text-sm font-medium leading-6 text-slate-700"
+      >
         <input
+          id="checkout-legal-acceptance"
           type="checkbox"
           checked={legalAccepted}
           onChange={(event) => setLegalAccepted(event.target.checked)}
-          className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+          aria-describedby={message || (disabled && disabledMessage) ? "checkout-payment-message" : undefined}
+          className="mt-0.5 h-5 w-5 shrink-0 rounded border-blue-200 text-blue-700 focus:ring-4 focus:ring-blue-600/15"
         />
         <span className="min-w-0">
           Li e concordo com os{" "}
@@ -69,17 +74,26 @@ export function CheckoutButton({
         full
         disabled={isDisabled}
         onClick={startCheckout}
+        className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
       >
         {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : <LockKeyhole className="h-5 w-5" />}
-        {disabled ? "Pagamento indisponível" : "Ir para o pagamento"}
+        {disabled ? "Pagamento indisponível" : "Continuar para o pagamento"}
       </Button>
       {disabled && disabledMessage ? (
-        <p className="mt-3 rounded-lg bg-slate-100 p-3 text-sm font-semibold leading-6 text-slate-700">
+        <p
+          id="checkout-payment-message"
+          className="mt-3 rounded-[16px] bg-slate-100 p-3 text-sm font-bold leading-6 text-slate-700"
+          aria-live="polite"
+        >
           {disabledMessage}
         </p>
       ) : null}
       {message ? (
-        <p className="mt-3 break-words rounded-lg bg-amber-50 p-3 text-sm font-semibold leading-6 text-amber-900">
+        <p
+          id="checkout-payment-message"
+          className="mt-3 break-words rounded-[16px] bg-amber-50 p-3 text-sm font-bold leading-6 text-amber-900"
+          aria-live="polite"
+        >
           {message}
         </p>
       ) : null}

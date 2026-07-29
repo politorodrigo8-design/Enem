@@ -1,9 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter, useSearchParams } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { ArrowLeft, Eye, EyeOff, Loader2, MailCheck } from "lucide-react";
+import {
+  ArrowLeft,
+  BookOpenCheck,
+  Eye,
+  EyeOff,
+  Loader2,
+  MailCheck,
+  Route,
+  Sparkles,
+  Target,
+} from "lucide-react";
 import { Suspense, useState, useTransition } from "react";
 import { useForm, useWatch, type UseFormRegisterReturn } from "react-hook-form";
 import { toast } from "sonner";
@@ -42,7 +53,7 @@ const headline: Record<Mode, { title: string; description: string }> = {
   },
   signup: {
     title: "Criar sua conta",
-    description: "Leva menos de um minuto. Depois você conclui a compra do acesso.",
+    description: "Leva menos de um minuto. Depois, você poderá continuar para a compra do acesso.",
   },
   reset: {
     title: "Recuperar senha",
@@ -54,6 +65,12 @@ const headline: Record<Mode, { title: string; description: string }> = {
     description: "Enviamos um link para validar o endereço usado no cadastro.",
   },
 };
+
+const authBenefits = [
+  { label: "Prioridades baseadas no seu desempenho", icon: Target },
+  { label: "Questões e simulados em um só lugar", icon: BookOpenCheck },
+  { label: "Plano semanal para orientar seus estudos", icon: Route },
+];
 
 function initialModeFromSearchParam(value: string | null): Mode {
   if (value === "signup" || value === "verify") return value;
@@ -190,293 +207,372 @@ function LoginPageContent() {
     signupLegalAcceptance?.privacy_policy === legalVersions.privacy_policy;
 
   return (
-    <main className="grid min-h-dvh bg-paper lg:grid-cols-[1.05fr_1fr]">
-      <section className="relative hidden overflow-hidden bg-slate-950 text-white lg:flex lg:flex-col lg:justify-between lg:p-12">
-        <Logo variant="dark" />
-        <div className="animate-rise max-w-lg">
-          <h1 className="font-display text-5xl font-semibold leading-tight tracking-tight">
-            Estudar certo é{" "}
-            <span className="highlight text-slate-950">saber o que priorizar</span>.
-          </h1>
-          <p className="mt-6 text-lg leading-8 text-slate-300">
-            Diagnóstico, prioridades por assunto e um plano semanal que evolui
-            com você — tudo salvo na sua conta, até o dia da prova.
-          </p>
-        </div>
-        <figure
-          className="animate-rise max-w-lg border-l-2 border-blue-500 pl-5"
-          style={{ "--rise-delay": "140ms" } as React.CSSProperties}
-        >
-          <blockquote className="text-base leading-7 text-slate-300">
-            &ldquo;A diferença entre estudar muito e estudar certo aparece na
-            nota.&rdquo;
-          </blockquote>
-          <figcaption className="mt-3 text-sm font-semibold text-slate-500">
-            Método Pontua Enem
-          </figcaption>
-        </figure>
-      </section>
+    <main className="min-h-dvh overflow-hidden bg-[linear-gradient(180deg,#ffffff_0%,#eff7ff_100%)]">
+      <div className="mx-auto grid min-h-dvh w-full max-w-7xl gap-5 px-4 py-4 sm:px-6 lg:grid-cols-[0.94fr_1.06fr] lg:gap-8 lg:px-8 lg:py-8">
+        <section className="relative hidden overflow-hidden rounded-[32px] border border-blue-100 bg-[#f1f8ff] p-8 shadow-sm shadow-blue-900/5 lg:flex lg:flex-col lg:justify-between">
+          <div
+            className="pointer-events-none absolute inset-x-8 top-24 h-52 rounded-full bg-blue-100/70 blur-3xl"
+            aria-hidden="true"
+          />
+          <Logo className="relative z-10" />
 
-      <section className="flex flex-col px-6 py-8 sm:px-10 lg:px-16">
-        <div className="flex items-center justify-between">
-          <div className="lg:hidden">
-            <Logo />
+          <div className="relative z-10 max-w-xl">
+            <span className="inline-flex items-center gap-2 rounded-full border border-blue-100 bg-white px-3 py-1 text-xs font-extrabold text-blue-800 shadow-sm shadow-blue-900/5">
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Pontua Enem
+            </span>
+            <p className="mt-5 text-5xl font-extrabold leading-[1.04] tracking-tight text-slate-950">
+              Comece a estudar com mais direção.
+            </p>
+            <p className="mt-5 max-w-lg text-lg font-medium leading-8 text-slate-600">
+              Crie sua conta para descobrir suas prioridades, organizar sua rotina
+              e acompanhar sua evolução até o ENEM.
+            </p>
+            <ul className="mt-7 space-y-3">
+              {authBenefits.map(({ label, icon: Icon }) => (
+                <li key={label} className="flex items-center gap-3 text-sm font-bold text-slate-700">
+                  <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[14px] bg-white text-blue-700 shadow-sm shadow-blue-900/5">
+                    <Icon className="h-4.5 w-4.5" aria-hidden="true" />
+                  </span>
+                  <span>{label}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <div className="hidden lg:block" />
-          <Link
-            href="/"
-            className="-my-1.5 inline-flex min-h-11 items-center gap-1.5 px-1 text-sm font-medium text-slate-500 transition-colors hover:text-slate-900 sm:my-0 sm:min-h-0 sm:px-0"
-          >
-            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
-            Voltar ao site
-          </Link>
-        </div>
 
-        <div
-          className="animate-rise mx-auto flex w-full max-w-sm flex-1 flex-col justify-center py-8 sm:py-12"
-          style={{ "--rise-delay": "80ms" } as React.CSSProperties}
-        >
-          <h2 className="text-3xl font-bold tracking-tight text-slate-950">
-            {copy.title}
-          </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{copy.description}</p>
+          <div className="relative z-10 -mb-10 flex justify-end">
+            <Image
+              src="/images/landing/aluno-pontua-enem-app-2026.png"
+              alt="Aluno sorrindo ao mostrar o app do Pontua Enem no celular"
+              width={1535}
+              height={1024}
+              sizes="520px"
+              className="h-auto w-full max-w-[520px] object-contain"
+            />
+          </div>
+        </section>
 
-          {setupMissing ? (
-            <Notice tone="warning" className="mt-6">
-              O login está temporariamente indisponível. Tente novamente em
-              alguns minutos ou fale com suporte@pontuaenem.com.br.
-            </Notice>
-          ) : null}
-
-          {mode === "login" ? (
-            <form
-              className="mt-8 space-y-5"
-              onSubmit={signInForm.handleSubmit(handleSignIn)}
-            >
-              <Field
-                label="E-mail"
-                type="email"
-                autoComplete="username"
-                placeholder="voce@exemplo.com"
-                error={signInForm.formState.errors.email?.message}
-                registration={signInForm.register("email")}
-              />
-              <PasswordField
-                label="Senha"
-                autoComplete="current-password"
-                error={signInForm.formState.errors.password?.message}
-                registration={signInForm.register("password")}
-                labelAside={
-                  <button
-                    type="button"
-                    className="-my-2.5 inline-flex min-h-11 items-center px-1 text-sm font-medium text-blue-700 transition-colors hover:text-blue-800 sm:-my-1.5 sm:min-h-9"
-                    onClick={() => setMode("reset")}
-                  >
-                    Esqueci minha senha
-                  </button>
-                }
-              />
-              <Button type="submit" full size="lg" disabled={pending}>
-                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Entrar
-              </Button>
-              <p className="pt-2 text-center text-sm text-slate-600">
-                Novo por aqui?{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-blue-700 transition-colors hover:text-blue-800"
-                  onClick={() => setMode("signup")}
-                >
-                  Criar conta
-                </button>
-              </p>
-            </form>
-          ) : null}
-
-          {mode === "signup" ? (
-            <form
-              className="mt-8 space-y-5"
-              onSubmit={signUpForm.handleSubmit(handleSignUp)}
-            >
-              <Field
-                label="Nome completo"
-                autoComplete="name"
-                placeholder="Como devemos te chamar"
-                error={signUpForm.formState.errors.fullName?.message}
-                registration={signUpForm.register("fullName")}
-              />
-              <Field
-                label="E-mail"
-                type="email"
-                autoComplete="username"
-                placeholder="voce@exemplo.com"
-                error={signUpForm.formState.errors.email?.message}
-                registration={signUpForm.register("email")}
-              />
-              <PasswordField
-                label="Senha"
-                autoComplete="new-password"
-                error={signUpForm.formState.errors.password?.message}
-                registration={signUpForm.register("password")}
-              />
-              <PasswordField
-                label="Confirmar senha"
-                autoComplete="new-password"
-                error={signUpForm.formState.errors.confirmPassword?.message}
-                registration={signUpForm.register("confirmPassword")}
-              />
-              <div className="space-y-3 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <LegalCheckbox
-                  checked={signupLegalReady}
-                  onChange={(checked) => {
-                    signUpForm.setValue(
-                      "legalAcceptance",
-                      checked
-                        ? legalVersions
-                        : {
-                            terms_of_use: "" as typeof legalVersions.terms_of_use,
-                            privacy_policy: "" as typeof legalVersions.privacy_policy,
-                            refund_policy: "" as typeof legalVersions.refund_policy,
-                          },
-                      { shouldValidate: true },
-                    );
-                  }}
-                >
-                  Li e concordo com os{" "}
-                  <LegalLink href="/termos">Termos de Uso</LegalLink> e com a{" "}
-                  <LegalLink href="/reembolso">Política de Reembolso</LegalLink>, e
-                  Declaro que li e estou ciente da{" "}
-                  <LegalLink href="/privacidade">Política de Privacidade</LegalLink>.
-                </LegalCheckbox>
-                {signUpForm.formState.errors.legalAcceptance ? (
-                  <p className="text-xs font-semibold text-rose-600" role="alert">
-                    Marque o aceite obrigatório para criar a conta.
-                  </p>
-                ) : null}
-              </div>
-              <Button type="submit" full size="lg" disabled={pending || !signupLegalReady}>
-                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Criar conta
-              </Button>
-              <p className="pt-2 text-center text-sm text-slate-600">
-                Já tem conta?{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-blue-700 transition-colors hover:text-blue-800"
-                  onClick={() => setMode("login")}
-                >
-                  Entrar
-                </button>
-              </p>
-            </form>
-          ) : null}
-
-          {mode === "reset" ? (
-            <form
-              className="mt-8 space-y-5"
-              onSubmit={resetForm.handleSubmit(handleReset)}
-            >
-              <Field
-                label="E-mail"
-                type="email"
-                autoComplete="username"
-                placeholder="voce@exemplo.com"
-                error={resetForm.formState.errors.email?.message}
-                registration={resetForm.register("email")}
-              />
-              <Button type="submit" full size="lg" disabled={pending}>
-                {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                Enviar link de recuperação
-              </Button>
-              <p className="pt-2 text-center text-sm text-slate-600">
-                Lembrou a senha?{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-blue-700 transition-colors hover:text-blue-800"
-                  onClick={() => setMode("login")}
-                >
-                  Voltar para o login
-                </button>
-              </p>
-            </form>
-          ) : null}
-
-          {mode === "verify" ? (
-            <div className="mt-8 space-y-5">
-              <Notice tone="success" icon={MailCheck} title="Link de confirmação enviado">
-                <p>
-                  Abra o e-mail que enviamos para
-                  {verificationEmail ? <strong> {verificationEmail}</strong> : " sua caixa de entrada"}
-                  {" "}e clique no link para ativar sua conta. Depois disso você será levado ao checkout.
-                </p>
-              </Notice>
-              <form
-                className="space-y-5"
-                onSubmit={verificationForm.handleSubmit(handleResendVerification)}
-              >
-                <Field
-                  label="Reenviar para"
-                  type="email"
-                  autoComplete="username"
-                  placeholder="voce@exemplo.com"
-                  error={verificationForm.formState.errors.email?.message}
-                  registration={verificationForm.register("email")}
-                />
-                <Button type="submit" full size="lg" disabled={pending}>
-                  {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                  Reenviar e-mail
-                </Button>
-              </form>
-              <p className="pt-2 text-center text-sm text-slate-600">
-                Já confirmou?{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-blue-700 transition-colors hover:text-blue-800"
-                  onClick={() => setMode("login")}
-                >
-                  Entrar na conta
-                </button>
-              </p>
+        <section className="flex min-w-0 flex-col">
+          <div className="flex items-center justify-between py-2 lg:justify-end">
+            <div className="lg:hidden">
+              <Logo />
             </div>
-          ) : null}
-        </div>
+            <Link
+              href="/"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-[14px] px-2 text-sm font-bold text-slate-600 transition-colors hover:bg-blue-50 hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              Voltar ao site
+            </Link>
+          </div>
 
-        <p className="text-center text-xs leading-5 text-slate-600">
-          Consulte os{" "}
-          <Link href="/termos" className="underline underline-offset-2 hover:text-slate-900">
-            Termos de Uso
-          </Link>
-          {" · "}
-          <Link href="/privacidade" className="underline underline-offset-2 hover:text-slate-900">
-            Política de Privacidade
-          </Link>
-          {" · "}
-          <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-900">
-            Política de Reembolso
-          </Link>
-          .
-        </p>
-      </section>
+          <div className="flex flex-1 items-center py-6 sm:py-8 lg:py-10">
+            <div
+              className="animate-rise mx-auto w-full max-w-[460px] rounded-[28px] border border-blue-100 bg-white/95 p-5 shadow-sm shadow-blue-900/5 sm:p-8"
+              style={{ "--rise-delay": "80ms" } as React.CSSProperties}
+            >
+              <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-extrabold text-blue-800">
+                {mode === "signup"
+                  ? "Cadastro"
+                  : mode === "reset"
+                    ? "Senha"
+                    : mode === "verify"
+                      ? "Verificação"
+                      : "Acesso"}
+              </span>
+              <h1 className="mt-4 text-3xl font-extrabold tracking-tight text-slate-950 sm:text-4xl">
+                {copy.title}
+              </h1>
+              <p className="mt-3 text-sm font-medium leading-6 text-slate-600">
+                {copy.description}
+              </p>
+
+              {setupMissing ? (
+                <Notice tone="warning" className="mt-6 rounded-[18px]">
+                  O login está temporariamente indisponível. Tente novamente em
+                  alguns minutos ou fale com suporte@pontuaenem.com.br.
+                </Notice>
+              ) : null}
+
+              {mode === "login" ? (
+                <form
+                  className="mt-7 space-y-4"
+                  onSubmit={signInForm.handleSubmit(handleSignIn)}
+                >
+                  <Field
+                    label="E-mail"
+                    type="email"
+                    autoComplete="username"
+                    placeholder="voce@exemplo.com"
+                    error={signInForm.formState.errors.email?.message}
+                    registration={signInForm.register("email")}
+                  />
+                  <PasswordField
+                    label="Senha"
+                    autoComplete="current-password"
+                    error={signInForm.formState.errors.password?.message}
+                    registration={signInForm.register("password")}
+                    labelAside={
+                      <button
+                        type="button"
+                        className="-my-2 inline-flex min-h-10 items-center rounded-[12px] px-1 text-sm font-bold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                        onClick={() => setMode("reset")}
+                      >
+                        Esqueci minha senha
+                      </button>
+                    }
+                  />
+                  <Button
+                    type="submit"
+                    full
+                    size="lg"
+                    disabled={pending}
+                    className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                  >
+                    {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                    Entrar
+                  </Button>
+                  <p className="pt-2 text-center text-sm text-slate-600">
+                    Novo por aqui?{" "}
+                    <button
+                      type="button"
+                      className="font-extrabold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                      onClick={() => setMode("signup")}
+                    >
+                      Criar conta
+                    </button>
+                  </p>
+                </form>
+              ) : null}
+
+              {mode === "signup" ? (
+                <form
+                  className="mt-7 space-y-4"
+                  onSubmit={signUpForm.handleSubmit(handleSignUp)}
+                >
+                  <Field
+                    label="Nome completo"
+                    autoComplete="name"
+                    placeholder="Como devemos te chamar"
+                    error={signUpForm.formState.errors.fullName?.message}
+                    registration={signUpForm.register("fullName")}
+                  />
+                  <Field
+                    label="E-mail"
+                    type="email"
+                    autoComplete="username"
+                    placeholder="voce@exemplo.com"
+                    error={signUpForm.formState.errors.email?.message}
+                    registration={signUpForm.register("email")}
+                  />
+                  <PasswordField
+                    label="Senha"
+                    autoComplete="new-password"
+                    error={signUpForm.formState.errors.password?.message}
+                    registration={signUpForm.register("password")}
+                  />
+                  <PasswordField
+                    label="Confirmar senha"
+                    autoComplete="new-password"
+                    error={signUpForm.formState.errors.confirmPassword?.message}
+                    registration={signUpForm.register("confirmPassword")}
+                  />
+                  <div className="space-y-3 rounded-[18px] border border-blue-100 bg-blue-50/50 p-4">
+                    <LegalCheckbox
+                      id="signup-legal-acceptance"
+                      describedBy={
+                        signUpForm.formState.errors.legalAcceptance
+                          ? "signup-legal-error"
+                          : undefined
+                      }
+                      checked={signupLegalReady}
+                      onChange={(checked) => {
+                        signUpForm.setValue(
+                          "legalAcceptance",
+                          checked
+                            ? legalVersions
+                            : {
+                                terms_of_use: "" as typeof legalVersions.terms_of_use,
+                                privacy_policy: "" as typeof legalVersions.privacy_policy,
+                                refund_policy: "" as typeof legalVersions.refund_policy,
+                              },
+                          { shouldValidate: true },
+                        );
+                      }}
+                    >
+                      Li e concordo com os{" "}
+                      <LegalLink href="/termos">Termos de Uso</LegalLink> e com a{" "}
+                      <LegalLink href="/reembolso">Política de Reembolso</LegalLink>, e
+                      Declaro que li e estou ciente da{" "}
+                      <LegalLink href="/privacidade">Política de Privacidade</LegalLink>.
+                    </LegalCheckbox>
+                    {signUpForm.formState.errors.legalAcceptance ? (
+                      <p
+                        id="signup-legal-error"
+                        className="text-xs font-bold text-rose-600"
+                        role="alert"
+                      >
+                        Marque o aceite obrigatório para criar a conta.
+                      </p>
+                    ) : null}
+                  </div>
+                  <Button
+                    type="submit"
+                    full
+                    size="lg"
+                    disabled={pending || !signupLegalReady}
+                    className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                  >
+                    {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                    Criar conta
+                  </Button>
+                  <p className="pt-2 text-center text-sm text-slate-600">
+                    Já tem conta?{" "}
+                    <button
+                      type="button"
+                      className="font-extrabold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                      onClick={() => setMode("login")}
+                    >
+                      Entrar
+                    </button>
+                  </p>
+                </form>
+              ) : null}
+
+              {mode === "reset" ? (
+                <form
+                  className="mt-7 space-y-4"
+                  onSubmit={resetForm.handleSubmit(handleReset)}
+                >
+                  <Field
+                    label="E-mail"
+                    type="email"
+                    autoComplete="username"
+                    placeholder="voce@exemplo.com"
+                    error={resetForm.formState.errors.email?.message}
+                    registration={resetForm.register("email")}
+                  />
+                  <Button
+                    type="submit"
+                    full
+                    size="lg"
+                    disabled={pending}
+                    className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                  >
+                    {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                    Enviar link de recuperação
+                  </Button>
+                  <p className="pt-2 text-center text-sm text-slate-600">
+                    Lembrou a senha?{" "}
+                    <button
+                      type="button"
+                      className="font-extrabold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                      onClick={() => setMode("login")}
+                    >
+                      Voltar para o login
+                    </button>
+                  </p>
+                </form>
+              ) : null}
+
+              {mode === "verify" ? (
+                <div className="mt-7 space-y-5">
+                  <Notice tone="success" icon={MailCheck} title="Link de confirmação enviado">
+                    <p>
+                      Abra o e-mail que enviamos para
+                      {verificationEmail ? (
+                        <strong> {verificationEmail}</strong>
+                      ) : (
+                        " sua caixa de entrada"
+                      )}{" "}
+                      e clique no link para ativar sua conta. Depois disso, você
+                      será levado ao checkout.
+                    </p>
+                  </Notice>
+                  <form
+                    className="space-y-4"
+                    onSubmit={verificationForm.handleSubmit(handleResendVerification)}
+                  >
+                    <Field
+                      label="Reenviar para"
+                      type="email"
+                      autoComplete="username"
+                      placeholder="voce@exemplo.com"
+                      error={verificationForm.formState.errors.email?.message}
+                      registration={verificationForm.register("email")}
+                    />
+                    <Button
+                      type="submit"
+                      full
+                      size="lg"
+                      disabled={pending}
+                      className="h-[52px] rounded-[16px] text-base font-extrabold shadow-sm shadow-blue-900/15"
+                    >
+                      {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                      Reenviar e-mail
+                    </Button>
+                  </form>
+                  <p className="pt-2 text-center text-sm text-slate-600">
+                    Já confirmou?{" "}
+                    <button
+                      type="button"
+                      className="font-extrabold text-blue-700 transition-colors hover:text-blue-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
+                      onClick={() => setMode("login")}
+                    >
+                      Entrar na conta
+                    </button>
+                  </p>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <p className="pb-2 text-center text-xs font-medium leading-5 text-slate-500">
+            Consulte os{" "}
+            <Link href="/termos" className="underline underline-offset-2 hover:text-slate-900">
+              Termos de Uso
+            </Link>
+            {" · "}
+            <Link href="/privacidade" className="underline underline-offset-2 hover:text-slate-900">
+              Política de Privacidade
+            </Link>
+            {" · "}
+            <Link href="/reembolso" className="underline underline-offset-2 hover:text-slate-900">
+              Política de Reembolso
+            </Link>
+            .
+          </p>
+        </section>
+      </div>
     </main>
   );
 }
 
 function LegalCheckbox({
+  id,
+  describedBy,
   checked,
   onChange,
   children,
 }: {
+  id: string;
+  describedBy?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
   children: React.ReactNode;
 }) {
   return (
-    <label className="flex cursor-pointer items-start gap-3 py-1 text-sm leading-6 text-slate-700">
+    <label
+      htmlFor={id}
+      className="flex cursor-pointer items-start gap-3 rounded-[14px] py-1 text-sm font-medium leading-6 text-slate-700"
+    >
       <input
+        id={id}
         type="checkbox"
         checked={checked}
         onChange={(event) => onChange(event.target.checked)}
-        className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-blue-700 focus:ring-2 focus:ring-blue-600/20"
+        aria-describedby={describedBy}
+        className="mt-0.5 h-5 w-5 shrink-0 rounded border-blue-200 text-blue-700 focus:ring-4 focus:ring-blue-600/15"
       />
       <span className="min-w-0">{children}</span>
     </label>
@@ -513,7 +609,7 @@ function showAuthToast(
 }
 
 const inputClasses =
-  "h-11 w-full rounded-lg border border-slate-300 bg-white px-3.5 text-sm text-slate-950 placeholder:text-slate-400 transition-colors focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-600/15";
+  "h-12 w-full rounded-[16px] border border-blue-100 bg-white px-4 text-base font-medium text-slate-950 shadow-sm shadow-blue-900/5 placeholder:text-slate-400 transition-colors focus:border-blue-600 focus:outline-none focus:ring-4 focus:ring-blue-600/10 sm:text-sm";
 
 function Field({
   label,
@@ -530,21 +626,34 @@ function Field({
   autoComplete?: string;
   placeholder?: string;
 }) {
+  const inputId = `auth-${registration.name.replace(/\./g, "-")}`;
+  const errorId = `${inputId}-error`;
+
   return (
-    <label className="block">
-      <span className="mb-1.5 block text-sm font-medium text-slate-700">{label}</span>
+    <div className="block">
+      <label htmlFor={inputId} className="mb-1.5 block text-sm font-bold text-slate-700">
+        {label}
+      </label>
       <input
+        id={inputId}
         type={type}
         className={inputClasses}
         autoComplete={autoComplete}
         placeholder={placeholder}
         aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
         {...registration}
       />
       {error ? (
-        <span className="mt-1.5 block text-xs font-medium text-rose-600">{error}</span>
+        <span
+          id={errorId}
+          className="mt-1.5 block text-xs font-bold text-rose-600"
+          role="alert"
+        >
+          {error}
+        </span>
       ) : null}
-    </label>
+    </div>
   );
 }
 
@@ -562,24 +671,30 @@ function PasswordField({
   labelAside?: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(false);
+  const inputId = `auth-${registration.name.replace(/\./g, "-")}`;
+  const errorId = `${inputId}-error`;
 
   return (
-    <label className="block">
-      <span className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3">
-        <span className="text-sm font-medium text-slate-700">{label}</span>
+    <div className="block">
+      <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3">
+        <label htmlFor={inputId} className="text-sm font-bold text-slate-700">
+          {label}
+        </label>
         {labelAside}
-      </span>
+      </div>
       <span className="relative block">
         <input
+          id={inputId}
           type={visible ? "text" : "password"}
           className={`${inputClasses} pr-11`}
           autoComplete={autoComplete}
           aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           {...registration}
         />
         <button
           type="button"
-          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-slate-400 transition-colors hover:text-slate-600"
+          className="absolute inset-y-0 right-0 flex w-11 items-center justify-center rounded-r-[16px] text-slate-400 transition-colors hover:text-slate-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700"
           onClick={() => setVisible((value) => !value)}
           aria-label={visible ? "Ocultar senha" : "Mostrar senha"}
         >
@@ -591,8 +706,14 @@ function PasswordField({
         </button>
       </span>
       {error ? (
-        <span className="mt-1.5 block text-xs font-medium text-rose-600">{error}</span>
+        <span
+          id={errorId}
+          className="mt-1.5 block text-xs font-bold text-rose-600"
+          role="alert"
+        >
+          {error}
+        </span>
       ) : null}
-    </label>
+    </div>
   );
 }

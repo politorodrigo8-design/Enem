@@ -76,7 +76,7 @@ export function PaymentSuccessReconciliation({
       if (response.status === 401) {
         setState("signed_out");
         setMessage(
-          "Entre na sua conta para confirmarmos o pagamento. Seu pedido está salvo — nada foi perdido.",
+          "Entre na sua conta para confirmarmos o pagamento. Seu pedido está salvo. Nada foi perdido.",
         );
         return;
       }
@@ -131,21 +131,25 @@ export function PaymentSuccessReconciliation({
   })();
 
   return (
-    <main className="bg-slate-50 py-10 sm:py-16">
+    <main className="min-h-dvh bg-[linear-gradient(180deg,#ffffff_0%,#eff7ff_100%)] py-10 sm:py-16">
       <div className="animate-rise mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
-        <Card>
+        <Card className="rounded-[28px] border-blue-100 shadow-sm shadow-blue-900/5">
           <CardContent className="p-6 sm:p-10">
-            <Icon
+            <span
               className={
                 state === "approved"
-                  ? "h-10 w-10 text-emerald-600"
-                  : state === "rejected" || state === "error"
-                    ? "h-10 w-10 text-amber-600"
-                    : "h-10 w-10 animate-spin text-blue-700"
+                  ? "inline-flex h-14 w-14 items-center justify-center rounded-[20px] bg-emerald-50 text-emerald-600"
+                  : state === "rejected" || state === "error" || state === "signed_out"
+                    ? "inline-flex h-14 w-14 items-center justify-center rounded-[20px] bg-amber-50 text-amber-600"
+                    : "inline-flex h-14 w-14 items-center justify-center rounded-[20px] bg-blue-50 text-blue-700"
               }
-              aria-hidden="true"
-            />
-            <h1 className="mt-5 font-display text-3xl font-semibold tracking-tight text-slate-950">
+            >
+              <Icon
+                className={state === "checking" || state === "pending" ? "h-7 w-7 animate-spin" : "h-7 w-7"}
+                aria-hidden="true"
+              />
+            </span>
+            <h1 className="mt-5 text-3xl font-extrabold tracking-tight text-slate-950">
               {state === "approved"
                 ? "Pagamento confirmado"
                 : state === "signed_out"
@@ -155,23 +159,37 @@ export function PaymentSuccessReconciliation({
             <p className="mt-4 break-words text-base leading-7 text-slate-600">{message}</p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               {state === "approved" ? (
-                <Link href="/dashboard" className={buttonClasses({ variant: "primary", size: "lg" })}>
+                <Link
+                  href="/dashboard"
+                  className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
+                >
                   Acessar dashboard
                   <ArrowRight className="h-4 w-4" aria-hidden="true" />
                 </Link>
               ) : state === "signed_out" ? (
-                <Link href={loginHref} className={buttonClasses({ variant: "primary", size: "lg" })}>
+                <Link
+                  href={loginHref}
+                  className={buttonClasses({ variant: "primary", size: "lg", className: "rounded-[16px]" })}
+                >
                   <LogIn className="h-4 w-4" aria-hidden="true" />
                   Entrar na minha conta
                 </Link>
               ) : (
-                <Button type="button" size="lg" onClick={() => void reconcile()}>
+                <Button
+                  type="button"
+                  size="lg"
+                  className="rounded-[16px]"
+                  onClick={() => void reconcile()}
+                >
                   <RefreshCw className="h-4 w-4" aria-hidden="true" />
                   Verificar novamente
                 </Button>
               )}
               {state === "signed_out" ? null : (
-                <Link href="/dashboard" className={buttonClasses({ variant: "outline", size: "lg" })}>
+                <Link
+                  href="/dashboard"
+                  className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-[16px]" })}
+                >
                   Ir para o dashboard
                 </Link>
               )}

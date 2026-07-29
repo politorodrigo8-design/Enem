@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { accessUntilLabel, initialCreditsLabel } from "./landing-data";
+import { LandingSectionLink } from "./landing-section-link";
 
 type LandingHeroProps = {
   ctaHref: string;
@@ -41,12 +42,12 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
               Começar minha preparação
               <ArrowRight className="h-5 w-5" aria-hidden="true" />
             </Link>
-            <Link
+            <LandingSectionLink
               href="/#como-funciona"
               className="inline-flex h-12 items-center justify-center rounded-[16px] border border-blue-100 bg-white px-6 text-base font-extrabold text-blue-800 shadow-sm shadow-blue-900/5 transition hover:-translate-y-0.5 hover:border-blue-200 hover:bg-blue-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-700 active:translate-y-0 sm:h-[52px] sm:w-auto"
             >
               Ver como funciona
-            </Link>
+            </LandingSectionLink>
           </div>
           <div
             className="animate-rise mt-4 space-y-1.5 text-sm font-bold leading-6 text-slate-600 sm:mt-5"

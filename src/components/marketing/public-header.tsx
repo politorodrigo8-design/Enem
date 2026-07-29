@@ -11,7 +11,7 @@ import type { PublicViewer } from "@/lib/db/queries";
 const links = [
   { label: "Como funciona", href: "/#como-funciona" },
   { label: "Desempenho", href: "/#desempenho" },
-  { label: "Preço", href: "/#precos" },
+  { label: "Preço", href: "/#preco" },
 ];
 
 type PublicHeaderProps = {
