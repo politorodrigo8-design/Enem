@@ -22,6 +22,25 @@ const queriesSource = readFileSync(
   "utf8",
 );
 
+function extractFunctionSource(source, functionName) {
+  const functionStart = source.indexOf(`function ${functionName}`);
+  assert.notEqual(functionStart, -1, `funcao ${functionName} precisa existir`);
+
+  const signatureEnd = source.slice(functionStart).match(/\)\s*(?::[^{]+)?\{/);
+  assert.ok(signatureEnd, `funcao ${functionName} precisa ter corpo`);
+  const bodyStart = functionStart + signatureEnd.index + signatureEnd[0].lastIndexOf("{");
+
+  let depth = 0;
+  for (let index = bodyStart; index < source.length; index++) {
+    const char = source[index];
+    if (char === "{") depth++;
+    if (char === "}") depth--;
+    if (depth === 0) return source.slice(functionStart, index + 1);
+  }
+
+  assert.fail(`funcao ${functionName} precisa fechar o corpo`);
+}
+
 // quality.ts é TypeScript e não pode ser importado por estes testes; a regra é
 // travada pela fonte. Foi a ausência dessa guarda que deixou passar um banco sem
 // acervo servindo as 11 questões demonstrativas do seed.sql como se fossem o
@@ -57,11 +76,17 @@ test("indice do acervo nao carrega enunciado, alternativas nem gabarito", () => 
   }
   // O conteúdo tem uma porta só, e ela entrega enunciado e alternativas — nunca
   // correct_option/explanation.
-  const contentQuery = queriesSource.slice(
-    queriesSource.indexOf("export async function getPracticeQuestionContent"),
-  );
-  const contentBody = contentQuery.slice(0, contentQuery.indexOf("\n}\n"));
-  assert.doesNotMatch(contentBody, /correct_option|explanation/);
+  const contentSource = [
+    extractFunctionSource(queriesSource, "getPracticeQuestionContent"),
+    extractFunctionSource(queriesSource, "toQuestionContent"),
+  ].join("\n");
+  assert.match(contentSource, /\.select\("id, statement, question_options \(option_key, option_text\)"\)/);
+  assert.match(contentSource, /\.in\("id", databaseIds\)/);
+  assert.match(contentSource, /new Map\(\s*getFallbackQuestionRecords\(\)\.map\(\(question\) => \[question\.id, question\]\),\s*\)/);
+  assert.match(contentSource, /statement: cleanQuestionStatement\(question\.statement\)/);
+  assert.match(contentSource, /option_key: option\.option_key/);
+  assert.match(contentSource, /option_text: option\.option_text/);
+  assert.doesNotMatch(contentSource, /correct_option|explanation/);
 });
 
 test("monta payload real de persistencia de resposta e resultado correto", () => {

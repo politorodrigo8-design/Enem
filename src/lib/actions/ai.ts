@@ -23,6 +23,7 @@ import {
   getFallbackQuestionWithAnswer,
   isFallbackQuestionId,
 } from "@/lib/db/fallback-content";
+import { legalContacts } from "@/lib/legal/config";
 import { isStudentReadyQuestion } from "@/lib/questions/quality";
 import {
   generateGroqText,
@@ -916,7 +917,7 @@ async function aiGenerationFailure({
     : failureHeadline;
   const creditNote = refunded
     ? "Seu crédito foi devolvido — tente novamente em alguns minutos."
-    : "Se o crédito não voltar ao seu saldo em alguns minutos, escreva para pontuaenem.suporte@gmail.com.";
+    : `Se o crédito não voltar ao seu saldo em alguns minutos, escreva para ${legalContacts.supportEmail}.`;
 
   return {
     ok: false,

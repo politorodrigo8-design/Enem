@@ -18,6 +18,10 @@ const creditsPageSource = readFileSync(
   new URL("../src/app/dashboard/creditos/page.tsx", import.meta.url),
   "utf8",
 );
+const legalConfigSource = readFileSync(
+  new URL("../src/lib/legal/config.ts", import.meta.url),
+  "utf8",
+);
 
 function readSources(directoryUrl) {
   return readdirSync(directoryUrl, { withFileTypes: true }).flatMap((entry) => {
@@ -70,7 +74,8 @@ test("falha de geracao estorna o credito e a mensagem depende do estorno", () =>
   assert.equal((aiActionSource.match(/return aiGenerationFailure\(\{/g) ?? []).length, 3);
   assert.match(aiActionSource, /return \{ refunded: false \}/);
   assert.match(aiActionSource, /refunded\s*\n?\s*\?\s*"Seu crédito foi devolvido/);
-  assert.match(aiActionSource, /suporte@pontuaenem\.com\.br/);
+  assert.match(aiActionSource, /legalContacts\.supportEmail/);
+  assert.match(legalConfigSource, /supportEmail:\s*"pontuaenem\.suporte@gmail\.com"/);
 });
 
 test("acoes de IA nao reservam credito com o provedor indisponivel", () => {
