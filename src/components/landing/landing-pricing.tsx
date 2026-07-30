@@ -3,7 +3,7 @@ import { ArrowRight, Check } from "lucide-react";
 import { ctaClasses } from "@/components/ui/cta";
 import { formatCurrency } from "@/lib/services/billing";
 import { PRODUCT_NAME } from "@/lib/product-config";
-import { pricingItems } from "./landing-data";
+import { anchorPriceLabel, pricingItems } from "./landing-data";
 
 type LandingPricingProps = {
   price: number;
@@ -32,7 +32,12 @@ export function LandingPricing({ price, ctaHref }: LandingPricingProps) {
                 </h3>
               </div>
               <div className="text-left sm:text-right">
-                <p className="tnum text-5xl font-extrabold leading-none text-blue-700">
+                <p className="tnum text-base font-bold leading-none text-slate-400">
+                  <span className="sr-only">De </span>
+                  <s>{anchorPriceLabel}</s>
+                </p>
+                <p className="tnum mt-1.5 text-5xl font-extrabold leading-none text-blue-700">
+                  <span className="sr-only">por </span>
                   {formatCurrency(price)}
                 </p>
                 <p className="mt-1 text-sm font-bold text-slate-500">

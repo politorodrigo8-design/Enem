@@ -348,6 +348,29 @@ test("o Pixel nao carrega na area logada", () => {
   assert.match(authLayoutSource, /<TikTokPixel \/>/);
 });
 
+// Regressão real: com script-src 'self' a CSP barrava o SDK que o base code
+// injeta, e o Pixel Helper reportava "No TikTok Pixel detected on this page"
+// mesmo com o código correto no HTML. Nada no build ou nos testes acusava.
+test("a CSP libera os hosts do Pixel nas tres diretivas necessarias", () => {
+  const nextConfigSource = read("../next.config.ts");
+
+  for (const directive of ["script-src", "img-src", "connect-src"]) {
+    const linha = nextConfigSource
+      .split("\n")
+      .find((item) => item.includes(directive));
+    assert.ok(linha, `diretiva ${directive} ausente da CSP`);
+    assert.ok(
+      linha.includes("tiktokPixelHosts") || linha.includes("analytics.tiktok.com"),
+      `${directive} precisa liberar analytics.tiktok.com`,
+    );
+  }
+
+  assert.match(nextConfigSource, /analytics\.tiktok\.com/);
+  assert.match(nextConfigSource, /ads\.tiktok\.com/);
+  // Wildcard em *.tiktok.com abriria mais superfície do que o Pixel precisa.
+  assert.doesNotMatch(nextConfigSource, /\*\.tiktok\.com/);
+});
+
 test("a politica de privacidade declara o uso do TikTok", () => {
   assert.match(privacyPageSource, /TikTok Pixel/);
   assert.match(privacyPageSource, /Events API/);

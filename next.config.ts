@@ -2,18 +2,26 @@ import type { NextConfig } from "next";
 
 const isProduction = process.env.NODE_ENV === "production";
 
+// Hosts do TikTok Pixel. O base code roda inline (coberto por 'unsafe-inline'),
+// mas ele injeta um <script src> apontando para analytics.tiktok.com — sem
+// liberar o host aqui, a CSP barra o SDK e o Pixel Helper reporta
+// "No TikTok Pixel detected on this page". O ads.tiktok.com é exigido pelo
+// próprio Pixel Helper junto do analytics. Nomeados um a um, sem wildcard.
+const tiktokPixelHosts = "https://analytics.tiktok.com https://ads.tiktok.com";
+
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
   "object-src 'none'",
   "frame-ancestors 'none'",
   "form-action 'self'",
-  `script-src 'self' 'unsafe-inline'${isProduction ? "" : " 'unsafe-eval'"}`,
+  `script-src 'self' 'unsafe-inline' ${tiktokPixelHosts}${isProduction ? "" : " 'unsafe-eval'"}`,
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob: https://*.supabase.co",
+  // O Pixel usa beacon por imagem como fallback quando fetch/sendBeacon falham.
+  `img-src 'self' data: blob: https://*.supabase.co ${tiktokPixelHosts}`,
   "font-src 'self' data:",
   "media-src 'self' blob: https://*.supabase.co",
-  "connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.mercadopago.com https://api.mercadopago.com",
+  `connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.mercadopago.com https://api.mercadopago.com ${tiktokPixelHosts}`,
   "frame-src https://*.mercadopago.com https://www.mercadopago.com",
   isProduction ? "upgrade-insecure-requests" : "",
 ]

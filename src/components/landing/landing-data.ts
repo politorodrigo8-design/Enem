@@ -20,6 +20,8 @@ export const landingNavLinks = [
 ];
 
 export const accessUntilLabel = "01/12/2026";
+// Preço de referência exibido riscado na seção de preço (ancoragem de valor).
+export const anchorPriceLabel = "R$ 239,00";
 export const initialCreditsLabel = "50 créditos iniciais inclusos";
 export const supportEmail = "pontuaenem.suporte@gmail.com";
 

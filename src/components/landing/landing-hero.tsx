@@ -2,7 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { ctaClasses } from "@/components/ui/cta";
-import { accessUntilLabel, initialCreditsLabel } from "./landing-data";
+import {
+  accessUntilLabel,
+  anchorPriceLabel,
+  initialCreditsLabel,
+} from "./landing-data";
 import { LandingSectionLink } from "./landing-section-link";
 
 type LandingHeroProps = {
@@ -51,7 +55,11 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
             className="animate-rise mt-4 space-y-1.5 text-sm font-bold leading-6 text-slate-600 sm:mt-5"
             style={{ "--rise-delay": "240ms" } as React.CSSProperties}
           >
-            <p>Pagamento único de R$ 99,90 para acesso até {accessUntilLabel}.</p>
+            <p>
+              Pagamento único de{" "}
+              <s className="font-bold text-slate-400">{anchorPriceLabel}</s>{" "}
+              R$ 99,90 para acesso até {accessUntilLabel}.
+            </p>
             <p>{initialCreditsLabel}. Sem mensalidade.</p>
           </div>
         </div>
