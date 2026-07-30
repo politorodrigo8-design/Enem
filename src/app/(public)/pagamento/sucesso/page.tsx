@@ -1,3 +1,5 @@
+import { createClient } from "@/lib/supabase/server";
+import { isSupabaseConfigured } from "@/lib/supabase/config";
 import { PaymentSuccessReconciliation, type MercadoPagoReturnParams } from "./payment-success-reconciliation";
 
 type PaymentSuccessPageProps = {
@@ -6,9 +8,13 @@ type PaymentSuccessPageProps = {
 
 export default async function PaymentSuccessPage({ searchParams }: PaymentSuccessPageProps) {
   const params = (await searchParams) ?? {};
+  // Identidade do próprio comprador, usada só no Advanced Matching do Pixel.
+  // Quem volta do app do banco sem sessão simplesmente não tem identidade aqui.
+  const buyer = await getBuyerIdentity();
 
   return (
     <PaymentSuccessReconciliation
+      buyer={buyer}
       initialParams={{
         payment_id: pickParam(params.payment_id),
         collection_id: pickParam(params.collection_id),
@@ -20,6 +26,18 @@ export default async function PaymentSuccessPage({ searchParams }: PaymentSucces
       }}
     />
   );
+}
+
+async function getBuyerIdentity() {
+  if (!isSupabaseConfigured()) return null;
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  return { id: user.id, email: user.email ?? null };
 }
 
 function pickParam(value: string | string[] | undefined): MercadoPagoReturnParams[keyof MercadoPagoReturnParams] {

@@ -6,6 +6,16 @@ import {
   getMercadoPagoPaymentOrderId,
   getMercadoPagoPaymentProcessingDecision,
 } from "@/lib/services/mercado-pago-processing-rules.mjs";
+import { buildTikTokBrowserPurchase } from "@/lib/services/tiktok-events-payload.mjs";
+import {
+  isTikTokEventsConfigured,
+  sendTikTokPurchaseEvent,
+} from "@/lib/services/tiktok-events";
+
+export type TikTokBrowserPurchase = {
+  event_id: string;
+  properties: Record<string, unknown>;
+};
 
 type OrderWithProduct = Order & { products: Product | Product[] | null };
 type ProcessingSource = "webhook" | "success_reconciliation";
@@ -16,6 +26,9 @@ export type MercadoPagoApprovedPaymentProcessingResult = {
   orderId: string | null;
   access: "granted" | "already_granted" | "not_granted";
   reason: string;
+  // Espelho do Purchase enviado ao TikTok pelo servidor. Vai até a página de
+  // retorno para o Pixel reportar a MESMA compra com o MESMO event_id.
+  tiktokPurchase?: TikTokBrowserPurchase | null;
 };
 
 export class MercadoPagoPaymentProcessingError extends Error {
@@ -102,6 +115,30 @@ export async function processApprovedMercadoPagoPayment({
     source,
   });
 
+  // Aqui só chegam pagamentos aprovados, pelos dois caminhos (webhook e
+  // reconciliação da página de retorno). É a fonte da verdade do Purchase: quem
+  // paga por Pix ou boleto no app do banco muitas vezes nunca volta ao site, e
+  // o Pixel do navegador nunca dispararia. A dedup por event_id no TikTok
+  // garante uma única conversão mesmo quando os dois canais reportam.
+  await reportTikTokPurchase({
+    supabase,
+    order: checkedOrder,
+    product,
+    source,
+  });
+  // Mesma regra do envio pelo servidor: só a compra de acesso é a conversão da
+  // campanha, e o Pixel não pode reportar nada que o servidor não reporte.
+  const tiktokPurchase =
+    product?.product_kind === "access"
+      ? ((buildTikTokBrowserPurchase({
+          orderId: checkedOrder.id,
+          amountCents: checkedOrder.amount_cents,
+          currency: checkedOrder.currency,
+          contentId: product?.slug ?? null,
+          contentName: product?.product_name ?? null,
+        }) ?? null) as TikTokBrowserPurchase | null)
+      : null;
+
   if (decision.action === "already_granted") {
     logPaymentProcessing("access already granted", {
       source,
@@ -112,6 +149,7 @@ export async function processApprovedMercadoPagoPayment({
       orderId: checkedOrder.id,
       access: "already_granted",
       reason: decision.reason,
+      tiktokPurchase,
     };
   }
 
@@ -145,7 +183,53 @@ export async function processApprovedMercadoPagoPayment({
     orderId: checkedOrder.id,
     access: "granted",
     reason: decision.reason,
+    tiktokPurchase,
   };
+}
+
+async function reportTikTokPurchase({
+  supabase,
+  order,
+  product,
+  source,
+}: {
+  supabase: SupabaseClient<Database>;
+  order: Order;
+  product: Product | null | undefined;
+  source: ProcessingSource;
+}) {
+  if (!isTikTokEventsConfigured()) return;
+  // Purchase é a conversão de AQUISIÇÃO otimizada na campanha. Recarga de
+  // crédito é receita de quem já é cliente: contar aqui infla a contagem de
+  // conversão do anúncio e ensina o algoritmo com o público errado.
+  if (product?.product_kind !== "access") return;
+
+  try {
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("email")
+      .eq("id", order.user_id)
+      .maybeSingle();
+    const email = (profile as { email?: string | null } | null)?.email ?? null;
+
+    await sendTikTokPurchaseEvent({
+      orderId: order.id,
+      userId: order.user_id,
+      email,
+      amountCents: order.amount_cents,
+      currency: order.currency,
+      productSlug: product?.slug ?? null,
+      productName: product?.product_name ?? null,
+      orderMetadata: order.metadata,
+    });
+  } catch (error) {
+    // Publicidade nunca pode impedir a entrega do acesso pago.
+    console.error("[payments:mercado-pago] tiktok purchase report failed", {
+      source,
+      orderId: order.id,
+      message: error instanceof Error ? error.message : String(error),
+    });
+  }
 }
 
 async function registerProviderPaymentId({

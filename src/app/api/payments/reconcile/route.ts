@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
         status: "approved",
         redirectTo: "/dashboard",
         access: processing.access,
+        tiktokPurchase: processing.tiktokPurchase ?? null,
       });
     }
 

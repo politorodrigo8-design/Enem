@@ -6,6 +6,14 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, LogIn, RefreshCw } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { identifyTikTokUser, trackTikTokEvent } from "@/lib/analytics/tiktok";
+
+type TikTokPurchase = {
+  event_id: string;
+  properties: Record<string, unknown>;
+};
+
+export type BuyerIdentity = { id: string; email: string | null };
 
 export type MercadoPagoReturnParams = {
   payment_id: string | null;
@@ -30,14 +38,20 @@ const retryDelayMs = 3000;
 
 export function PaymentSuccessReconciliation({
   initialParams,
+  buyer,
 }: {
   initialParams: MercadoPagoReturnParams;
+  buyer?: BuyerIdentity | null;
 }) {
   const router = useRouter();
   const [state, setState] = useState<ReconciliationState>("checking");
   const [message, setMessage] = useState("Confirmando pagamento");
   const [attempts, setAttempts] = useState(0);
   const timeoutRef = useRef<number | null>(null);
+  // A reconciliação repete enquanto o pagamento não confirma. Sem esta trava a
+  // mesma compra seria reportada a cada tentativa; o TikTok deduplicaria pelo
+  // event_id, mas não faz sentido gastar requisição sabendo disso.
+  const reportedPurchaseRef = useRef<string | null>(null);
 
   const reconcile = useCallback(async () => {
     setAttempts((current) => current + 1);
@@ -55,9 +69,11 @@ export function PaymentSuccessReconciliation({
         status?: string;
         message?: string;
         redirectTo?: string;
+        tiktokPurchase?: TikTokPurchase | null;
       };
 
       if (response.ok && payload.status === "approved") {
+        reportTikTokPurchase(payload.tiktokPurchase, buyer, reportedPurchaseRef);
         setState("approved");
         setMessage("Pagamento aprovado. Liberando seu acesso...");
         window.setTimeout(() => router.replace(payload.redirectTo ?? "/dashboard"), 700);
@@ -87,7 +103,7 @@ export function PaymentSuccessReconciliation({
       setState("error");
       setMessage("Não foi possível confirmar o pagamento agora.");
     }
-  }, [initialParams, router]);
+  }, [buyer, initialParams, router]);
 
   useEffect(() => {
     timeoutRef.current = window.setTimeout(() => {
@@ -211,4 +227,24 @@ export function PaymentSuccessReconciliation({
       </div>
     </main>
   );
+}
+
+/**
+ * Cópia de navegador do Purchase. O servidor já reportou pelo Events API na
+ * aprovação; aqui vale como redundância e como fonte dos sinais de browser. O
+ * event_id vem do servidor justamente para as duas cópias contarem como uma
+ * única conversão.
+ */
+function reportTikTokPurchase(
+  purchase: TikTokPurchase | null | undefined,
+  buyer: BuyerIdentity | null | undefined,
+  reportedRef: { current: string | null },
+) {
+  if (!purchase?.event_id) return;
+  if (reportedRef.current === purchase.event_id) return;
+  reportedRef.current = purchase.event_id;
+
+  // O identify precisa vir antes do track para o evento carregar o matching.
+  identifyTikTokUser({ email: buyer?.email, externalId: buyer?.id });
+  trackTikTokEvent("Purchase", purchase.properties, purchase.event_id);
 }

@@ -5,6 +5,7 @@ import { Loader2, LockKeyhole } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ctaClasses } from "@/components/ui/cta";
+import { trackTikTokEvent } from "@/lib/analytics/tiktok";
 import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
 
 export function CheckoutButton({
@@ -40,6 +41,10 @@ export function CheckoutButton({
       }
 
       if (payload.redirectTo) {
+        // Último sinal antes de o comprador sair para o Mercado Pago. Só existe
+        // no browser: não há evento equivalente pelo servidor, então vai sem
+        // event_id de propósito.
+        trackTikTokEvent("InitiateCheckout");
         window.location.href = payload.redirectTo;
       }
     });

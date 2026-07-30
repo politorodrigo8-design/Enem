@@ -10,6 +10,10 @@ import {
 } from "@/lib/services/payment-security.mjs";
 import { recordProductEvent } from "@/lib/services/product-events";
 import {
+  buildTikTokSignals,
+  readTikTokClickIdFromUrl,
+} from "@/lib/services/tiktok-events-payload.mjs";
+import {
   recordCurrentLegalAcceptances,
   validateLegalAcceptancePayload,
 } from "@/lib/legal/acceptances";
@@ -160,6 +164,24 @@ export async function POST(request: NextRequest) {
       ? new Date(Date.now() + pendingCreditPackageOrderMs).toISOString()
       : product.access_valid_until;
 
+  // Único momento do fluxo em que o navegador do comprador fala com a gente
+  // antes da aprovação: a confirmação chega por webhook do Mercado Pago, que é
+  // servidor-para-servidor e não carrega ttclid, _ttp, IP nem user agent dele.
+  // Sem guardar aqui, o Purchase do Events API sai cego.
+  // O referer desta chamada é a própria página de checkout aberta pelo comprador,
+  // então serve tanto como page.url quanto como fonte do ttclid ainda na query.
+  const checkoutPageUrl = request.headers.get("referer") ?? `${getSiteUrl()}${checkoutRoute}`;
+  const tiktokSignals = buildTikTokSignals({
+    cookieHeader: request.headers.get("cookie"),
+    userAgent: request.headers.get("user-agent"),
+    forwardedFor: request.headers.get("x-forwarded-for"),
+    realIp: request.headers.get("x-real-ip"),
+    connectingIp: request.headers.get("cf-connecting-ip"),
+    pageUrl: checkoutPageUrl,
+    referrer: null,
+    ttclidParam: readTikTokClickIdFromUrl(checkoutPageUrl),
+  });
+
   await recordProductEvent({
     supabase: admin,
     userId: user.id,
@@ -202,6 +224,18 @@ export async function POST(request: NextRequest) {
   const reusableOrder = pendingOrder as Order | null;
 
   if (reusableOrder?.checkout_url) {
+    // O comprador pode ter voltado por um clique novo de anúncio, com ttclid
+    // diferente. O pedido é o mesmo, os sinais não.
+    await admin
+      .from("orders")
+      .update({
+        metadata: {
+          ...(isPlainObject(reusableOrder.metadata) ? reusableOrder.metadata : {}),
+          tiktok: tiktokSignals,
+        },
+      } as never)
+      .eq("id", reusableOrder.id);
+
     try {
       await recordCurrentLegalAcceptances({
         userId: user.id,
@@ -253,6 +287,7 @@ export async function POST(request: NextRequest) {
         credit_amount: product.credit_amount,
         referral_id: referral?.id,
         referrer_user_id: referral?.referrer_user_id,
+        tiktok: tiktokSignals,
       },
     } as never)
     .select("*")

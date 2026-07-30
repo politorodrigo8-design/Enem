@@ -113,6 +113,7 @@ export default function PrivacyPage() {
                   "Vercel: hospedagem, infraestrutura, execução da aplicação e logs técnicos.",
                   "Mercado Pago: processamento de pagamentos, criação de checkout, confirmação, estorno e eventos de pagamento.",
                   "Groq: geração de respostas educacionais de IA para explicação de questões, análise de desempenho e plano inteligente.",
+                  "TikTok: medição de anúncios por meio do TikTok Pixel e da Events API, para identificar quais campanhas trouxeram visitas e compras.",
                   "Serviços de e-mail e suporte: envio de comunicações essenciais e atendimento, quando utilizados.",
                 ]}
               />
@@ -177,14 +178,31 @@ export default function PrivacyPage() {
           id: "cookies",
           heading: "Cookies e tecnologias similares",
           body: (
-            <p>
-              O Pontua Enem utiliza cookies e tecnologias estritamente necessários à
-              autenticação, manutenção da sessão, segurança e funcionamento da plataforma.
-              Quando houver acesso por link de indicação, também podemos usar um cookie de
-              atribuição por até 30 dias para preservar o código durante cadastro e
-              checkout. Atualmente, não utilizamos cookies de publicidade comportamental ou
-              pixels de marketing.
-            </p>
+            <>
+              <p>
+                O Pontua Enem utiliza cookies e tecnologias estritamente necessários à
+                autenticação, manutenção da sessão, segurança e funcionamento da
+                plataforma. Quando houver acesso por link de indicação, também podemos usar
+                um cookie de atribuição por até 30 dias para preservar o código durante
+                cadastro e checkout.
+              </p>
+              <p>
+                Também utilizamos o TikTok Pixel e a Events API do TikTok para medir a
+                origem das visitas e das compras vindas de anúncios. Nesse uso podem ser
+                gravados cookies próprios do TikTok no domínio do Pontua Enem, entre eles um
+                identificador de clique em anúncio e um identificador de navegador, e podem
+                ser enviados ao TikTok o endereço IP, o agente do navegador, a página
+                visitada e, de forma pseudonimizada por hash SHA-256, o e-mail e o
+                identificador interno da conta. Esses mesmos dados podem ser registrados no
+                pedido para permitir a medição da compra depois da confirmação do pagamento.
+              </p>
+              <p>
+                A finalidade é exclusivamente medir e otimizar a divulgação do serviço. O
+                processamento pelo TikTok pode ocorrer fora do Brasil. O usuário pode
+                bloquear esses cookies nas configurações do navegador sem prejuízo do
+                acesso à plataforma.
+              </p>
+            </>
           ),
         },
         {

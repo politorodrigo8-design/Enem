@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { Notice } from "@/components/ui/notice";
+import { identifyTikTokUser, trackTikTokEvent } from "@/lib/analytics/tiktok";
 import { safeInternalPath } from "@/lib/utils";
 import {
   resendEmailVerificationAction,
@@ -153,6 +154,14 @@ function LoginPageContent() {
   function handleSignUp(values: SignUpInput) {
     startTransition(async () => {
       const result = await signUpAction(values);
+      if (result.ok) {
+        // A conta existe nos dois desfechos (com e sem verificação pendente).
+        // É o topo do funil que o TikTok consegue otimizar enquanto o volume de
+        // Purchase ainda é baixo demais para sair da fase de aprendizado.
+        identifyTikTokUser({ email: values.email });
+        trackTikTokEvent("CompleteRegistration");
+      }
+
       if (result.ok && result.requiresEmailVerification) {
         verificationForm.setValue("email", result.email ?? values.email, { shouldValidate: true });
         toast.success("Confira seu e-mail", {
