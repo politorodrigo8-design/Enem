@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createAdminWriter } from "@/lib/supabase/admin-writer";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/admin-config";
 import { isSupabaseConfigured } from "@/lib/supabase/config";
 import type { ActionResult } from "@/lib/actions/auth";
@@ -44,30 +44,6 @@ const editorialQuestionSchema = z.object({
 
 export type EditorialQuestionInput = z.infer<typeof editorialQuestionSchema>;
 
-type AdminQueryResult = {
-  data: Record<string, unknown> | Record<string, unknown>[] | null;
-  error: { message: string } | null;
-};
-
-type AdminSingleQueryResult = {
-  data: Record<string, unknown> | null;
-  error: { message: string } | null;
-};
-
-type AdminQuery = {
-  upsert: (values: Record<string, unknown>, options?: Record<string, string>) => AdminQuery;
-  insert: (values: Record<string, unknown>) => AdminQuery;
-  update: (values: Record<string, unknown>) => AdminQuery;
-  select: (columns: string) => AdminQuery;
-  eq: (column: string, value: unknown) => AdminQuery;
-  single: () => Promise<AdminSingleQueryResult>;
-  maybeSingle: () => Promise<AdminSingleQueryResult>;
-  then: Promise<AdminQueryResult>["then"];
-};
-
-type AdminWriter = {
-  from: (table: string) => AdminQuery;
-};
 
 function editorialError(scope: string, error: unknown, fallback = "Não foi possível salvar agora.") {
   logServerError(scope, error);
@@ -129,7 +105,7 @@ export async function updateEditorialQuestionAction(
     };
   }
 
-  const admin = createAdminClient() as unknown as AdminWriter;
+  const admin = createAdminWriter();
 
   const { data: mediaRows, error: mediaError } = await admin
     .from("question_media")

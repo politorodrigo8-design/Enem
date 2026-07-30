@@ -5,7 +5,11 @@ import { Loader2, LockKeyhole } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ctaClasses } from "@/components/ui/cta";
-import { identifyTikTokUser, trackTikTokEvent } from "@/lib/analytics/tiktok";
+import {
+  identifyTikTokUser,
+  trackTikTokEvent,
+  waitForTikTokFlush,
+} from "@/lib/analytics/tiktok";
 import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
 
 export function CheckoutButton({
@@ -64,6 +68,9 @@ export function CheckoutButton({
       }
 
       if (payload.redirectTo) {
+        // A ida ao Mercado Pago descarrega a página. Sem esperar o beacon do
+        // InitiateCheckout entrar na rede, o evento é cancelado em voo.
+        await waitForTikTokFlush();
         window.location.href = payload.redirectTo;
       }
     });

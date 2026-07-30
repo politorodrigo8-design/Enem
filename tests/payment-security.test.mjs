@@ -182,6 +182,41 @@ test("preferencia Mercado Pago registra notification_url apenas com origem HTTPS
   assert.match(mercadoPagoServiceSource, /hasNotificationUrl: Boolean\(notificationUrl\)/);
 });
 
+// O Parcelado Vendedor do painel está em até 2x, então o teto de 3 na
+// preferência produz: 1x e 2x sem juros para o comprador (custo do vendedor) e
+// 3x com juros do comprador. Sem este campo o Checkout Pro oferece o máximo da
+// conta, e o comprador veria 12x.
+test("preferencia Mercado Pago limita o parcelamento a 3 vezes", () => {
+  const inicio = mercadoPagoServiceSource.indexOf("checkout/preferences");
+  const fim = mercadoPagoServiceSource.indexOf("cache: \"no-store\"", inicio);
+  assert.ok(inicio > -1 && fim > inicio, "nao consegui isolar o corpo da preferencia");
+  const corpoDaPreferencia = mercadoPagoServiceSource.slice(inicio, fim);
+
+  assert.match(corpoDaPreferencia, /payment_methods:\s*\{[\s\S]*?installments:\s*MAX_CARD_INSTALLMENTS/);
+  assert.match(mercadoPagoServiceSource, /export const MAX_CARD_INSTALLMENTS = 3;/);
+});
+
+// Guarda de regressão: a mudança do parcelamento não pode ter deslocado nada
+// mais do corpo da preferência.
+test("preferencia Mercado Pago preserva os demais campos", () => {
+  const inicio = mercadoPagoServiceSource.indexOf("checkout/preferences");
+  const fim = mercadoPagoServiceSource.indexOf("cache: \"no-store\"", inicio);
+  const corpoDaPreferencia = mercadoPagoServiceSource.slice(inicio, fim);
+
+  for (const campo of [
+    /items:/,
+    /payer:/,
+    /external_reference: order\.id/,
+    /metadata:/,
+    /back_urls:/,
+    /auto_return: "approved"/,
+    /notification_url: notificationUrl/,
+    /"X-Idempotency-Key": order\.id/,
+  ]) {
+    assert.match(corpoDaPreferencia, campo, `campo ausente na preferencia: ${campo}`);
+  }
+});
+
 test("rota do webhook usa validador SDK antes de processar pagamento", () => {
   const validationIndex = mercadoPagoWebhookRouteSource.indexOf(
     "const signatureValidation = validateMercadoPagoWebhookSignature",

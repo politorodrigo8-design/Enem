@@ -20,7 +20,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
 import { Notice } from "@/components/ui/notice";
-import { identifyTikTokUser, trackTikTokEvent } from "@/lib/analytics/tiktok";
+import {
+  identifyTikTokUser,
+  trackTikTokEvent,
+  waitForTikTokFlush,
+} from "@/lib/analytics/tiktok";
 import { safeInternalPath } from "@/lib/utils";
 import {
   resendEmailVerificationAction,
@@ -170,6 +174,9 @@ function LoginPageContent() {
         // Purchase ainda é baixo demais para sair da fase de aprendizado.
         identifyTikTokUser({ email: values.email });
         trackTikTokEvent("CompleteRegistration");
+        // O cadastro empurra para /checkout logo em seguida; sem esperar, o
+        // beacon é cancelado pela navegação.
+        await waitForTikTokFlush();
       }
 
       if (result.ok && result.requiresEmailVerification) {

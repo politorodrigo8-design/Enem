@@ -94,6 +94,25 @@ export function identifyTikTokUser({
   enqueue((queue) => queue.identify(identity));
 }
 
+// Tempo dado ao SDK para colocar o evento na rede antes de a página sair.
+// Necessário porque o SDK monta e despacha o beacon de forma assíncrona: um
+// window.location.href logo depois do track cancela a requisição em voo, e o
+// evento nunca chega. Foi exatamente o que aconteceu com InitiateCheckout,
+// CompleteRegistration e o Purchase do navegador — os três dispararam e a
+// página navegou em seguida, enquanto ViewContent e AddToCart, que disparam na
+// montagem e não navegam, chegaram normalmente.
+const flushDelayMs = 600;
+
+/**
+ * Usar SEMPRE que houver navegação logo depois do evento (redirect para o
+ * gateway, router.push, router.replace). Sem isso o evento é perdido em
+ * silêncio: nada falha, nada loga, ele simplesmente não chega ao TikTok.
+ */
+export async function waitForTikTokFlush() {
+  if (typeof window === "undefined") return;
+  await new Promise((resolve) => window.setTimeout(resolve, flushDelayMs));
+}
+
 export function trackTikTokEvent(
   event: string,
   properties?: Record<string, unknown>,

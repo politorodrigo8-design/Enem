@@ -547,3 +547,28 @@ test("a tela de falha usa o pedido que recebe", () => {
   assert.match(falha, /searchParams/);
   assert.match(falha, /\/pagamento\/sucesso\?order=/);
 });
+
+// Causa raiz encontrada em produção: os 3 eventos que ficaram em zero eram
+// exatamente os que disparam e a página navega em seguida (redirect para o
+// gateway, router.push, router.replace). O beacon do SDK é assíncrono e a
+// navegação cancela a requisição em voo — sem erro, sem log, sem evento.
+test("todo evento seguido de navegacao espera o beacon sair", () => {
+  const lib = read("../src/lib/analytics/tiktok.ts");
+  assert.match(lib, /export async function waitForTikTokFlush/);
+
+  const casos = [
+    ["../src/app/(public)/checkout/checkout-button.tsx", /window\.location\.href/],
+    ["../src/app/(auth)/login/page.tsx", /router\.push\("\/checkout"\)/],
+    ["../src/app/(payments)/pagamento/sucesso/payment-success-reconciliation.tsx", /router\.replace/],
+  ];
+
+  for (const [caminho, navegacao] of casos) {
+    const source = read(caminho);
+    assert.match(source, /waitForTikTokFlush/, `${caminho} navega sem esperar o beacon`);
+    assert.match(source, navegacao);
+    assert.ok(
+      source.indexOf("await waitForTikTokFlush()") < source.search(navegacao),
+      `${caminho}: a espera precisa vir ANTES da navegacao`,
+    );
+  }
+});

@@ -10,6 +10,9 @@ export { validateMercadoPagoWebhookSignature } from "@/lib/services/payment-webh
 
 const API_BASE = "https://api.mercadopago.com";
 
+// Máximo de parcelas no cartão de crédito oferecido no Checkout Pro.
+export const MAX_CARD_INSTALLMENTS = 3;
+
 export function isMercadoPagoConfigured() {
   return !getMercadoPagoConfigurationProblem();
 }
@@ -75,6 +78,13 @@ export async function createMercadoPagoPreference({
         user_id: order.user_id,
         referral_id: stringOrUndefined(orderMetadata.referral_id),
         referrer_user_id: stringOrUndefined(orderMetadata.referrer_user_id),
+      },
+      // Teto de parcelas no cartão. Combina com o Parcelado Vendedor configurado
+      // em até 2x no painel do Mercado Pago, resultando em: 1x e 2x sem juros
+      // para o comprador (custo assumido pelo vendedor) e 3x com juros do
+      // comprador. 4x ou mais não é oferecido.
+      payment_methods: {
+        installments: MAX_CARD_INSTALLMENTS,
       },
       back_urls: {
         success: `${siteUrl}/pagamento/sucesso?order=${order.id}`,

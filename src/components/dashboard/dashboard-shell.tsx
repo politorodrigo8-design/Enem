@@ -13,6 +13,7 @@ import {
   Menu,
   MessageSquare,
   PenLine,
+  ShieldCheck,
   Target,
   UserRound,
   X,
@@ -41,10 +42,18 @@ const navigation = [
   {
     group: "Conta",
     items: [
-      { label: "Correções", href: "/dashboard/redacoes", icon: FileCheck2, adminOnly: true },
-      { label: "Feedbacks", href: "/dashboard/feedbacks", icon: MessageSquare, adminOnly: true },
       { label: "Créditos", href: "/dashboard/creditos", icon: Coins },
       { label: "Indique e ganhe", href: "/dashboard/indicacoes", icon: Gift },
+    ],
+  },
+  {
+    // O painel tem navegação própria por abas; uma entrada só evita dois itens
+    // da sidebar acesos ao mesmo tempo em /dashboard/admin/*.
+    group: "Administração",
+    items: [
+      { label: "Painel", href: "/dashboard/admin", icon: ShieldCheck, adminOnly: true },
+      { label: "Correções", href: "/dashboard/redacoes", icon: FileCheck2, adminOnly: true },
+      { label: "Feedbacks", href: "/dashboard/feedbacks", icon: MessageSquare, adminOnly: true },
     ],
   },
 ];

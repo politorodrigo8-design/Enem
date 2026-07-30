@@ -6,7 +6,11 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle, ArrowRight, CheckCircle2, Loader2, LogIn, RefreshCw } from "lucide-react";
 import { Button, buttonClasses } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { identifyTikTokUser, trackTikTokEvent } from "@/lib/analytics/tiktok";
+import {
+  identifyTikTokUser,
+  trackTikTokEvent,
+  waitForTikTokFlush,
+} from "@/lib/analytics/tiktok";
 
 type TikTokPurchase = {
   event_id: string;
@@ -77,7 +81,10 @@ export function PaymentSuccessReconciliation({
         reportTikTokPurchase(payload.tiktokPurchase, buyer, reportedPurchaseRef);
         setState("approved");
         setMessage("Pagamento aprovado. Liberando seu acesso...");
-        window.setTimeout(() => router.replace(payload.redirectTo ?? "/dashboard"), 700);
+        // O redirect para o dashboard descarregaria a página antes de o beacon
+        // do Purchase sair.
+        await waitForTikTokFlush();
+        router.replace(payload.redirectTo ?? "/dashboard");
         return;
       }
 
