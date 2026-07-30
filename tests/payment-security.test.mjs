@@ -40,11 +40,11 @@ const mercadoPagoReconcileRouteSource = readFileSync(
   "utf8",
 );
 const mercadoPagoSuccessPageSource = readFileSync(
-  new URL("../src/app/(public)/pagamento/sucesso/page.tsx", import.meta.url),
+  new URL("../src/app/(payments)/pagamento/sucesso/page.tsx", import.meta.url),
   "utf8",
 );
 const mercadoPagoSuccessClientSource = readFileSync(
-  new URL("../src/app/(public)/pagamento/sucesso/payment-success-reconciliation.tsx", import.meta.url),
+  new URL("../src/app/(payments)/pagamento/sucesso/payment-success-reconciliation.tsx", import.meta.url),
   "utf8",
 );
 

@@ -108,7 +108,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         ok: true,
         status: "approved",
-        redirectTo: "/dashboard",
+        // Quem recarregou crédito volta para a tela de créditos, onde vê o saldo
+        // novo; quem comprou acesso vai para o dashboard.
+        redirectTo: processing.redirectTo ?? "/dashboard",
         access: processing.access,
         tiktokPurchase: processing.tiktokPurchase ?? null,
       });

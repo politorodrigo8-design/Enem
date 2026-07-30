@@ -29,7 +29,14 @@ export type MercadoPagoApprovedPaymentProcessingResult = {
   // Espelho do Purchase enviado ao TikTok pelo servidor. Vai até a página de
   // retorno para o Pixel reportar a MESMA compra com o MESMO event_id.
   tiktokPurchase?: TikTokBrowserPurchase | null;
+  // Para onde mandar o comprador. Depende do que ele comprou: quem recarregou
+  // crédito quer ver o saldo novo, não o dashboard.
+  redirectTo?: string;
 };
+
+function postPurchaseDestination(product: Product | null | undefined) {
+  return product?.product_kind === "credit_package" ? "/dashboard/creditos" : "/dashboard";
+}
 
 export class MercadoPagoPaymentProcessingError extends Error {
   reason: string;
@@ -125,6 +132,7 @@ export async function processApprovedMercadoPagoPayment({
       orderId: checkedOrder.id,
       access: "already_granted",
       reason: decision.reason,
+      redirectTo: postPurchaseDestination(product),
       // O envio já foi marcado no processamento original. Reabrir a página de
       // retorno dias depois não pode gerar conversão nova.
       tiktokPurchase: await reportTikTokPurchase({
@@ -177,6 +185,7 @@ export async function processApprovedMercadoPagoPayment({
     access: "granted",
     reason: decision.reason,
     tiktokPurchase,
+    redirectTo: postPurchaseDestination(product),
   };
 }
 

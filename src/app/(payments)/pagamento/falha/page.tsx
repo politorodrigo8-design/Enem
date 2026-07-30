@@ -3,7 +3,13 @@ import { XCircle } from "lucide-react";
 import { buttonClasses } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 
-export default function PaymentFailurePage() {
+export default async function PaymentFailurePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ order?: string }>;
+}) {
+  const { order } = await searchParams;
+
   return (
     <main className="min-h-dvh bg-[linear-gradient(180deg,#ffffff_0%,#eff7ff_100%)] py-10 sm:py-16">
       <div className="animate-rise mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
@@ -26,6 +32,17 @@ export default function PaymentFailurePage() {
               >
                 Tentar novamente
               </Link>
+              {/* O Mercado Pago também manda para cá quando o comprador desiste
+                  de um Pix já gerado. Se ele pagar depois, esta é a saída — sem
+                  isto o único caminho era refazer o checkout e pagar de novo. */}
+              {order ? (
+                <Link
+                  href={`/pagamento/sucesso?order=${order}`}
+                  className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-2xl" })}
+                >
+                  Já paguei, verificar
+                </Link>
+              ) : null}
               <Link
                 href="mailto:pontuaenem.suporte@gmail.com"
                 className={buttonClasses({ variant: "outline", size: "lg", className: "rounded-2xl" })}
@@ -33,6 +50,12 @@ export default function PaymentFailurePage() {
                 Suporte
               </Link>
             </div>
+            {order ? (
+              <p className="mt-6 text-sm leading-6 text-slate-500">
+                Ao falar com o suporte, informe o pedido{" "}
+                <span className="font-medium text-slate-700">{order}</span>.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
       </div>

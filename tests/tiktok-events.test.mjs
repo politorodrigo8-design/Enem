@@ -35,7 +35,7 @@ const landingPageSource = read("../src/app/(public)/page.tsx");
 const checkoutPageSource = read("../src/app/(public)/checkout/page.tsx");
 const checkoutButtonSource = read("../src/app/(public)/checkout/checkout-button.tsx");
 const successPageSource = read(
-  "../src/app/(public)/pagamento/sucesso/payment-success-reconciliation.tsx",
+  "../src/app/(payments)/pagamento/sucesso/payment-success-reconciliation.tsx",
 );
 const pageViewsSource = read("../src/components/analytics/tiktok-pixel-page-views.tsx");
 const rootLayoutSource = read("../src/app/layout.tsx");
@@ -485,7 +485,7 @@ test("a politica de privacidade declara o uso do TikTok", () => {
 // --- Bugs de produto achados na revisão do funil ---
 
 const reconcileSource = read("../src/app/api/payments/reconcile/route.ts");
-const sucessoPageSource = read("../src/app/(public)/pagamento/sucesso/page.tsx");
+const sucessoPageSource = read("../src/app/(payments)/pagamento/sucesso/page.tsx");
 const middlewareSource = read("../src/lib/supabase/middleware.ts");
 
 // Três telas geram /pagamento/sucesso?order=UUID, mas a página só repassava
@@ -526,4 +526,24 @@ test("middleware nao escreve mais o parametro next que ninguem lia", () => {
 // Remover o next não pode levar junto o resto da query (ex.: ttclid).
 test("remover o next nao apaga a query inteira", () => {
   assert.doesNotMatch(middlewareSource, /url\.search = ""/);
+});
+
+// As telas de retorno saíram do layout da landing: ali o cabeçalho oferecia
+// "Começar agora" (→ /checkout) para quem tinha acabado de comprar.
+test("telas de pagamento ficam fora do layout da landing mas mantem o Pixel", () => {
+  const paymentsLayout = read("../src/app/(payments)/layout.tsx");
+  assert.match(paymentsLayout, /<TikTokPixel \/>/, "sem Pixel o Purchase do navegador nao sai");
+  assert.doesNotMatch(paymentsLayout, /LandingHeader|LandingFooter/);
+});
+
+test("compra de credito volta para a tela de creditos", () => {
+  assert.match(processingSource, /postPurchaseDestination/);
+  assert.match(processingSource, /credit_package" \? "\/dashboard\/creditos"/);
+  assert.match(reconcileSource, /processing\.redirectTo \?\? "\/dashboard"/);
+});
+
+test("a tela de falha usa o pedido que recebe", () => {
+  const falha = read("../src/app/(payments)/pagamento/falha/page.tsx");
+  assert.match(falha, /searchParams/);
+  assert.match(falha, /\/pagamento\/sucesso\?order=/);
 });
