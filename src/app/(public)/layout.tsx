@@ -1,4 +1,5 @@
 import { Nunito_Sans } from "next/font/google";
+import { TikTokPixel } from "@/components/analytics/tiktok-pixel";
 import { LandingFooter } from "@/components/landing/landing-footer";
 import { LandingHeader } from "@/components/landing/landing-header";
 import { RevealController } from "@/components/ui/reveal-controller";
@@ -24,6 +25,11 @@ export default async function PublicLayout({
       <LandingHeader ctaHref={cta.href} viewer={viewer} />
       {children}
       <LandingFooter supplierLines={supplierLines} />
+      {/* Medição de anúncio só faz sentido nas páginas públicas e no cadastro.
+          Deixar o Pixel no layout raiz colocava o Automatic Advanced Matching
+          varrendo a área logada — nome de aluno e texto de redação — sem
+          nenhum ganho de atribuição. */}
+      <TikTokPixel />
     </div>
   );
 }

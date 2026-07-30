@@ -7,6 +7,7 @@ import {
   CreditCard,
   ReceiptText,
 } from "lucide-react";
+import { TikTokProductEvent } from "@/components/analytics/tiktok-product-event";
 import { buttonClasses } from "@/components/ui/button";
 import { Notice } from "@/components/ui/notice";
 import { accessUntilLabel, initialCreditsLabel } from "@/components/landing/landing-data";
@@ -179,6 +180,11 @@ export default async function CheckoutPage() {
                 <CheckoutButton
                   disabled={!product.launch_ready}
                   disabledMessage="As vendas estão fechadas neste momento. Escreva para pontuaenem.suporte@gmail.com e avisamos você quando reabrirem."
+                  productSlug={product.slug}
+                  productName={product.product_name}
+                  amountCents={price}
+                  buyerEmail={user.email ?? null}
+                  buyerId={user.id}
                 />
               </div>
 
@@ -232,6 +238,15 @@ export default async function CheckoutPage() {
           </div>
         </div>
       </section>
+      {/* Não existe carrinho aqui: o produto é único. Chegar nesta página com o
+          produto selecionado e o pagamento pendente é o equivalente semântico
+          do AddToCart, que o TikTok exige no funil de commerce. */}
+      <TikTokProductEvent
+        event="AddToCart"
+        contentId={product.slug}
+        contentName={product.product_name}
+        amountCents={price}
+      />
     </main>
   );
 }

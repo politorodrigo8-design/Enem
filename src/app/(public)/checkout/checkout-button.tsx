@@ -5,15 +5,25 @@ import { Loader2, LockKeyhole } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { ctaClasses } from "@/components/ui/cta";
-import { trackTikTokEvent } from "@/lib/analytics/tiktok";
+import { identifyTikTokUser, trackTikTokEvent } from "@/lib/analytics/tiktok";
 import { currentLegalAcceptanceVersions } from "@/lib/legal/config";
 
 export function CheckoutButton({
   disabled = false,
   disabledMessage,
+  productSlug,
+  productName,
+  amountCents,
+  buyerEmail,
+  buyerId,
 }: {
   disabled?: boolean;
   disabledMessage?: string;
+  productSlug: string;
+  productName: string;
+  amountCents: number;
+  buyerEmail: string | null;
+  buyerId: string;
 }) {
   const [pending, startTransition] = useTransition();
   const [message, setMessage] = useState("");
@@ -21,6 +31,19 @@ export function CheckoutButton({
 
   function startCheckout() {
     if (disabled) return;
+
+    // Disparado no clique, antes da chamada ao servidor: "iniciou o checkout" já
+    // é verdade aqui, e a ida ao Mercado Pago logo depois é uma troca de página
+    // que mataria um beacon disparado no último instante. O identify vem antes do
+    // track porque é o que carrega o Advanced Matching no evento.
+    identifyTikTokUser({ email: buyerEmail, externalId: buyerId });
+    trackTikTokEvent("InitiateCheckout", {
+      content_type: "product",
+      content_id: productSlug,
+      content_name: productName,
+      currency: "BRL",
+      value: Math.round(amountCents) / 100,
+    });
 
     startTransition(async () => {
       setMessage("");
@@ -41,10 +64,6 @@ export function CheckoutButton({
       }
 
       if (payload.redirectTo) {
-        // Último sinal antes de o comprador sair para o Mercado Pago. Só existe
-        // no browser: não há evento equivalente pelo servidor, então vai sem
-        // event_id de propósito.
-        trackTikTokEvent("InitiateCheckout");
         window.location.href = payload.redirectTo;
       }
     });

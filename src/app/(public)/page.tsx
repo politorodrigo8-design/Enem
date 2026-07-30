@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TikTokProductEvent } from "@/components/analytics/tiktok-product-event";
 import { LandingBenefits } from "@/components/landing/landing-benefits";
 import { LandingFaq } from "@/components/landing/landing-faq";
 import { LandingFeatures } from "@/components/landing/landing-features";
@@ -53,6 +54,12 @@ export default async function HomePage() {
       <LandingPricing price={price} ctaHref={cta.href} />
       <LandingFaq />
       <LandingFinalCta ctaHref={cta.href} />
+      <TikTokProductEvent
+        event="ViewContent"
+        contentId={product.slug}
+        contentName={product.product_name}
+        amountCents={price}
+      />
     </main>
   );
 }

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
-import { TikTokPixel } from "@/components/analytics/tiktok-pixel";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -60,7 +59,6 @@ export default function RootLayout({
           offset={{ top: "5rem" }}
           mobileOffset={{ top: "4.5rem", left: "1rem", right: "1rem" }}
         />
-        <TikTokPixel />
       </body>
     </html>
   );

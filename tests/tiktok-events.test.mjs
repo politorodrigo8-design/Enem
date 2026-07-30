@@ -27,6 +27,17 @@ const privacyPageSource = readFileSync(
   new URL("../src/app/(public)/privacidade/page.tsx", import.meta.url),
   "utf8",
 );
+const read = (path) => readFileSync(new URL(path, import.meta.url), "utf8");
+const landingPageSource = read("../src/app/(public)/page.tsx");
+const checkoutPageSource = read("../src/app/(public)/checkout/page.tsx");
+const checkoutButtonSource = read("../src/app/(public)/checkout/checkout-button.tsx");
+const successPageSource = read(
+  "../src/app/(public)/pagamento/sucesso/payment-success-reconciliation.tsx",
+);
+const pageViewsSource = read("../src/components/analytics/tiktok-pixel-page-views.tsx");
+const rootLayoutSource = read("../src/app/layout.tsx");
+const publicLayoutSource = read("../src/app/(public)/layout.tsx");
+const authLayoutSource = read("../src/app/(auth)/layout.tsx");
 
 const basePurchaseInput = {
   pixelId: "PIXEL123",
@@ -298,6 +309,43 @@ test("o Purchase server-side cobre webhook e reconciliacao sem quebrar o acesso"
   assert.match(processingSource, /catch \(error\) \{[\s\S]*tiktok purchase report failed/);
   // Recarga de crédito não é a conversão de aquisição da campanha.
   assert.match(processingSource, /product\?\.product_kind !== "access"/);
+});
+
+// O Diagnostics do TikTok exige o funil completo do vertical de commerce:
+// Page view, View content, Add to cart, Initiate checkout e Purchase.
+test("o funil de navegador cobre as cinco etapas exigidas pelo TikTok", () => {
+  assert.match(landingPageSource, /event="ViewContent"/);
+  assert.match(checkoutPageSource, /event="AddToCart"/);
+  assert.match(checkoutButtonSource, /trackTikTokEvent\("InitiateCheckout"/);
+  assert.match(successPageSource, /trackTikTokEvent\("Purchase"/);
+  assert.match(pageViewsSource, /trackTikTokPageView/);
+});
+
+test("os eventos de produto levam identificacao de produto e valor", () => {
+  for (const source of [landingPageSource, checkoutPageSource]) {
+    assert.match(source, /contentId=\{product\.slug\}/);
+    assert.match(source, /amountCents=\{price\}/);
+  }
+  assert.match(checkoutButtonSource, /content_id: productSlug/);
+  assert.match(checkoutButtonSource, /value: Math\.round\(amountCents\) \/ 100/);
+});
+
+// identify antes de track, senão o evento sai sem Advanced Matching.
+test("identify precede o track nos eventos identificados", () => {
+  for (const source of [checkoutButtonSource, successPageSource]) {
+    assert.ok(
+      source.indexOf("identifyTikTokUser") < source.indexOf("trackTikTokEvent"),
+      "identifyTikTokUser deve aparecer antes de trackTikTokEvent",
+    );
+  }
+});
+
+// O AAM varre inputs e texto visível. No layout raiz isso alcançaria nome de
+// aluno e texto de redação na área logada, sem nenhum ganho de atribuição.
+test("o Pixel nao carrega na area logada", () => {
+  assert.doesNotMatch(rootLayoutSource, /TikTokPixel/);
+  assert.match(publicLayoutSource, /<TikTokPixel \/>/);
+  assert.match(authLayoutSource, /<TikTokPixel \/>/);
 });
 
 test("a politica de privacidade declara o uso do TikTok", () => {
