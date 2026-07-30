@@ -72,29 +72,35 @@
                     </td>
                   </tr>
 
-                  <!-- Botão -->
+                  <!-- Código: caminho principal. O link abre em outro navegador
+                       (app de e-mail), onde a confirmação por PKCE falha; o
+                       código funciona na aba onde o cadastro começou. -->
                   <tr>
-                    <td class="sm-px" style="padding: 0 40px 28px;">
-                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" class="sm-btn">
+                    <td class="sm-px" style="padding: 0 40px 8px;">
+                      <p class="dm-muted" style="margin: 0 0 10px; font-size: 13px; line-height: 20px; color: #64748b;">
+                        Digite este código na aba onde você criou a conta:
+                      </p>
+                      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                         <tr>
-                          <td bgcolor="#1d4ed8" style="background-color: #1d4ed8; border-radius: 8px;">
-                            <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 28px; font-size: 16px; line-height: 20px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 8px;">
-                              Confirmar meu e-mail
-                            </a>
+                          <td class="dm-card" align="center" bgcolor="#f1f5f9" style="background-color: #f1f5f9; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 12px;">
+                            <span class="dm-title" style="font-family: 'SF Mono', Menlo, Consolas, monospace; font-size: 30px; line-height: 38px; font-weight: 700; letter-spacing: 0.22em; color: #0f172a;">{{ .Token }}</span>
                           </td>
                         </tr>
                       </table>
+                      <p class="dm-muted" style="margin: 10px 0 0; font-size: 13px; line-height: 20px; color: #64748b;">
+                        O código vale por 1 hora e só pode ser usado uma vez.
+                      </p>
                     </td>
                   </tr>
 
-                  <!-- Fallback do link -->
+                  <!-- Link, agora secundário -->
                   <tr>
-                    <td class="sm-px" style="padding: 0 40px 32px;">
-                      <p class="dm-muted" style="margin: 0 0 6px; font-size: 13px; line-height: 20px; color: #64748b;">
-                        Se o botão não funcionar, copie e cole este endereço no navegador:
+                    <td class="sm-px" style="padding: 24px 40px 32px;">
+                      <p class="dm-muted" style="margin: 0 0 8px; font-size: 13px; line-height: 20px; color: #64748b;">
+                        Se você abriu este e-mail no mesmo navegador em que criou a conta, também pode confirmar por aqui:
                       </p>
-                      <p style="margin: 0; font-size: 13px; line-height: 20px; word-break: break-all;">
-                        <a href="{{ .ConfirmationURL }}" style="color: #1d4ed8; text-decoration: underline;">{{ .ConfirmationURL }}</a>
+                      <p style="margin: 0; font-size: 14px; line-height: 22px;">
+                        <a href="{{ .ConfirmationURL }}" style="color: #1d4ed8; text-decoration: underline; font-weight: 600;">Confirmar meu e-mail</a>
                       </p>
                     </td>
                   </tr>

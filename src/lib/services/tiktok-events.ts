@@ -8,8 +8,9 @@ import { getSiteUrl } from "@/lib/supabase/config";
 
 // O webhook do Mercado Pago tem que ser respondido rápido, senão o provedor
 // reenvia. O envio ao TikTok nunca pode segurar nem derrubar a liberação de
-// acesso: falha aqui é log, não exceção.
-const requestTimeoutMs = 5000;
+// acesso: falha aqui é log, não exceção. Roda depois do grant, então este
+// timeout é o teto do atraso que a publicidade adiciona ao webhook.
+const requestTimeoutMs = 2000;
 
 export function getTikTokPixelId() {
   return (process.env.NEXT_PUBLIC_TIKTOK_PIXEL_ID || "").trim();
@@ -20,7 +21,23 @@ function getTikTokAccessToken() {
 }
 
 function getTikTokTestEventCode() {
-  return (process.env.TIKTOK_EVENTS_TEST_EVENT_CODE || "").trim();
+  const code = (process.env.TIKTOK_EVENTS_TEST_EVENT_CODE || "").trim();
+  if (!code) return "";
+
+  // Evento com test_event_code NÃO entra em dado ao vivo — vai só para a aba
+  // Test events. Se essa variável vazasse para produção, toda compra real seria
+  // invisível para a campanha, e a falha seria silenciosa: o TikTok responde
+  // code 0 e o log diz "evento aceito". Confiar em ninguém setar a variável é
+  // frágil demais para o custo; produção ignora e denuncia.
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "[tiktok:events] TIKTOK_EVENTS_TEST_EVENT_CODE presente em produção e IGNORADO",
+      { motivo: "evento de teste não conta como conversão; remova a variável do ambiente" },
+    );
+    return "";
+  }
+
+  return code;
 }
 
 export function isTikTokEventsConfigured() {
@@ -47,8 +64,19 @@ export async function sendTikTokPurchaseEvent({
   productName: string | null;
   orderMetadata: unknown;
   eventTimeSeconds?: number;
-}) {
-  if (!isTikTokEventsConfigured()) return;
+}): Promise<boolean> {
+  // Sem token o envio é um no-op silencioso por design — publicidade não pode
+  // derrubar a liberação de acesso. Mas silêncio total torna impossível
+  // distinguir "variável de ambiente faltando" de "TikTok recusou", então o
+  // estado de não-configurado precisa aparecer no log.
+  if (!isTikTokEventsConfigured()) {
+    console.warn("[tiktok:events] envio ignorado: integração não configurada", {
+      orderId,
+      hasPixelId: Boolean(getTikTokPixelId()),
+      hasAccessToken: Boolean(getTikTokAccessToken()),
+    });
+    return false;
+  }
 
   let payload: unknown;
   try {
@@ -74,13 +102,16 @@ export async function sendTikTokPurchaseEvent({
       orderId,
       message: error instanceof Error ? error.message : String(error),
     });
-    return;
+    return false;
   }
 
-  await postTikTokEvent(payload, { orderId, event: "Purchase" });
+  return postTikTokEvent(payload, { orderId, event: "Purchase" });
 }
 
-async function postTikTokEvent(payload: unknown, context: Record<string, unknown>) {
+async function postTikTokEvent(
+  payload: unknown,
+  context: Record<string, unknown>,
+): Promise<boolean> {
   try {
     const response = await fetch(TIKTOK_EVENTS_API_URL, {
       method: "POST",
@@ -107,18 +138,20 @@ async function postTikTokEvent(payload: unknown, context: Record<string, unknown
         tiktokMessage: body?.message ?? null,
         requestId: body?.request_id ?? null,
       });
-      return;
+      return false;
     }
 
     console.info("[tiktok:events] evento aceito", {
       ...context,
       requestId: body?.request_id ?? null,
     });
+    return true;
   } catch (error) {
     console.error("[tiktok:events] envio falhou", {
       ...context,
       error: error instanceof Error ? error.name : typeof error,
       message: error instanceof Error ? error.message : String(error),
     });
+    return false;
   }
 }

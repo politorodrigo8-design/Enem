@@ -35,7 +35,8 @@ test("login mostra estado de verificacao e permite reenviar confirmacao", () => 
   assert.match(loginPage, /mode === "verify"/);
   assert.match(loginPage, /handleResendVerification/);
   assert.match(loginPage, /resendEmailVerificationAction/);
-  assert.match(loginPage, /Reenviar e-mail/);
+  // O e-mail passou a levar um código, então o botão reenvia código, não link.
+  assert.match(loginPage, /Enviar outro código/);
 });
 
 test("redirects de confirmacao ficam restritos aos dominios esperados", () => {

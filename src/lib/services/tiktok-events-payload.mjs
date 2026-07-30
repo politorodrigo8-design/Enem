@@ -46,7 +46,7 @@ function sha256(value) {
 
 export function readTikTokCookies(cookieHeader) {
   if (typeof cookieHeader !== "string" || !cookieHeader) {
-    return { ttclid: null, ttp: null };
+    return { ttclid: null, ttp: null, proprio: null };
   }
 
   const jar = new Map();
@@ -61,6 +61,7 @@ export function readTikTokCookies(cookieHeader) {
   return {
     ttclid: normalizeSignal(jar.get("ttclid")),
     ttp: normalizeSignal(jar.get("_ttp")),
+    proprio: normalizeSignal(jar.get(TIKTOK_CLICK_ID_COOKIE)),
   };
 }
 
@@ -138,13 +139,35 @@ export function buildTikTokSignals({
   const cookies = readTikTokCookies(cookieHeader);
 
   return compact({
-    ttclid: normalizeSignal(ttclidParam) ?? cookies.ttclid,
+    // Ordem de confiança: parâmetro na URL do request atual > nosso cookie de
+    // primeira parte (gravado pelo middleware, sobrevive a ITP e a Pixel
+    // bloqueado) > cookie do SDK do TikTok.
+    ttclid: normalizeSignal(ttclidParam) ?? cookies.proprio ?? cookies.ttclid,
     ttp: cookies.ttp,
     ip: pickPublicIp([forwardedFor, realIp, connectingIp]),
     user_agent: normalizeSignal(userAgent),
     page_url: normalizeSignal(pageUrl),
     referrer: normalizeSignal(referrer),
   });
+}
+
+// Cookie PRÓPRIO de click ID, gravado por Set-Cookie no middleware. Existe
+// porque depender do cookie do SDK do TikTok tem três furos: (1) o SDK pode não
+// carregar (bloqueador, CSP, in-app browser); (2) cookie escrito por script é
+// cortado em 7 dias pelo ITP do Safari; (3) o parâmetro morre na primeira
+// navegação client-side, já que o CTA aponta para /checkout sem query.
+// Nome diferente do cookie do SDK (`ttclid`) para não sobrescrevê-lo.
+export const TIKTOK_CLICK_ID_COOKIE = "pontua_ttclid";
+
+// A doc do TikTok recomenda guardar o click ID por 28 dias ou mais.
+export const TIKTOK_CLICK_ID_COOKIE_DAYS = 30;
+
+// Click ID do TikTok começa com "E.C.P." e é base64-url. Validar evita gravar
+// lixo de query manipulada e limita o tamanho do cookie.
+const tiktokClickIdPattern = /^E\.C\.P\.[A-Za-z0-9_-]{8,512}$/;
+
+export function isTikTokClickIdShape(value) {
+  return typeof value === "string" && tiktokClickIdPattern.test(value.trim());
 }
 
 // O cookie ttclid depende do Pixel ter rodado. Se o comprador bloqueia scripts
@@ -156,6 +179,32 @@ export function readTikTokClickIdFromUrl(url) {
   } catch {
     return null;
   }
+}
+
+/**
+ * Une sinais já gravados no pedido com os do request atual, SEM deixar o novo
+ * apagar o antigo. Cenário real: o comprador clica no anúncio no celular (grava
+ * ttclid), abandona, e dias depois paga pelo notebook — onde não há ttclid. O
+ * pedido é reaproveitado e um replace cego destruiria a única prova do clique.
+ * IP, user agent e página vêm sempre do request mais recente, que é o correto:
+ * são do momento da compra.
+ */
+export function mergeTikTokSignals(anteriores, novos) {
+  const base = anteriores && typeof anteriores === "object" && !Array.isArray(anteriores)
+    ? anteriores
+    : {};
+  const recentes = novos && typeof novos === "object" && !Array.isArray(novos) ? novos : {};
+
+  return compact({
+    // Identificadores de atribuição: só sobrescreve se o novo request trouxer.
+    ttclid: normalizeSignal(recentes.ttclid) ?? normalizeSignal(base.ttclid),
+    ttp: normalizeSignal(recentes.ttp) ?? normalizeSignal(base.ttp),
+    // Sinais de sessão: o mais recente é o que descreve a compra.
+    ip: normalizeSignal(recentes.ip) ?? normalizeSignal(base.ip),
+    user_agent: normalizeSignal(recentes.user_agent) ?? normalizeSignal(base.user_agent),
+    page_url: normalizeSignal(recentes.page_url) ?? normalizeSignal(base.page_url),
+    referrer: normalizeSignal(recentes.referrer) ?? normalizeSignal(base.referrer),
+  });
 }
 
 export function readTikTokSignalsFromOrderMetadata(metadata) {

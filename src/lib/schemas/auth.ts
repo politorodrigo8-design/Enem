@@ -35,6 +35,17 @@ export const resetPasswordSchema = z.object({
   email: z.string().email("Informe um e-mail válido."),
 });
 
+export const verifyEmailOtpSchema = z.object({
+  email: z.string().email("Informe um e-mail válido."),
+  // Faixa, não comprimento fixo: produção usa OTP de 8 dígitos e o stack local
+  // usa 6 (supabase/config.toml). Travar em 6 passaria em todo teste local e
+  // rejeitaria 100% dos cadastros reais antes mesmo de chamar o Supabase.
+  token: z
+    .string()
+    .trim()
+    .regex(/^\d{6,10}$/, "O código tem só números. Confira o e-mail e digite de novo."),
+});
+
 export const updatePasswordSchema = z
   .object({
     password: z.string().min(6, "A senha precisa ter pelo menos 6 caracteres."),
@@ -48,4 +59,5 @@ export const updatePasswordSchema = z
 export type SignInInput = z.infer<typeof signInSchema>;
 export type SignUpInput = z.infer<typeof signUpSchema>;
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
+export type VerifyEmailOtpInput = z.infer<typeof verifyEmailOtpSchema>;
 export type UpdatePasswordInput = z.infer<typeof updatePasswordSchema>;

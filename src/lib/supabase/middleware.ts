@@ -19,6 +19,23 @@ import {
   normalizeReferralCode,
   referralAttributionCookieOptions,
 } from "@/lib/referrals/cookies";
+import {
+  TIKTOK_CLICK_ID_COOKIE,
+  TIKTOK_CLICK_ID_COOKIE_DAYS,
+  isTikTokClickIdShape,
+} from "@/lib/services/tiktok-events-payload.mjs";
+
+/**
+ * NextResponse.redirect() cria uma resposta NOVA: qualquer cookie acumulado em
+ * `response` durante o middleware — atribuição de indicação, click ID do TikTok,
+ * refresh de sessão do Supabase — é descartado silenciosamente. Verificado: um
+ * GET /dashboard?ttclid=... deslogado saía sem Set-Cookie nenhum.
+ */
+function redirectPreservingCookies(url: URL, response: NextResponse) {
+  const redirectResponse = NextResponse.redirect(url);
+  response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+  return redirectResponse;
+}
 
 export async function updateSession(request: NextRequest) {
   if (!isSupabaseConfigured()) {
@@ -26,6 +43,7 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("setup", "supabase");
+      // Sem Supabase configurado nenhum cookie foi acumulado ainda.
       return NextResponse.redirect(url);
     }
 
@@ -75,6 +93,23 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // Mesmo padrão do código de indicação, e pelo mesmo motivo: o identificador
+  // chega uma única vez, na URL do clique, e precisa sobreviver a cadastro,
+  // verificação de e-mail e ida ao Mercado Pago. Aqui ele é capturado no
+  // servidor, antes de qualquer redirect e sem depender do Pixel ter carregado.
+  // Sempre sobrescreve: um clique novo é uma atribuição nova.
+  const clickId = request.nextUrl.searchParams.get("ttclid")?.trim();
+  if (clickId && isTikTokClickIdShape(clickId)) {
+    request.cookies.set(TIKTOK_CLICK_ID_COOKIE, clickId);
+    response.cookies.set(TIKTOK_CLICK_ID_COOKIE, clickId, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: TIKTOK_CLICK_ID_COOKIE_DAYS * 24 * 60 * 60,
+    });
+  }
+
   const isDashboard = request.nextUrl.pathname.startsWith("/dashboard");
   const isAuthPage = request.nextUrl.pathname === "/login";
   const sessionStartedAt = request.cookies.get(AUTH_SESSION_STARTED_AT_COOKIE)?.value;
@@ -86,8 +121,7 @@ export async function updateSession(request: NextRequest) {
     url.pathname = "/login";
     url.searchParams.set("expired", "session");
 
-    const redirectResponse = NextResponse.redirect(url);
-    response.cookies.getAll().forEach((cookie) => redirectResponse.cookies.set(cookie));
+    const redirectResponse = redirectPreservingCookies(url, response);
     clearSessionStartedResponseCookie(redirectResponse);
     return redirectResponse;
   }
@@ -100,7 +134,7 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("redirectedFrom", request.nextUrl.pathname);
-    return NextResponse.redirect(url);
+    return redirectPreservingCookies(url, response);
   }
 
   if (isDashboard && user) {
@@ -112,18 +146,21 @@ export async function updateSession(request: NextRequest) {
 
     const access = getAccessContext(profile);
 
+    // Sem `next` de propósito. Ele era gravado aqui e em nenhum lugar lido, e
+    // honrá-lo não é possível: quem paga pela primeira vez é interceptado logo
+    // depois pelo onboarding, e o onboarding termina no diagnóstico por decisão
+    // de produto (onboarding-client.tsx). Parâmetro que ninguém consome é código
+    // fingindo ter comportamento — some da URL até existir destino que o use.
     if (!access.hasPlatformAccess) {
       const url = request.nextUrl.clone();
       url.pathname = access.expired ? "/acesso-expirado" : "/checkout";
-      url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
+      return redirectPreservingCookies(url, response);
     }
 
     if (profile && !profile.onboarding_completed && request.nextUrl.pathname !== "/dashboard/onboarding") {
       const url = request.nextUrl.clone();
       url.pathname = "/dashboard/onboarding";
-      url.searchParams.set("next", request.nextUrl.pathname);
-      return NextResponse.redirect(url);
+      return redirectPreservingCookies(url, response);
     }
   }
 
@@ -136,7 +173,7 @@ export async function updateSession(request: NextRequest) {
     const access = getAccessContext(profile);
     const url = request.nextUrl.clone();
     url.pathname = access.hasPlatformAccess ? "/dashboard" : "/checkout";
-    return NextResponse.redirect(url);
+    return redirectPreservingCookies(url, response);
   }
 
   return response;

@@ -47,17 +47,39 @@ export async function POST(request: NextRequest) {
   }
 
   const body = await readReconciliationBody(request);
-  const paymentId = normalizePaymentId(body.payment_id ?? body.collection_id);
+  const orderId = normalizeOrderId(body.order ?? body.external_reference);
+  // Os links "Verificar meu pagamento" do checkout e da tela de pendente levam
+  // só o id do pedido — o Mercado Pago não participa dessa navegação. Sem este
+  // caminho, quem pagou por Pix recebia 400 e a tela dizia que não foi possível
+  // confirmar, como se o pagamento tivesse falhado.
+  const paymentId =
+    normalizePaymentId(body.payment_id ?? body.collection_id) ??
+    (orderId ? await findProviderPaymentIdForOrder(orderId, user.id) : null);
 
   logReconciliation("reconciliation started", {
     hasPaymentId: Boolean(body.payment_id),
     hasCollectionId: Boolean(body.collection_id),
     hasExternalReference: Boolean(body.external_reference),
+    hasOrderId: Boolean(orderId),
     hasMerchantOrderId: Boolean(body.merchant_order_id),
     hasPreferenceId: Boolean(body.preference_id),
+    resolvedFromOrder: Boolean(!body.payment_id && !body.collection_id && paymentId),
   });
 
   if (!paymentId) {
+    // Pedido conhecido e ainda sem pagamento registrado NÃO é erro: é pagamento
+    // em trânsito. Boleto leva dias; Pix pode levar minutos. Devolver 400 aqui
+    // fazia a tela acusar falha para quem tinha acabado de pagar.
+    if (orderId) {
+      logReconciliation("order without provider payment yet", { orderId });
+      return NextResponse.json({
+        ok: true,
+        status: "pending",
+        message:
+          "Ainda não recebemos a confirmação do Mercado Pago. Pix costuma levar alguns minutos e boleto pode levar até 3 dias úteis. Seu acesso é liberado automaticamente.",
+      });
+    }
+
     return NextResponse.json(
       { ok: false, message: "Pagamento nao identificado no retorno do Mercado Pago." },
       { status: 400 },
@@ -139,6 +161,37 @@ function normalizePaymentId(value: unknown) {
   if (typeof value !== "string" && typeof value !== "number") return null;
   const paymentId = String(value).trim();
   return /^\d+$/.test(paymentId) ? paymentId : null;
+}
+
+const orderIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function normalizeOrderId(value: unknown) {
+  if (typeof value !== "string") return null;
+  const orderId = value.trim();
+  return orderIdPattern.test(orderId) ? orderId : null;
+}
+
+/**
+ * Recupera o id do pagamento que o processamento anterior gravou no pedido.
+ * Filtra por user_id de propósito: o id do pedido vem da query string, então
+ * sem esse filtro qualquer pessoa logada conseguiria consultar pedido alheio.
+ */
+async function findProviderPaymentIdForOrder(orderId: string, userId: string) {
+  if (!isSupabaseAdminConfigured()) return null;
+
+  const { data, error } = await createAdminClient()
+    .from("orders")
+    .select("metadata")
+    .eq("id", orderId)
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error || !data) return null;
+
+  const metadata = (data as { metadata?: unknown }).metadata;
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+
+  return normalizePaymentId((metadata as Record<string, unknown>).provider_payment_id);
 }
 
 function logReconciliation(message: string, context: Record<string, unknown>) {

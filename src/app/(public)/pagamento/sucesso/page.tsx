@@ -16,6 +16,8 @@ export default async function PaymentSuccessPage({ searchParams }: PaymentSucces
     <PaymentSuccessReconciliation
       buyer={buyer}
       initialParams={{
+        // Os links internos de "Verificar meu pagamento" mandam só isto.
+        order: pickParam(params.order),
         payment_id: pickParam(params.payment_id),
         collection_id: pickParam(params.collection_id),
         collection_status: pickParam(params.collection_status),

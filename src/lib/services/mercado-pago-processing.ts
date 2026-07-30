@@ -7,15 +7,15 @@ import {
   getMercadoPagoPaymentProcessingDecision,
 } from "@/lib/services/mercado-pago-processing-rules.mjs";
 import { buildTikTokBrowserPurchase } from "@/lib/services/tiktok-events-payload.mjs";
-import {
-  isTikTokEventsConfigured,
-  sendTikTokPurchaseEvent,
-} from "@/lib/services/tiktok-events";
+import { sendTikTokPurchaseEvent } from "@/lib/services/tiktok-events";
 
 export type TikTokBrowserPurchase = {
   event_id: string;
   properties: Record<string, unknown>;
 };
+
+// Marca de idempotência do envio ao TikTok, gravada em orders.metadata.
+const TIKTOK_REPORTED_AT_KEY = "tiktok_purchase_reported_at";
 
 type OrderWithProduct = Order & { products: Product | Product[] | null };
 type ProcessingSource = "webhook" | "success_reconciliation";
@@ -115,30 +115,6 @@ export async function processApprovedMercadoPagoPayment({
     source,
   });
 
-  // Aqui só chegam pagamentos aprovados, pelos dois caminhos (webhook e
-  // reconciliação da página de retorno). É a fonte da verdade do Purchase: quem
-  // paga por Pix ou boleto no app do banco muitas vezes nunca volta ao site, e
-  // o Pixel do navegador nunca dispararia. A dedup por event_id no TikTok
-  // garante uma única conversão mesmo quando os dois canais reportam.
-  await reportTikTokPurchase({
-    supabase,
-    order: checkedOrder,
-    product,
-    source,
-  });
-  // Mesma regra do envio pelo servidor: só a compra de acesso é a conversão da
-  // campanha, e o Pixel não pode reportar nada que o servidor não reporte.
-  const tiktokPurchase =
-    product?.product_kind === "access"
-      ? ((buildTikTokBrowserPurchase({
-          orderId: checkedOrder.id,
-          amountCents: checkedOrder.amount_cents,
-          currency: checkedOrder.currency,
-          contentId: product?.slug ?? null,
-          contentName: product?.product_name ?? null,
-        }) ?? null) as TikTokBrowserPurchase | null)
-      : null;
-
   if (decision.action === "already_granted") {
     logPaymentProcessing("access already granted", {
       source,
@@ -149,7 +125,14 @@ export async function processApprovedMercadoPagoPayment({
       orderId: checkedOrder.id,
       access: "already_granted",
       reason: decision.reason,
-      tiktokPurchase,
+      // O envio já foi marcado no processamento original. Reabrir a página de
+      // retorno dias depois não pode gerar conversão nova.
+      tiktokPurchase: await reportTikTokPurchase({
+        supabase,
+        order: checkedOrder,
+        product,
+        source,
+      }),
     };
   }
 
@@ -178,6 +161,16 @@ export async function processApprovedMercadoPagoPayment({
     orderId: checkedOrder.id,
   });
 
+  // Depois do grant, de propósito: publicidade não pode atrasar nem derrubar a
+  // entrega do produto pago. Se a API do TikTok estiver lenta, quem já pagou já
+  // tem acesso quando esta linha executa.
+  const tiktokPurchase = await reportTikTokPurchase({
+    supabase,
+    order: checkedOrder,
+    product,
+    source,
+  });
+
   return {
     status: "approved",
     orderId: checkedOrder.id,
@@ -198,13 +191,37 @@ async function reportTikTokPurchase({
   product: Product | null | undefined;
   source: ProcessingSource;
 }) {
-  if (!isTikTokEventsConfigured()) return;
   // Purchase é a conversão de AQUISIÇÃO otimizada na campanha. Recarga de
   // crédito é receita de quem já é cliente: contar aqui infla a contagem de
   // conversão do anúncio e ensina o algoritmo com o público errado.
-  if (product?.product_kind !== "access") return;
+  if (product?.product_kind !== "access") return null;
+  // O check de configuração vive só dentro de sendTikTokPurchaseEvent, que loga
+  // o motivo. Duplicar aqui fazia a compra de acesso sair sem log nenhum quando
+  // faltava variável de ambiente — indistinguível de recusa do TikTok.
 
   try {
+    // Releitura proposital: registerProviderPaymentId acabou de reescrever o
+    // metadata, e é dele que saem os sinais de atribuição e a marca de envio.
+    const { data: fresh } = await supabase
+      .from("orders")
+      .select("metadata")
+      .eq("id", order.id)
+      .maybeSingle();
+    const freshMetadata = (fresh as { metadata?: unknown } | null)?.metadata;
+    const metadata: Record<string, Json> = isPlainObject(freshMetadata) ? freshMetadata : {};
+
+    // A dedup do TikTok por event_id só cobre 48h. Sem uma trava persistida,
+    // reabrir a página de retorno depois disso contaria uma segunda conversão
+    // com o mesmo pedido. Uma compra reporta uma vez, para sempre.
+    if (metadata[TIKTOK_REPORTED_AT_KEY]) {
+      logPaymentProcessing("tiktok purchase already reported", {
+        source,
+        orderId: order.id,
+        reportedAt: String(metadata[TIKTOK_REPORTED_AT_KEY]),
+      });
+      return null;
+    }
+
     const { data: profile } = await supabase
       .from("profiles")
       .select("email")
@@ -212,16 +229,43 @@ async function reportTikTokPurchase({
       .maybeSingle();
     const email = (profile as { email?: string | null } | null)?.email ?? null;
 
-    await sendTikTokPurchaseEvent({
+    const enviado = await sendTikTokPurchaseEvent({
       orderId: order.id,
       userId: order.user_id,
       email,
       amountCents: order.amount_cents,
       currency: order.currency,
-      productSlug: product?.slug ?? null,
-      productName: product?.product_name ?? null,
-      orderMetadata: order.metadata,
+      productSlug: product.slug,
+      productName: product.product_name,
+      orderMetadata: metadata,
     });
+
+    if (!enviado) return null;
+
+    const { error: markError } = await supabase
+      .from("orders")
+      .update({
+        metadata: { ...metadata, [TIKTOK_REPORTED_AT_KEY]: new Date().toISOString() },
+      } as never)
+      .eq("id", order.id);
+    if (markError) {
+      // Sem a marca, uma revisita futura pode duplicar. Precisa ser visível.
+      console.error("[payments:mercado-pago] falha ao marcar purchase reportado", {
+        source,
+        orderId: order.id,
+        message: markError.message,
+      });
+    }
+
+    // O espelho do navegador só existe quando o servidor de fato reportou agora.
+    // Assim os dois canais nunca divergem sobre o que foi contado.
+    return (buildTikTokBrowserPurchase({
+      orderId: order.id,
+      amountCents: order.amount_cents,
+      currency: order.currency,
+      contentId: product.slug,
+      contentName: product.product_name,
+    }) ?? null) as TikTokBrowserPurchase | null;
   } catch (error) {
     // Publicidade nunca pode impedir a entrega do acesso pago.
     console.error("[payments:mercado-pago] tiktok purchase report failed", {
@@ -229,6 +273,7 @@ async function reportTikTokPurchase({
       orderId: order.id,
       message: error instanceof Error ? error.message : String(error),
     });
+    return null;
   }
 }
 

@@ -16,6 +16,7 @@ type TikTokPurchase = {
 export type BuyerIdentity = { id: string; email: string | null };
 
 export type MercadoPagoReturnParams = {
+  order: string | null;
   payment_id: string | null;
   collection_id: string | null;
   collection_status: string | null;

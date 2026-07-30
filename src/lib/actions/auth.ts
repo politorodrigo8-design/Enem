@@ -17,10 +17,12 @@ import {
   signInSchema,
   signUpSchema,
   updatePasswordSchema,
+  verifyEmailOtpSchema,
   type ResetPasswordInput,
   type SignInInput,
   type SignUpInput,
   type UpdatePasswordInput,
+  type VerifyEmailOtpInput,
 } from "@/lib/schemas/auth";
 import { recordProductEvent } from "@/lib/services/product-events";
 import { recordCurrentLegalAcceptances } from "@/lib/legal/acceptances";
@@ -51,7 +53,36 @@ function supabaseMissing(): ActionResult {
   };
 }
 
+// O GoTrue devolve um `code` estável junto da mensagem. Casar por substring da
+// mensagem quebra a cada mudança de texto do provedor e não distingue "código
+// errado" de "código expirado" — os dois caíam no genérico, e o aluno não sabia
+// se tinha errado a digitação, se o prazo venceu ou se o sistema caiu.
+const authErrorMessagesByCode: Record<string, string> = {
+  otp_expired:
+    "Este código expirou ou já foi usado. Peça um novo código — ele vale por 1 hora.",
+  over_email_send_rate_limit:
+    "Você pediu códigos demais em pouco tempo. Aguarde um minuto antes de pedir outro.",
+  over_request_rate_limit:
+    "Muitas tentativas em pouco tempo. Aguarde alguns minutos e tente novamente.",
+  user_already_exists: "Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.",
+  email_exists: "Este e-mail já está cadastrado. Tente entrar ou recuperar a senha.",
+  invalid_credentials: "E-mail ou senha inválidos.",
+  email_not_confirmed: "Confirme seu e-mail antes de entrar.",
+  otp_disabled: "A confirmação por código está indisponível no momento.",
+};
+
+function authErrorCode(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+  const code = (error as { code?: unknown }).code;
+  return typeof code === "string" ? code : null;
+}
+
 function authErrorMessage(error: unknown) {
+  const code = authErrorCode(error);
+  if (code && authErrorMessagesByCode[code]) {
+    return authErrorMessagesByCode[code];
+  }
+
   const message = error instanceof Error ? error.message : String(error);
 
   if (message === "fetch failed") {
@@ -226,6 +257,64 @@ export async function signUpAction(input: SignUpInput): Promise<ActionResult> {
     };
   } catch (error) {
     logAuthError("signUp threw", error);
+    return { ok: false, message: authErrorMessage(error) };
+  }
+}
+
+/**
+ * Confirma o e-mail pelo código digitado na própria aba, em vez do link.
+ *
+ * O link usa PKCE (`flowType: "pkce"` é fixo no @supabase/ssr): o cookie
+ * code-verifier fica no navegador do cadastro. Quem abre o e-mail no app do
+ * Gmail ou no desktop cai num contexto sem esse cookie, o
+ * `exchangeCodeForSession` falha e a pessoa fica trancada fora da conta — regra,
+ * não exceção, em tráfego mobile de anúncio. O código não depende de cookie,
+ * de navegador nem de dispositivo, e mantém a sessão na aba onde o funil começou
+ * (preservando os identificadores de atribuição).
+ */
+export async function verifyEmailOtpAction(
+  input: VerifyEmailOtpInput,
+): Promise<ActionResult> {
+  if (!isSupabaseConfigured()) {
+    return supabaseMissing();
+  }
+
+  const parsed = verifyEmailOtpSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, message: parsed.error.issues[0]?.message ?? "Código inválido." };
+  }
+
+  const rateLimit = await checkRateLimit({
+    operation: "auth.verify_email_otp",
+    identifier: emailRateLimitIdentifier(parsed.data.email),
+    limit: 10,
+    windowSeconds: 60 * 60,
+  });
+  if (!rateLimit.allowed) return rateLimitedResult(rateLimit);
+
+  try {
+    const supabase = await createClient();
+    const { data, error } = await supabase.auth.verifyOtp({
+      email: parsed.data.email,
+      token: parsed.data.token,
+      // 'signup' está deprecado no verifyOtp (ver JSDoc do @supabase/auth-js
+      // 2.110.3); 'email' é o tipo para confirmação de cadastro por e-mail.
+      type: "email",
+    });
+
+    if (error) {
+      logAuthError("verifyEmailOtp returned error", error);
+      return { ok: false, message: authErrorMessage(error) };
+    }
+
+    if (data.session) {
+      setSessionStartedCookie(await cookies());
+    }
+
+    revalidatePath("/dashboard", "layout");
+    return { ok: true, message: "E-mail confirmado. Vamos continuar para o checkout." };
+  } catch (error) {
+    logAuthError("verifyEmailOtp threw", error);
     return { ok: false, message: authErrorMessage(error) };
   }
 }

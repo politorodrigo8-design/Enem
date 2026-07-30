@@ -9,7 +9,10 @@ import {
   getTikTokEventsResultProblem,
   hashTikTokEmail,
   hashTikTokExternalId,
+  isTikTokClickIdShape,
+  mergeTikTokSignals,
   pickPublicIp,
+  TIKTOK_CLICK_ID_COOKIE,
   readTikTokClickIdFromUrl,
   readTikTokCookies,
   readTikTokSignalsFromOrderMetadata,
@@ -93,9 +96,10 @@ test("le os cookies ttclid e _ttp do header", () => {
 });
 
 test("cookies ausentes ou header vazio nao viram string vazia", () => {
-  assert.deepEqual(readTikTokCookies(""), { ttclid: null, ttp: null });
-  assert.deepEqual(readTikTokCookies(null), { ttclid: null, ttp: null });
-  assert.deepEqual(readTikTokCookies("outro=1; ttclid=  "), { ttclid: null, ttp: null });
+  const vazio = { ttclid: null, ttp: null, proprio: null };
+  assert.deepEqual(readTikTokCookies(""), vazio);
+  assert.deepEqual(readTikTokCookies(null), vazio);
+  assert.deepEqual(readTikTokCookies("outro=1; ttclid=  "), vazio);
 });
 
 // O TikTok pede o IP PÚBLICO. Atrás de proxy reverso o x-forwarded-for começa
@@ -299,8 +303,10 @@ test("o checkout captura os sinais e grava no pedido", () => {
   assert.match(createRouteSource, /buildTikTokSignals/);
   assert.match(createRouteSource, /cookieHeader: request\.headers\.get\("cookie"\)/);
   assert.match(createRouteSource, /forwardedFor: request\.headers\.get\("x-forwarded-for"\)/);
-  // Pedido novo e pedido reaproveitado precisam guardar os sinais.
-  assert.equal(createRouteSource.match(/tiktok: tiktokSignals/g)?.length, 2);
+  // Pedido novo grava os sinais direto; pedido reaproveitado passa pelo merge,
+  // que preserva um ttclid capturado antes em vez de substituir o bloco.
+  assert.match(createRouteSource, /tiktok: tiktokSignals/);
+  assert.match(createRouteSource, /tiktok: mergeTikTokSignals\(previousMetadata\.tiktok, tiktokSignals\)/);
 });
 
 test("o Purchase server-side cobre webhook e reconciliacao sem quebrar o acesso", () => {
@@ -351,6 +357,104 @@ test("o Pixel nao carrega na area logada", () => {
 // Regressão real: com script-src 'self' a CSP barrava o SDK que o base code
 // injeta, e o Pixel Helper reportava "No TikTok Pixel detected on this page"
 // mesmo com o código correto no HTML. Nada no build ou nos testes acusava.
+// Bloqueador achado na revisão: test_event_code em produção faria TODA compra
+// real cair na aba Test events, sem contar como conversão — e em silêncio, já
+// que o TikTok responde code 0 e o log diz "evento aceito".
+test("test_event_code nunca pode sair em producao", () => {
+  const source = read("../src/lib/services/tiktok-events.ts");
+  const trecho = source.slice(
+    source.indexOf("function getTikTokTestEventCode"),
+    source.indexOf("export function isTikTokEventsConfigured"),
+  );
+  assert.match(trecho, /NODE_ENV === "production"/);
+  assert.match(trecho, /return ""/);
+  assert.match(trecho, /console\.warn/);
+});
+
+// Cenário real: clica no anúncio no celular (grava ttclid), abandona, paga dias
+// depois pelo notebook sem ttclid. Substituir o bloco apagaria a prova do clique.
+test("reaproveitar pedido preserva o ttclid capturado antes", () => {
+  const anteriores = {
+    ttclid: "E.C.P.CLIQUE_ORIGINAL",
+    ttp: "cookie-antigo",
+    ip: "203.0.113.7",
+    user_agent: "UA antigo",
+    page_url: "https://pontuaenem.com.br/checkout?ttclid=E.C.P.CLIQUE_ORIGINAL",
+  };
+  const novos = { ip: "198.51.100.4", user_agent: "UA novo", page_url: "https://pontuaenem.com.br/checkout" };
+
+  const merged = mergeTikTokSignals(anteriores, novos);
+  assert.equal(merged.ttclid, "E.C.P.CLIQUE_ORIGINAL", "o click ID original nao pode ser perdido");
+  assert.equal(merged.ttp, "cookie-antigo");
+  // Sinais de sessão descrevem a compra: valem os do request mais recente.
+  assert.equal(merged.ip, "198.51.100.4");
+  assert.equal(merged.user_agent, "UA novo");
+});
+
+test("clique novo sobrescreve o ttclid antigo", () => {
+  const merged = mergeTikTokSignals(
+    { ttclid: "E.C.P.ANTIGO", ip: "203.0.113.7" },
+    { ttclid: "E.C.P.NOVO", ip: "198.51.100.4" },
+  );
+  assert.equal(merged.ttclid, "E.C.P.NOVO");
+});
+
+test("merge aceita metadata ausente ou invalido sem quebrar", () => {
+  assert.deepEqual(mergeTikTokSignals(null, { ip: "198.51.100.4" }), { ip: "198.51.100.4" });
+  assert.deepEqual(mergeTikTokSignals("lixo", {}), {});
+  assert.deepEqual(mergeTikTokSignals(undefined, undefined), {});
+});
+
+// O cookie do SDK depende do Pixel ter carregado e é cortado em 7 dias pelo ITP
+// do Safari. O nosso é Set-Cookie httpOnly, imune aos dois problemas.
+test("cookie proprio de click ID tem prioridade sobre o do SDK", () => {
+  const signals = buildTikTokSignals({
+    cookieHeader: `ttclid=E.C.P.DO_SDK; ${TIKTOK_CLICK_ID_COOKIE}=E.C.P.NOSSO; _ttp=abc`,
+  });
+  assert.equal(signals.ttclid, "E.C.P.NOSSO");
+});
+
+test("sem cookie proprio ainda usa o do SDK", () => {
+  const signals = buildTikTokSignals({ cookieHeader: "ttclid=E.C.P.DO_SDK" });
+  assert.equal(signals.ttclid, "E.C.P.DO_SDK");
+});
+
+test("validacao do click ID recusa lixo de query manipulada", () => {
+  assert.ok(isTikTokClickIdShape("E.C.P.v3fQ2RHacdksKfofPmlyuStIIHJ4Af1tKYxF9zz2c2PLx1Oaw15oHpcfl5AH"));
+  assert.ok(!isTikTokClickIdShape("qualquer-coisa"));
+  assert.ok(!isTikTokClickIdShape("E.C.P.curto"));
+  assert.ok(!isTikTokClickIdShape("E.C.P." + "x".repeat(600)));
+  assert.ok(!isTikTokClickIdShape('E.C.P.<script>alert(1)</script>'));
+  assert.ok(!isTikTokClickIdShape(null));
+});
+
+test("o middleware captura o click ID no mesmo ponto do codigo de indicacao", () => {
+  const source = read("../src/lib/supabase/middleware.ts");
+  assert.match(source, /searchParams\.get\("ttclid"\)/);
+  assert.match(source, /isTikTokClickIdShape/);
+  assert.match(source, /httpOnly: true/);
+});
+
+// A dedup do TikTok por event_id cobre só 48h. Sem trava persistida, reabrir a
+// página de retorno depois disso contaria uma segunda conversão.
+test("uma compra reporta ao TikTok uma unica vez, para sempre", () => {
+  const source = read("../src/lib/services/mercado-pago-processing.ts");
+  assert.match(source, /tiktok_purchase_reported_at/);
+  assert.match(source, /if \(metadata\[TIKTOK_REPORTED_AT_KEY\]\)/);
+  // O espelho do navegador só sai quando o servidor reportou nesta execução.
+  assert.match(source, /if \(!enviado\) return null/);
+});
+
+// O próprio comentário do módulo promete que publicidade não segura a entrega
+// do produto pago. Antes o await rodava ANTES do grant e contradizia isso.
+test("o envio ao TikTok roda depois da liberacao de acesso", () => {
+  const source = read("../src/lib/services/mercado-pago-processing.ts");
+  const grant = source.indexOf('rpc("grant_paid_access_for_order"');
+  const report = source.indexOf("await reportTikTokPurchase", grant);
+  assert.ok(grant > 0, "grant nao encontrado");
+  assert.ok(report > grant, "reportTikTokPurchase precisa vir depois do grant");
+});
+
 test("a CSP libera os hosts do Pixel nas tres diretivas necessarias", () => {
   const nextConfigSource = read("../next.config.ts");
 
@@ -376,4 +480,50 @@ test("a politica de privacidade declara o uso do TikTok", () => {
   assert.match(privacyPageSource, /Events API/);
   // A frase antiga negava qualquer pixel de marketing e ficaria falsa.
   assert.doesNotMatch(privacyPageSource, /não utilizamos cookies de publicidade/);
+});
+
+// --- Bugs de produto achados na revisão do funil ---
+
+const reconcileSource = read("../src/app/api/payments/reconcile/route.ts");
+const sucessoPageSource = read("../src/app/(public)/pagamento/sucesso/page.tsx");
+const middlewareSource = read("../src/lib/supabase/middleware.ts");
+
+// Três telas geram /pagamento/sucesso?order=UUID, mas a página só repassava
+// payment_id/collection_id — quem pagou por Pix recebia 400 e a tela acusava
+// falha de pagamento.
+test("o link Verificar meu pagamento chega ate a reconciliacao", () => {
+  assert.match(sucessoPageSource, /order: pickParam\(params\.order\)/);
+  assert.match(reconcileSource, /normalizeOrderId\(body\.order \?\? body\.external_reference\)/);
+  assert.match(reconcileSource, /findProviderPaymentIdForOrder/);
+});
+
+// O id do pedido vem da query string: sem filtrar por dono, qualquer pessoa
+// logada consultaria pedido alheio.
+test("busca por pedido e escopada ao dono", () => {
+  const fn = reconcileSource.slice(reconcileSource.indexOf("async function findProviderPaymentIdForOrder"));
+  assert.match(fn, /\.eq\("id", orderId\)/);
+  assert.match(fn, /\.eq\("user_id", userId\)/);
+});
+
+test("pedido sem pagamento registrado responde pendente, nao erro", () => {
+  const trecho = reconcileSource.slice(reconcileSource.indexOf("if (!paymentId)"));
+  assert.match(trecho, /status: "pending"/);
+  // O 400 continua existindo, mas só quando nem pedido nem pagamento vieram.
+  assert.match(trecho, /status: 400/);
+  assert.ok(
+    trecho.indexOf('status: "pending"') < trecho.indexOf("status: 400"),
+    "o caminho de pedido conhecido tem que vir antes do 400",
+  );
+});
+
+// O parâmetro era escrito em dois redirects e lido em nenhum destino.
+test("middleware nao escreve mais o parametro next que ninguem lia", () => {
+  assert.doesNotMatch(middlewareSource, /searchParams\.set\("next"/);
+  // redirectedFrom continua: esse a tela de login realmente consome.
+  assert.match(middlewareSource, /searchParams\.set\("redirectedFrom"/);
+});
+
+// Remover o next não pode levar junto o resto da query (ex.: ttclid).
+test("remover o next nao apaga a query inteira", () => {
+  assert.doesNotMatch(middlewareSource, /url\.search = ""/);
 });

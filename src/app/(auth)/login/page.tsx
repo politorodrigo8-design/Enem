@@ -27,11 +27,13 @@ import {
   resetPasswordAction,
   signInAction,
   signUpAction,
+  verifyEmailOtpAction,
 } from "@/lib/actions/auth";
 import {
   resetPasswordSchema,
   signInSchema,
   signUpSchema,
+  verifyEmailOtpSchema,
   type ResetPasswordInput,
   type SignInInput,
   type SignUpInput,
@@ -62,7 +64,7 @@ const headline: Record<Mode, { title: string; description: string }> = {
   },
   verify: {
     title: "Confirme seu e-mail",
-    description: "Enviamos um link para validar o endereço usado no cadastro.",
+    description: "Digite aqui o código que enviamos para o endereço do cadastro.",
   },
 };
 
@@ -90,6 +92,10 @@ function LoginPageContent() {
   const searchParams = useSearchParams();
   const redirectedFrom = safeInternalPath(searchParams.get("redirectedFrom"));
   const setupMissing = searchParams.get("setup") === "supabase";
+  // Sem isto, quem clica no link do e-mail em outro navegador (falha de PKCE)
+  // cai numa tela de login comum, sem uma palavra sobre o que deu errado.
+  const callbackFailed = searchParams.get("error") === "auth_callback";
+  const sessionExpired = searchParams.get("expired") === "session";
   const [mode, setMode] = useState<Mode>(() => initialModeFromSearchParam(searchParams.get("mode")));
   const [pending, startTransition] = useTransition();
   const legalVersions = currentLegalAcceptanceVersions();
@@ -117,6 +123,10 @@ function LoginPageContent() {
   const resetForm = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
     defaultValues: { email: "" },
+  });
+  const otpForm = useForm<{ token: string }>({
+    resolver: zodResolver(verifyEmailOtpSchema.pick({ token: true })),
+    defaultValues: { token: "" },
   });
   const verificationForm = useForm<ResetPasswordInput>({
     resolver: zodResolver(resetPasswordSchema),
@@ -177,6 +187,23 @@ function LoginPageContent() {
         errorTitle: "Não foi possível criar a conta",
       });
       if (result.ok) {
+        router.push("/checkout");
+        router.refresh();
+      }
+    });
+  }
+
+  function handleVerifyOtp(values: { token: string }) {
+    const email = verificationForm.getValues("email");
+    startTransition(async () => {
+      const result = await verifyEmailOtpAction({ email, token: values.token });
+      showAuthToast(result, {
+        successTitle: "E-mail confirmado",
+        successDescription: result.message,
+        errorTitle: "Não foi possível confirmar",
+      });
+      if (result.ok) {
+        otpForm.reset({ token: "" });
         router.push("/checkout");
         router.refresh();
       }
@@ -296,6 +323,31 @@ function LoginPageContent() {
                 <Notice tone="warning" className="mt-6 rounded-[18px]">
                   O login está temporariamente indisponível. Tente novamente em
                   alguns minutos ou fale com pontuaenem.suporte@gmail.com.
+                </Notice>
+              ) : null}
+
+              {callbackFailed ? (
+                <Notice tone="warning" className="mt-6 rounded-[18px]" title="O link não funcionou aqui">
+                  <p>
+                    Isso acontece quando o e-mail é aberto em um navegador
+                    diferente daquele em que você criou a conta. Use o{" "}
+                    <strong>código</strong> que está no mesmo e-mail — ele
+                    funciona em qualquer aparelho.
+                  </p>
+                  <button
+                    type="button"
+                    className="mt-2 font-extrabold underline underline-offset-2"
+                    onClick={() => setMode("verify")}
+                  >
+                    Digitar o código
+                  </button>
+                </Notice>
+              ) : null}
+
+              {sessionExpired ? (
+                <Notice tone="info" className="mt-6 rounded-[18px]" title="Sua sessão expirou">
+                  Por segurança, encerramos sessões abertas há muito tempo. Entre
+                  de novo para continuar.
                 </Notice>
               ) : null}
 
@@ -484,29 +536,32 @@ function LoginPageContent() {
 
               {mode === "verify" ? (
                 <div className="mt-6 space-y-5">
-                  <Notice tone="success" icon={MailCheck} title="Link de confirmação enviado">
+                  <Notice tone="success" icon={MailCheck} title="Código enviado">
                     <p>
-                      Abra o e-mail que enviamos para
+                      Enviamos um código para
                       {verificationEmail ? (
                         <strong> {verificationEmail}</strong>
                       ) : (
                         " sua caixa de entrada"
-                      )}{" "}
-                      e clique no link para ativar sua conta. Depois disso, você
-                      será levado ao checkout.
+                      )}
+                      . Digite ele aqui nesta mesma aba — o código vale por 1 hora.
                     </p>
                   </Notice>
+                  {/* O código é o caminho principal de propósito: o link do
+                      e-mail abre em outro navegador e trava a confirmação. */}
                   <form
                     className="space-y-4"
-                    onSubmit={verificationForm.handleSubmit(handleResendVerification)}
+                    onSubmit={otpForm.handleSubmit(handleVerifyOtp)}
                   >
                     <Field
-                      label="Reenviar para"
-                      type="email"
-                      autoComplete="username"
-                      placeholder="voce@exemplo.com"
-                      error={verificationForm.formState.errors.email?.message}
-                      registration={verificationForm.register("email")}
+                      label="Código do e-mail"
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      autoFocus
+                      placeholder="000000"
+                      error={otpForm.formState.errors.token?.message}
+                      registration={otpForm.register("token")}
                     />
                     <Button
                       type="submit"
@@ -516,7 +571,31 @@ function LoginPageContent() {
                       className="h-12 rounded-[14px] text-base font-extrabold shadow-sm shadow-blue-900/15"
                     >
                       {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                      Reenviar e-mail
+                      Confirmar e continuar
+                    </Button>
+                  </form>
+                  <form
+                    className="space-y-4 border-t border-slate-200 pt-5"
+                    onSubmit={verificationForm.handleSubmit(handleResendVerification)}
+                  >
+                    <Field
+                      label="Não recebeu? Reenviar para"
+                      type="email"
+                      autoComplete="username"
+                      placeholder="voce@exemplo.com"
+                      error={verificationForm.formState.errors.email?.message}
+                      registration={verificationForm.register("email")}
+                    />
+                    <Button
+                      type="submit"
+                      full
+                      variant="outline"
+                      size="lg"
+                      disabled={pending}
+                      className="h-12 rounded-[14px] text-base font-extrabold"
+                    >
+                      {pending ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                      Enviar outro código
                     </Button>
                   </form>
                   <p className="pt-2 text-center text-sm text-slate-600">
@@ -625,6 +704,8 @@ function Field({
   type = "text",
   autoComplete,
   placeholder,
+  inputMode,
+  autoFocus,
 }: {
   label: string;
   registration: UseFormRegisterReturn;
@@ -632,6 +713,10 @@ function Field({
   type?: string;
   autoComplete?: string;
   placeholder?: string;
+  // Teclado numérico no celular para o código de confirmação — o funil de
+  // anúncio é majoritariamente mobile.
+  inputMode?: "numeric";
+  autoFocus?: boolean;
 }) {
   const inputId = `auth-${registration.name.replace(/\./g, "-")}`;
   const errorId = `${inputId}-error`;
@@ -647,6 +732,8 @@ function Field({
         className={inputClasses}
         autoComplete={autoComplete}
         placeholder={placeholder}
+        inputMode={inputMode}
+        autoFocus={autoFocus}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? errorId : undefined}
         {...registration}

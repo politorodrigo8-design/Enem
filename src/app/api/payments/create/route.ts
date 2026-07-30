@@ -11,6 +11,7 @@ import {
 import { recordProductEvent } from "@/lib/services/product-events";
 import {
   buildTikTokSignals,
+  mergeTikTokSignals,
   readTikTokClickIdFromUrl,
 } from "@/lib/services/tiktok-events-payload.mjs";
 import {
@@ -224,17 +225,27 @@ export async function POST(request: NextRequest) {
   const reusableOrder = pendingOrder as Order | null;
 
   if (reusableOrder?.checkout_url) {
-    // O comprador pode ter voltado por um clique novo de anúncio, com ttclid
-    // diferente. O pedido é o mesmo, os sinais não.
-    await admin
+    // O pedido é o mesmo, os sinais não. Mas substituir o bloco inteiro apagaria
+    // um ttclid capturado no clique original quando o comprador volta dias
+    // depois por outro dispositivo — o merge preserva o que só existia antes.
+    const previousMetadata = isPlainObject(reusableOrder.metadata) ? reusableOrder.metadata : {};
+    const { error: signalsError } = await admin
       .from("orders")
       .update({
         metadata: {
-          ...(isPlainObject(reusableOrder.metadata) ? reusableOrder.metadata : {}),
-          tiktok: tiktokSignals,
+          ...previousMetadata,
+          tiktok: mergeTikTokSignals(previousMetadata.tiktok, tiktokSignals),
         },
       } as never)
       .eq("id", reusableOrder.id);
+
+    if (signalsError) {
+      // Não bloqueia a compra: sem os sinais o Purchase sai com matching pior,
+      // mas o comprador precisa conseguir pagar.
+      logServerError("payments.create.tiktok_signals_reused_order", signalsError, {
+        orderId: reusableOrder.id,
+      });
+    }
 
     try {
       await recordCurrentLegalAcceptances({
