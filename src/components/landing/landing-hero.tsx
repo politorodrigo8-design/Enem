@@ -6,6 +6,7 @@ import {
   accessUntilLabel,
   anchorPriceLabel,
   initialCreditsLabel,
+  launchOfferLabel,
 } from "./landing-data";
 import { LandingSectionLink } from "./landing-section-link";
 
@@ -61,6 +62,7 @@ export function LandingHero({ ctaHref }: LandingHeroProps) {
               R$ 99,90 para acesso até {accessUntilLabel}.
             </p>
             <p>{initialCreditsLabel}. Sem mensalidade.</p>
+            <p className="text-amber-800">{launchOfferLabel}.</p>
           </div>
         </div>
         <div
